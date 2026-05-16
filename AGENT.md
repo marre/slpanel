@@ -87,8 +87,11 @@ consume this API.
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/departures/:siteId` | Fetch live departures from Trafiklab |
-| `GET` | `/api/stops/search?q=<query>` | Search for SL stops |
+| `GET` | `/api/departures/:siteId` | Fetch live departures from SL Transport API (cached ~20 s) |
+| `GET` | `/api/stops/search?q=<query>` | Search for SL stops via SL Transport API |
+
+Upstream base URL: `https://transport.integration.sl.se/v1`  
+No API key required for v1.
 
 ---
 
@@ -146,15 +149,23 @@ npm run deploy
 
 ## Environment Variables / Secrets
 
+The **SL Transport API requires no API key** in v1, so no secrets are needed for initial deployment.
+
+When secrets are introduced later, use:
+
 | Name | Where | Description |
 |---|---|---|
-| `TRAFIKLAB_REALTIME_KEY` | Wrangler secret | API key for Trafiklab SL Realtidsinformation |
-| `TRAFIKLAB_STOP_LOOKUP_KEY` | Wrangler secret | API key for Trafiklab stop-lookup (Platssök) |
+| `TRAFIKLAB_KEY` | Wrangler secret | API key for a future gated Trafiklab tier (not needed in v1) |
 
-Set locally with:
+**Local development** – create a `.dev.vars` file (gitignored, auto-loaded by `wrangler pages dev`):
+```ini
+# .dev.vars
+TRAFIKLAB_KEY=your_key_here
+```
 
+**Production** – set via CLI (stored in Cloudflare, never in the repo):
 ```sh
-echo "MY_KEY" | wrangler secret put TRAFIKLAB_REALTIME_KEY
+wrangler secret put TRAFIKLAB_KEY
 ```
 
 ---
