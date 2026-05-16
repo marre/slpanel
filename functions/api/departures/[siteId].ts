@@ -1,5 +1,10 @@
 import { errorJson, json, type RouteContext } from '../../_lib/http'
-import { buildDeparturesUrl, fetchTransportApi, UpstreamError } from '../../_lib/trafiklab'
+import {
+  buildDeparturesUrl,
+  fetchTransportApi,
+  normalizeDeparturesResponse,
+  UpstreamError,
+} from '../../_lib/trafiklab'
 
 interface Params {
   siteId: string
@@ -7,8 +12,8 @@ interface Params {
 
 export async function onRequestGet({ params }: RouteContext<Record<string, unknown>, Params>): Promise<Response> {
   try {
-    const payload = await fetchTransportApi<Record<string, unknown>>(buildDeparturesUrl(params.siteId))
-    return json(payload)
+    const payload = await fetchTransportApi<unknown>(buildDeparturesUrl(params.siteId))
+    return json(normalizeDeparturesResponse(params.siteId, payload))
   } catch (error) {
     if (error instanceof UpstreamError) {
       return errorJson(error.status, 'upstream_error', error.message)

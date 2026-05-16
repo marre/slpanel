@@ -27,6 +27,10 @@ interface DisplayRow {
 const DISPLAY_ID_LENGTH = 12
 const ALPHANUMERIC_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 
+export async function ensureOwnerExists(db: D1DatabaseLike, ownerId: string): Promise<void> {
+  await db.prepare('INSERT OR IGNORE INTO owners (id) VALUES (?)').bind(ownerId).run()
+}
+
 export function mapDisplayRow(row: DisplayRow): Display {
   return {
     id: row.id,
@@ -90,6 +94,8 @@ export async function getDisplay(db: D1DatabaseLike, id: string): Promise<Displa
 export async function createDisplay(db: D1DatabaseLike, input: DisplayInput): Promise<Display> {
   const displayId = generateDisplayId()
   const id = createFullDisplayId(input.owner_id, displayId)
+
+  await ensureOwnerExists(db, input.owner_id)
 
   const statement = db.prepare(
     `INSERT INTO displays (id, owner_id, display_id, name, site_id, site_name, refresh_interval)

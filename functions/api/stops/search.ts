@@ -1,12 +1,17 @@
 import { errorJson, json, type RouteContext } from '../../_lib/http'
-import { buildStopSearchUrl, fetchTransportApi, UpstreamError } from '../../_lib/trafiklab'
+import {
+  buildStopSearchUrl,
+  fetchTransportApi,
+  normalizeStopSearchResponse,
+  UpstreamError,
+} from '../../_lib/trafiklab'
 
 export async function onRequestGet({ request }: RouteContext): Promise<Response> {
   try {
     const url = new URL(request.url)
     const query = url.searchParams.get('q') ?? ''
-    const payload = await fetchTransportApi<Record<string, unknown>>(buildStopSearchUrl(query))
-    return json(payload)
+    const payload = await fetchTransportApi<unknown>(buildStopSearchUrl(query))
+    return json(normalizeStopSearchResponse(query, payload))
   } catch (error) {
     if (error instanceof UpstreamError) {
       return errorJson(error.status, 'upstream_error', error.message)

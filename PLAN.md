@@ -25,9 +25,9 @@ Browser (Config UI)          Browser (Display UI)          Hardware client (futu
                                  │      │
                     ┌────────────▼─┐  ┌─▼──────────────┐
                     │  D1 Database │  │  Trafiklab API  │
-                    │  (displays)  │  │  (departures,   │
-                    └──────────────┘  │   stop search)  │
-                                      └─────────────────┘
+                    │ (owners,     │  │  (departures,   │
+                    │  displays)   │  │   stop search)  │
+                    └──────────────┘  └─────────────────┘
 ```
 
 The frontend and backend communicate **only** through the `/api/` layer. This is the stable contract
@@ -55,11 +55,14 @@ Example:  aB3xZ9kQ-fG7mNpQr2wLt
 ## Database Schema (D1 / SQLite)
 
 ```sql
--- migrations/0001_initial.sql
+CREATE TABLE owners (
+  id         TEXT PRIMARY KEY,         -- 8-char owner identifier
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
 
 CREATE TABLE displays (
   id          TEXT PRIMARY KEY,        -- full id: "<owner_id>-<display_id>"
-  owner_id    TEXT NOT NULL,
+  owner_id    TEXT NOT NULL REFERENCES owners(id) ON DELETE CASCADE,
   display_id  TEXT NOT NULL UNIQUE,    -- globally unique 12-char display identifier
   name        TEXT NOT NULL DEFAULT '',
   site_id     TEXT,                    -- Trafiklab SiteId (stop)
@@ -87,12 +90,12 @@ CREATE INDEX idx_displays_owner ON displays(owner_id);
 | `PUT` | `/api/displays/:id` | `{ name?, site_id?, site_name?, refresh_interval? }` | Update display |
 | `DELETE` | `/api/displays/:id` | — | Delete display |
 
-### SL data (proxied through backend to protect API keys)
+### SL data (service-specific backend responses)
 
 | Method | Path | Params | Description |
 |---|---|---|---|
-| `GET` | `/api/stops/search` | `?q=<text>` | Search stops (Trafiklab Platssök) |
-| `GET` | `/api/departures/:siteId` | — | Live departures (Trafiklab Realtid) |
+| `GET` | `/api/stops/search` | `?q=<text>` | Search stops and return normalized stop results for SLPanel |
+| `GET` | `/api/departures/:siteId` | — | Return normalized departures for SLPanel displays |
 
 ---
 
@@ -145,7 +148,8 @@ CREATE INDEX idx_displays_owner ON displays(owner_id);
 ### Phase 6 – Polish & Deploy
 - [ ] Responsive / TV-friendly CSS for the display board
 - [ ] Error states and loading skeletons
-- [ ] CI/CD via Cloudflare Pages GitHub integration
+- [x] CI workflow for lint, test, and build
+- [ ] Cloudflare Pages deployment via GitHub integration
 - [ ] README with setup instructions
 
 ---

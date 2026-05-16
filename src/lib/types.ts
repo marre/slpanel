@@ -25,19 +25,36 @@ export interface DisplayUpdateInput {
   refresh_interval?: number
 }
 
+export interface Owner {
+  id: string
+  created_at: string
+}
+
 export interface StopSearchResult {
-  id?: string
-  siteId?: string
-  name?: string
-  [key: string]: unknown
+  site_id: string
+  name: string
+  type: string | null
+  stop_area_name: string | null
 }
 
 export interface StopSearchResponse {
-  results?: StopSearchResult[]
-  [key: string]: unknown
+  query: string
+  results: StopSearchResult[]
+}
+
+export interface Departure {
+  line_number: string
+  destination: string
+  display_time: string
+  minutes_until_departure: number | null
+  scheduled_at: string | null
+  expected_at: string | null
+  transport_mode: string | null
+  platform: string | null
+  state: string | null
 }
 
 export interface DepartureResponse {
-  departures?: Array<Record<string, unknown>>
-  [key: string]: unknown
+  site_id: string
+  departures: Departure[]
 }

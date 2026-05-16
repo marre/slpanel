@@ -25,6 +25,7 @@ by a Cloudflare D1 database.
 
 ```
 slpanel/
+├── .github/workflows/         # CI pipelines
 ├── AGENT.md                  # This file
 ├── PLAN.md                   # Architecture and phased plan
 ├── wrangler.toml             # Cloudflare Pages / D1 config
@@ -32,7 +33,8 @@ slpanel/
 ├── vite.config.ts
 ├── tsconfig.json
 ├── migrations/               # Wrangler D1 SQL migrations
-│   └── 0001_initial.sql
+│   ├── 0001_initial.sql
+│   └── 0002_owners.sql
 ├── functions/                # Cloudflare Pages Functions (API routes)
 │   ├── _lib/
 │   │   ├── displays.ts       # D1 helpers for display CRUD
@@ -61,8 +63,7 @@ slpanel/
 
 Display IDs follow the format `<owner-id>-<display-id>`:
 
-- **owner-id** – 8 alphanumeric characters (upper/lower case + digits), randomly generated once per
-  "user" (stored client-side or entered manually).
+ - **owner-id** – 8 alphanumeric characters (upper/lower case + digits), entered manually in v1.
 - **display-id** – 12 alphanumeric characters (upper/lower case + digits), randomly generated per
   display.
 - Full example: `aB3xZ9kQ-fG7mNpQr2wLt`
@@ -90,8 +91,8 @@ consume this API.
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/departures/:siteId` | Fetch live departures from SL Transport API |
-| `GET` | `/api/stops/search?q=<query>` | Search for SL stops via SL Transport API |
+| `GET` | `/api/departures/:siteId` | Fetch and normalize live departures into an SLPanel-specific payload |
+| `GET` | `/api/stops/search?q=<query>` | Search and normalize stop results into an SLPanel-specific payload |
 
 Upstream base URL: `https://transport.integration.sl.se/v1`  
 No API key required for v1.
@@ -111,6 +112,12 @@ Local development uses:
 ```sh
 wrangler d1 migrations apply slpanel-db --local
 ```
+
+Current schema highlights:
+
+- `owners.id` is the canonical owner identifier.
+- `displays.owner_id` must reference an existing `owners.id`.
+- Creating a display should ensure the owning row exists before inserting into `displays`.
 
 ---
 
