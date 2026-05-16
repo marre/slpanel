@@ -112,22 +112,22 @@ CREATE INDEX idx_displays_owner ON displays(owner_id);
 - [x] `AGENT.md` – agent conventions
 - [x] `PLAN.md` – this document
 
-### Phase 2 – Project Setup
-- [ ] Initialise Vite + React + TypeScript project (`npm create vite@latest`)
-- [ ] Add Wrangler and configure `wrangler.toml` for Cloudflare Pages + D1
-- [ ] Write `migrations/0001_initial.sql` (schema above)
-- [ ] `tsconfig.json`, ESLint, Prettier
-- [ ] `npm run dev` / `npm run build` / `npm run deploy` scripts
-- [ ] Basic Vitest setup
+### Phase 2 – Project Setup ✅
+- [x] Initialise Vite + React + TypeScript project (`npm create vite@latest`)
+- [x] Add Wrangler and configure `wrangler.toml` for Cloudflare Pages + D1
+- [x] Write `migrations/0001_initial.sql` (schema above)
+- [x] `tsconfig.json`, ESLint, Prettier
+- [x] `npm run dev` / `npm run build` / `npm run deploy` scripts
+- [x] Basic Vitest setup
 
-### Phase 3 – Backend API
-- [ ] Pages Function: `GET /api/displays?owner=`
-- [ ] Pages Function: `POST /api/displays`
-- [ ] Pages Function: `GET/PUT/DELETE /api/displays/:id`
-- [ ] Pages Function: `GET /api/stops/search?q=`
-- [ ] Pages Function: `GET /api/departures/:siteId`
-- [ ] Wrangler secrets for Trafiklab API keys
-- [ ] Unit tests for helper functions
+### Phase 3 – Backend API ✅
+- [x] Pages Function: `GET /api/displays?owner=`
+- [x] Pages Function: `POST /api/displays`
+- [x] Pages Function: `GET/PUT/DELETE /api/displays/:id`
+- [x] Pages Function: `GET /api/stops/search?q=`
+- [x] Pages Function: `GET /api/departures/:siteId`
+- [x] Wrangler secrets workflow documented for future Trafiklab API keys (not required in v1)
+- [x] Unit tests for helper functions
 
 ### Phase 4 – Config UI
 - [ ] `HomePage` – simple landing page with navigation

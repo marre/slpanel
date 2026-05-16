@@ -21,7 +21,7 @@ by a Cloudflare D1 database.
 
 ---
 
-## Repository Layout (target)
+## Repository Layout
 
 ```
 slpanel/
@@ -34,19 +34,22 @@ slpanel/
 ├── migrations/               # Wrangler D1 SQL migrations
 │   └── 0001_initial.sql
 ├── functions/                # Cloudflare Pages Functions (API routes)
+│   ├── _lib/
+│   │   ├── displays.ts       # D1 helpers for display CRUD
+│   │   ├── http.ts           # JSON/route helpers
+│   │   ├── trafiklab.ts      # Upstream SL Transport API helpers
+│   │   └── validation.ts     # Request validation helpers
 │   └── api/
+│       ├── departures/
+│       │   └── [siteId].ts   # GET live departures for a site
 │       ├── displays/
 │       │   ├── index.ts      # GET list, POST create
 │       │   └── [id].ts       # GET, PUT, DELETE single display
-│       └── departures/
-│           └── [stationId].ts
+│       └── stops/
+│           └── search.ts     # GET stop search results
 └── src/                      # React frontend
     ├── main.tsx
     ├── App.tsx
-    ├── pages/
-    │   ├── ConfigPage.tsx    # Admin / config UI
-    │   └── DisplayPage.tsx   # Public departure board UI
-    ├── components/
     └── lib/
         ├── api.ts            # Typed fetch wrappers for the API
         └── types.ts          # Shared domain types
@@ -117,14 +120,18 @@ wrangler d1 migrations apply slpanel-db --local
 # Install deps
 npm install
 
-# Local dev (Pages dev server with D1)
-npx wrangler pages dev --d1=DB -- npx vite
-
-# Or using the convenience script
+# Local frontend dev
 npm run dev
+
+# Preview the built app locally
+npm run build
+npx wrangler pages dev dist
 
 # Build
 npm run build
+
+# Test
+npm run test
 
 # Deploy
 npm run deploy
