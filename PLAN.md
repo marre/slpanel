@@ -166,7 +166,6 @@ the old Realtidsinformation v4 and Platsuppslag v2 endpoints in March 2024.
 Key facts:
 - **No API key required** — the endpoints are open/public.
 - **No officially enforced rate limits**, but Trafiklab asks you not to make excessive requests.
-  The backend will cache departure responses (TTL ~20 s) to stay well within polite usage.
 - **Stop search:** `GET https://transport.integration.sl.se/v1/sites?expand=true&q=<text>`
 - **Departures:** `GET https://transport.integration.sl.se/v1/sites/{siteId}/departures`
 - Responses are JSON; `siteId` is a numeric string (e.g. `"9180"` for T-Centralen).
@@ -215,11 +214,6 @@ How often should the display page refresh departure data?
 
 > **Answer:** Default **30 seconds**. The interval is configurable per display (stored as
 > `refresh_interval` in the `displays` table, in seconds).
->
-> **Backend caching:** The backend will cache the Trafiklab departure response per `siteId` with a
-> TTL of ~20 seconds using Cloudflare's Cache API (or KV), so that multiple displays watching the
-> same stop don't each make a separate upstream request every 30 s. This keeps usage polite and
-> within reasonable limits.
 
 ### Q6 – Owner-id UX
 Should the owner-id be:
@@ -280,7 +274,6 @@ _(Moved here from Open Questions once answered)_
 - `display_id` column is globally `UNIQUE`; `(owner_id, display_id)` pair also has a `UNIQUE` index.
 - No `config` JSON blob in the schema — individual columns are used for all configurable fields.
 - SL Transport API (`transport.integration.sl.se`) — no API key required in v1.
-- Backend caches departure responses (~20 s TTL) to avoid excessive upstream requests.
 - Departure board layout: line number + destination + time-left on primary row; next 3 times compact on the second row.
 - Filters (line, direction, mode) will be stored per display and applied server-side.
 - Refresh interval default: 30 s, configurable per display (`refresh_interval` column).

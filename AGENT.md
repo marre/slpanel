@@ -87,7 +87,7 @@ consume this API.
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/departures/:siteId` | Fetch live departures from SL Transport API (cached ~20 s) |
+| `GET` | `/api/departures/:siteId` | Fetch live departures from SL Transport API |
 | `GET` | `/api/stops/search?q=<query>` | Search for SL stops via SL Transport API |
 
 Upstream base URL: `https://transport.integration.sl.se/v1`  
@@ -147,6 +147,122 @@ npm run deploy
 
 ---
 
+## Cloudflare Setup Guide
+
+This section describes the one-time steps to configure the Cloudflare account for SLPanel.
+
+### Prerequisites
+
+- A [Cloudflare account](https://dash.cloudflare.com/sign-up) (free tier is sufficient).
+- [Node.js](https://nodejs.org/) ≥ 18 and `npm` installed locally.
+- Wrangler CLI installed globally or via `npx`:
+  ```sh
+  npm install -g wrangler
+  wrangler login   # opens browser, authenticates with your Cloudflare account
+  ```
+
+### 1 – Create the D1 database
+
+```sh
+wrangler d1 create slpanel-db
+```
+
+Copy the `database_id` printed by the command — you'll need it in `wrangler.toml`.
+
+### 2 – Create `wrangler.toml`
+
+Create `wrangler.toml` in the project root (this file is safe to commit — it contains no secrets):
+
+```toml
+name = "slpanel"          # must match the Cloudflare Pages project name
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "dist"
+
+[[d1_databases]]
+binding = "DB"            # accessed as env.DB in Pages Functions
+database_name = "slpanel-db"
+database_id = "<paste-database_id-here>"
+```
+
+### 3 – Apply D1 migrations
+
+```sh
+# Apply to the remote (production) database
+wrangler d1 migrations apply slpanel-db
+
+# Apply to the local dev database
+wrangler d1 migrations apply slpanel-db --local
+```
+
+### 4 – Create the Cloudflare Pages project
+
+**Option A – via the Dashboard (recommended for first-time):**
+
+1. Go to [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages** → **Create** →
+   **Pages** → **Connect to Git**.
+2. Authorise Cloudflare to access your GitHub account and select the `slpanel` repository.
+3. Set the build configuration:
+   - **Framework preset:** None (Vite)
+   - **Build command:** `npm run build`
+   - **Build output directory:** `dist`
+4. Click **Save and Deploy**.
+
+**Option B – via Wrangler CLI:**
+
+```sh
+# The first `wrangler pages deploy dist` from a linked repo creates the project automatically.
+npm run build
+wrangler pages deploy dist --project-name=slpanel
+```
+
+### 5 – Link the D1 database to the Pages project
+
+In the Cloudflare Dashboard:
+
+1. Open the **slpanel** Pages project → **Settings** → **Functions**.
+2. Under **D1 database bindings**, add:
+   - **Variable name:** `DB`
+   - **D1 database:** `slpanel-db`
+3. Click **Save**.
+
+Or with Wrangler (after the project exists):
+
+```sh
+# The binding is already declared in wrangler.toml; Wrangler picks it up on the next deploy.
+wrangler pages deploy dist --project-name=slpanel
+```
+
+### 6 – Set secrets (when needed)
+
+Secrets are stored securely in Cloudflare and injected at runtime — they never appear in the repo.
+
+**Via CLI:**
+```sh
+wrangler secret put TRAFIKLAB_KEY --project-name=slpanel
+# prompts for the value; it is encrypted and stored in Cloudflare
+```
+
+**Via Dashboard:**
+Pages project → **Settings** → **Environment Variables** → **Add variable** → tick **Encrypt**.
+
+For local development create a `.dev.vars` file (gitignored):
+```ini
+# .dev.vars  — loaded automatically by `wrangler pages dev`
+TRAFIKLAB_KEY=your_key_here
+```
+
+> **Note:** No secrets are required for the initial v1 deployment because the SL Transport API is
+> open and requires no key.
+
+### 7 – Continuous deployment
+
+Once the GitHub repository is connected (Step 4, Option A), every push to `main` triggers an
+automatic build and deploy via Cloudflare Pages CI.
+
+Preview deployments are created automatically for every pull request.
+
+---
+
 ## Environment Variables / Secrets
 
 The **SL Transport API requires no API key** in v1, so no secrets are needed for initial deployment.
@@ -157,16 +273,7 @@ When secrets are introduced later, use:
 |---|---|---|
 | `TRAFIKLAB_KEY` | Wrangler secret | API key for a future gated Trafiklab tier (not needed in v1) |
 
-**Local development** – create a `.dev.vars` file (gitignored, auto-loaded by `wrangler pages dev`):
-```ini
-# .dev.vars
-TRAFIKLAB_KEY=your_key_here
-```
-
-**Production** – set via CLI (stored in Cloudflare, never in the repo):
-```sh
-wrangler secret put TRAFIKLAB_KEY
-```
+See the [Cloudflare Setup Guide](#cloudflare-setup-guide) above (Step 6) for the full workflow.
 
 ---
 
