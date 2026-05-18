@@ -1,286 +1,296 @@
-# PLAN.md – SLPanel Implementation Plan
+# PLAN.md – SLPanel Replan
 
-## Vision
+## Current repository state
 
-An online SL departure board display, modelled after the physical
-[T-Skylt X](https://shop.t-skylt.se/products/t-skylt-x).  
-A user can set up one or more "displays", each configured to show departures from a chosen SL
-station/stop. The display page auto-refreshes and can be opened on any screen (TV, tablet, etc.)
-without any login.
+- The previous prototype implementation has been removed from this branch on request.
+- The repository is back to a planning-first state.
+- The next implementation should start fresh around **Cloudflare Workers**, not Cloudflare Pages.
 
 ---
 
-## Architecture Overview
+## Product goal
 
-```
-Browser (Config UI)          Browser (Display UI)          Hardware client (future)
-        │                            │                              │
-        └────────────────────────────┴──────────────────────────────┘
-                                     │ HTTPS / JSON REST
-                          ┌──────────▼──────────┐
-                          │  Cloudflare Pages    │
-                          │  Pages Functions API │
-                          │  /api/*              │
-                          └──────┬──────┬────────┘
-                                 │      │
-                    ┌────────────▼─┐  ┌─▼──────────────┐
-                    │  D1 Database │  │  Trafiklab API  │
-                    │ (owners,     │  │  (departures,   │
-                    │  displays)   │  │   stop search)  │
-                    └──────────────┘  └─────────────────┘
-```
-
-The frontend and backend communicate **only** through the `/api/` layer. This is the stable contract
-that future hardware clients will also use.
+Build an online SL departure board inspired by the physical [T-Skylt X](https://shop.t-skylt.se/products/t-skylt-x).
+Each display should be configurable by an owner and show SL departures on a TV, tablet, or browser without login.
 
 ---
 
-## ID Scheme
+## Target architecture
 
+```text
+Browser (config UI / display UI / future hardware clients)
+                         |
+                         | HTTPS / JSON
+                         v
+              Cloudflare Worker application
+           - serves frontend assets
+           - exposes /api/* routes
+           - calls Trafiklab
+                         |
+             +-----------+-----------+
+             |                       |
+             v                       v
+      Cloudflare D1            SL Transport API
 ```
-Full display ID:  <owner-id>-<display-id>
-                  ^^^^^^^^   ^^^^^^^^^^^^
-                  8 chars     12 chars
-                  [A-Za-z0-9] [A-Za-z0-9]
 
-Example:  aB3xZ9kQ-fG7mNpQr2wLt
-```
+### Chosen technical direction
 
-- The **owner-id** groups displays belonging to the same "user".
-- The **display-id** uniquely identifies a single display within an owner.
-- **No authentication** in v1 — knowledge of an ID is the only access control.
+- **Platform:** Cloudflare Workers
+- **Frontend framework:** React Router v7 + React + TypeScript
+- **Backend framework:** Hono on Cloudflare Workers
+- **Styling:** Tailwind CSS
+- **Database:** Cloudflare D1
+- **Testing:** Vitest for unit tests
+- **CI:** GitHub Actions for lint, test, and build once the scaffold exists
 
 ---
 
-## Database Schema (D1 / SQLite)
+## Core product decisions
+
+- No authentication in v1.
+- Frontend talks only to `/api/*`.
+- Browser never calls Trafiklab directly.
+- Owner ID is always entered manually in v1.
+- Display refresh interval defaults to **30 seconds** and is configurable per display.
+- No backend caching in v1.
+- Display look and feel should mirror **T-Skylt X**: dark background, pixelated/dot-matrix feel, amber/white text.
+- Traffic API responses returned by our backend must be **SLPanel-specific**, not raw upstream payloads.
+
+---
+
+## ID scheme
+
+```text
+<owner-id>-<display-id>
+ owner-id:   8 alphanumeric characters
+ display-id: 12 alphanumeric characters
+```
+
+Example: `aB3xZ9kQ-fG7mNpQr2wLt`
+
+- `display_id` is globally unique.
+- `owner_id` groups displays belonging to one owner.
+- The full display resource id is `<owner-id>-<display-id>`.
+
+---
+
+## Planned data model
+
+### owners
 
 ```sql
 CREATE TABLE owners (
-  id         TEXT PRIMARY KEY,         -- 8-char owner identifier
+  id TEXT PRIMARY KEY,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
+```
 
+### displays
+
+```sql
 CREATE TABLE displays (
-  id          TEXT PRIMARY KEY,        -- full id: "<owner_id>-<display_id>"
-  owner_id    TEXT NOT NULL REFERENCES owners(id) ON DELETE CASCADE,
-  display_id  TEXT NOT NULL UNIQUE,    -- globally unique 12-char display identifier
-  name        TEXT NOT NULL DEFAULT '',
-  site_id     TEXT,                    -- Trafiklab SiteId (stop)
-  site_name   TEXT,                    -- human-readable stop name
-  refresh_interval INTEGER NOT NULL DEFAULT 30,  -- seconds between departure refreshes
-  created_at  TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+  id TEXT PRIMARY KEY,
+  owner_id TEXT NOT NULL REFERENCES owners(id) ON DELETE CASCADE,
+  display_id TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL DEFAULT '',
+  site_id TEXT,
+  site_name TEXT,
+  refresh_interval INTEGER NOT NULL DEFAULT 30,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE UNIQUE INDEX idx_displays_owner_display ON displays(owner_id, display_id);
 CREATE INDEX idx_displays_owner ON displays(owner_id);
 ```
 
+### display filters
+
+Store filters explicitly instead of using a generic JSON config blob.
+
+Candidate tables:
+
+```sql
+CREATE TABLE display_line_filters (
+  display_id TEXT NOT NULL REFERENCES displays(id) ON DELETE CASCADE,
+  line_number TEXT NOT NULL
+);
+
+CREATE TABLE display_direction_filters (
+  display_id TEXT NOT NULL REFERENCES displays(id) ON DELETE CASCADE,
+  direction TEXT NOT NULL
+);
+
+CREATE TABLE display_mode_filters (
+  display_id TEXT NOT NULL REFERENCES displays(id) ON DELETE CASCADE,
+  mode TEXT NOT NULL
+);
+```
+
 ---
 
-## API Routes
+## Planned API contract
 
-### Displays resource
+### Displays
 
-| Method | Path | Body / Params | Description |
-|---|---|---|---|
-| `GET` | `/api/displays?owner=<owner_id>` | — | List displays for owner |
-| `POST` | `/api/displays` | `{ owner_id, name?, site_id?, site_name?, refresh_interval? }` | Create display (generates display_id) |
-| `GET` | `/api/displays/:id` | — | Get single display |
-| `PUT` | `/api/displays/:id` | `{ name?, site_id?, site_name?, refresh_interval? }` | Update display |
-| `DELETE` | `/api/displays/:id` | — | Delete display |
-
-### SL data (service-specific backend responses)
-
-| Method | Path | Params | Description |
-|---|---|---|---|
-| `GET` | `/api/stops/search` | `?q=<text>` | Search stops and return normalized stop results for SLPanel |
-| `GET` | `/api/departures/:siteId` | — | Return normalized departures for SLPanel displays |
-
----
-
-## Frontend Routes
-
-| Path | Component | Purpose |
+| Method | Path | Description |
 |---|---|---|
-| `/` | `HomePage` | Landing page; links to Config and Display |
-| `/config` | `ConfigPage` | Enter owner-id, manage displays |
-| `/display/:displayId` | `DisplayPage` | Show live departures for a display |
+| `GET` | `/api/displays?owner=<owner_id>` | List displays for owner |
+| `POST` | `/api/displays` | Create display |
+| `GET` | `/api/displays/:id` | Get one display |
+| `PUT` | `/api/displays/:id` | Update one display |
+| `DELETE` | `/api/displays/:id` | Delete one display |
+
+### Stops search
+
+`GET /api/stops/search?q=<text>`
+
+Planned response:
+
+```json
+{
+  "query": "T-Centralen",
+  "results": [
+    {
+      "site_id": "9180",
+      "name": "T-Centralen",
+      "type": "STATION",
+      "stop_area_name": "T-Centralen"
+    }
+  ]
+}
+```
+
+### Departures
+
+`GET /api/departures/:siteId`
+
+Planned response:
+
+```json
+{
+  "site_id": "9180",
+  "departures": [
+    {
+      "line_number": "17",
+      "destination": "Skarpnäck",
+      "display_time": "5 min",
+      "minutes_until_departure": 5,
+      "scheduled_at": "2026-05-18T21:10:00Z",
+      "expected_at": "2026-05-18T21:10:00Z",
+      "transport_mode": "METRO",
+      "platform": "2",
+      "state": "EXPECTED"
+    }
+  ]
+}
+```
 
 ---
 
-## Phased Implementation Plan
+## Frontend plan
 
-### Phase 1 – Project Scaffold ✅ (this PR)
-- [x] `AGENT.md` – agent conventions
-- [x] `PLAN.md` – this document
+### Framework choice
 
-### Phase 2 – Project Setup ✅
-- [x] Initialise Vite + React + TypeScript project (`npm create vite@latest`)
-- [x] Add Wrangler and configure `wrangler.toml` for Cloudflare Pages + D1
-- [x] Write `migrations/0001_initial.sql` (schema above)
-- [x] `tsconfig.json`, ESLint, Prettier
-- [x] `npm run dev` / `npm run build` / `npm run deploy` scripts
-- [x] Basic Vitest setup
+Use **React Router v7** as the frontend framework because it fits a Cloudflare Workers deployment well,
+works cleanly with React and TypeScript, and keeps routing/data-loading structured without pulling in a
+heavier platform than needed.
 
-### Phase 3 – Backend API ✅
-- [x] Pages Function: `GET /api/displays?owner=`
-- [x] Pages Function: `POST /api/displays`
-- [x] Pages Function: `GET/PUT/DELETE /api/displays/:id`
-- [x] Pages Function: `GET /api/stops/search?q=`
-- [x] Pages Function: `GET /api/departures/:siteId`
-- [x] Wrangler secrets workflow documented for future Trafiklab API keys (not required in v1)
-- [x] Unit tests for helper functions
+### Styling choice
+
+Use **Tailwind CSS** for layout, spacing, typography, and responsive TV-friendly design.
+
+### Planned routes
+
+| Route | Purpose |
+|---|---|
+| `/` | Landing page |
+| `/config` | Owner entry and display management |
+| `/display/:id` | Public departure board |
+
+### Display board layout
+
+Each row should show:
+- line number
+- destination
+- time left to departure
+
+Second line of the same row:
+- next 3 departures for that line/direction
+
+Example:
+
+```text
+17   Centralstationen     3 min
+     9   15   22
+```
+
+---
+
+## Non-functional requirements
+
+These should be tracked explicitly in the implementation plan:
+
+- CI: lint, test, and build on pull requests
+- Local development workflow for Workers + D1
+- Deployment workflow with Wrangler
+- Error handling and empty states
+- Accessibility basics for the config UI
+- Logging/observability for Worker API failures
+- README/setup documentation
+
+---
+
+## Phased implementation plan
+
+### Phase 1 – Planning / reset ✅
+- [x] Document the new target architecture
+- [x] Remove the previous Pages-based prototype implementation
+- [x] Reframe the project around Workers + React Router v7 + Tailwind CSS
+
+### Phase 2 – Foundation
+- [ ] Scaffold React Router v7 + TypeScript app
+- [ ] Add Tailwind CSS
+- [ ] Add Wrangler config for Cloudflare Workers + D1
+- [ ] Add ESLint, Prettier, Vitest
+- [ ] Add `npm run dev`, `npm run build`, `npm run test`, `npm run deploy`
+- [ ] Add GitHub Actions CI
+
+### Phase 3 – Worker API
+- [ ] Add Hono router for `/api/*`
+- [ ] Add D1 migrations for `owners`, `displays`, and filter tables
+- [ ] Implement display CRUD
+- [ ] Implement stop search adapter
+- [ ] Implement departures adapter with SLPanel-specific response shapes
+- [ ] Add unit tests for validation, D1 helpers, and Trafiklab adapters
 
 ### Phase 4 – Config UI
-- [ ] `HomePage` – simple landing page with navigation
-- [ ] `ConfigPage` – enter / generate owner-id, list displays
-- [ ] Create display form (name + stop search)
-- [ ] Edit / delete display
-- [ ] Stop search component (calls `/api/stops/search`)
+- [ ] Landing page
+- [ ] Owner-id entry flow
+- [ ] Display list/create/edit/delete flows
+- [ ] Stop search UI
+- [ ] Filter configuration UI (line, direction, mode)
 
 ### Phase 5 – Display UI
-- [ ] `DisplayPage` – render departure board for a given display ID
-- [ ] Fetch display config (`/api/displays/:id`)
-- [ ] Fetch & auto-refresh departures (`/api/departures/:siteId`)
-- [ ] Departure board layout (lines, destinations, times, track/platform)
+- [ ] Display page for one display id
+- [ ] Auto-refresh using display `refresh_interval`
+- [ ] T-Skylt-inspired visual design
+- [ ] Primary row + next-3 departures layout
+- [ ] Loading, error, and empty states
 
-### Phase 6 – Polish & Deploy
-- [ ] Responsive / TV-friendly CSS for the display board
-- [ ] Error states and loading skeletons
-- [x] CI workflow for lint, test, and build
-- [ ] Cloudflare Pages deployment via GitHub integration
-- [ ] README with setup instructions
-
----
-
-## Open Questions
-
-The following need answers before Phase 3/4 work begins. Please answer directly in this file or in a
-comment on the PR.
-
-### Q1 – Trafiklab API choice
-Which Trafiklab APIs should we use?
-
-**Researched answer:**
-
-Use the **SL Transport API** (`transport.integration.sl.se`) — the new unified SL API that replaced
-the old Realtidsinformation v4 and Platsuppslag v2 endpoints in March 2024.
-
-Key facts:
-- **No API key required** — the endpoints are open/public.
-- **No officially enforced rate limits**, but Trafiklab asks you not to make excessive requests.
-- **Stop search:** `GET https://transport.integration.sl.se/v1/sites?expand=true&q=<text>`
-- **Departures:** `GET https://transport.integration.sl.se/v1/sites/{siteId}/departures`
-- Responses are JSON; `siteId` is a numeric string (e.g. `"9180"` for T-Centralen).
-
-Since no API key is needed for v1, `TRAFIKLAB_*` secrets are **not required** in the initial
-implementation. The secrets table in AGENT.md can be left empty for now and filled in only if we
-later switch to a key-gated API tier.
-
-> **Answer:** SL Transport API (no key needed). See details above.
-
-### Q2 – Departure board content
-What information should each departure row show?
-
-> **Answer:** Each row shows the **primary departure** (next departure for that line/direction):
-> - Line number (e.g. "17", "T14", "474")
-> - Destination
-> - Time left until departure (minutes)
->
-> On the second line of the same row: the **next 3 following departures** (time left only, compact).
->
-> Example layout:
-> ```
-> 17   Centralstationen     3 min
->      9   15   22
-> ```
-
-### Q3 – Multiple stops per display
-Should a single display be able to show departures from **more than one stop** (e.g. both directions
-of a street stop)?
-
-> **Answer:** _…_ (not yet answered — deferred to a later phase)
-
-### Q4 – Departure filtering
-Should the config UI allow filtering by line number, direction, or transport mode?
-
-> **Answer:** Yes — all of the above. The config UI will allow filtering by:
-> - Line number
-> - Direction / destination
-> - Transport mode (metro, bus, tram, train, etc.)
->
-> Filters will be stored as part of the display config and applied on the backend before returning
-> departures.
-
-### Q5 – Auto-refresh interval
-How often should the display page refresh departure data?
-
-> **Answer:** Default **30 seconds**. The interval is configurable per display (stored as
-> `refresh_interval` in the `displays` table, in seconds).
-
-### Q6 – Owner-id UX
-Should the owner-id be:
-a) Shown once after generation and stored in `localStorage`?
-b) Always entered manually by the user?
-c) Both (generate + remember in localStorage, but allow manual override)?
-
-> **Answer:** **b) Always entered manually.** No localStorage, no auto-generation in v1.
-> The config page will show a text field where the user types their 8-character owner-id.
-
-### Q7 – Display board look & feel
-Any specific styling preferences?
-
-> **Answer:** The display should **mirror the look of the physical T-Skylt X product**:
-> - Dark background (black or very dark grey)
-> - **Pixelated / dot-matrix font** (e.g. "Press Start 2P" from Google Fonts, or a custom bitmap
->   font similar to the Stockholms Lokaltrafik departure board typeface)
-> - High-contrast amber/orange or white text on dark background
-> - Minimalist layout — no decorative elements, just the data
-
-### Q8 – Cloudflare account
-Do you have a Cloudflare account with Pages and D1 enabled, and a `wrangler.toml` project name
-already decided?
-
-> **Answer:** Yes. **How to keep secrets out of GitHub:**
->
-> **For local development** — create a `.dev.vars` file in the project root (never commit it):
-> ```ini
-> # .dev.vars  (git-ignored)
-> TRAFIKLAB_KEY=your_key_here
-> ```
-> Add `.dev.vars` to `.gitignore`. Wrangler automatically picks this up when running
-> `wrangler pages dev`.
->
-> **For production (Cloudflare Pages)** — set secrets via the Wrangler CLI (they are stored in
-> Cloudflare, never in the repo):
-> ```sh
-> wrangler secret put TRAFIKLAB_KEY
-> ```
-> Or set them in the Cloudflare Dashboard → Pages project → Settings → Environment Variables →
-> mark as "Secret".
->
-> **Note:** Since the SL Transport API requires no key in v1, no secrets are needed for the initial
-> deployment. The `.dev.vars` pattern is documented here for when secrets are introduced later.
+### Phase 6 – Deploy and polish
+- [ ] Production Worker deploy
+- [ ] Environment/secrets documentation
+- [ ] Monitoring/logging baseline
+- [ ] README with local dev + deploy instructions
 
 ---
 
-## Settled Decisions
+## Open items
 
-_(Moved here from Open Questions once answered)_
+These still need explicit decisions or confirmation during implementation:
 
-- Display ID format: `<8-char owner-id>-<12-char display-id>`, alphanumeric only.
-- Backend is Cloudflare Pages Functions (no separate Worker).
-- No authentication in v1.
-- D1 for persistence; migrations managed by Wrangler.
-- TypeScript throughout; shared types in `src/lib/types.ts`.
-- Frontend talks only to `/api/` routes — never directly to D1 or Trafiklab.
-- `display_id` column is globally `UNIQUE`; `(owner_id, display_id)` pair also has a `UNIQUE` index.
-- No `config` JSON blob in the schema — individual columns are used for all configurable fields.
-- SL Transport API (`transport.integration.sl.se`) — no API key required in v1.
-- Departure board layout: line number + destination + time-left on primary row; next 3 times compact on the second row.
-- Filters (line, direction, mode) will be stored per display and applied server-side.
-- Refresh interval default: 30 s, configurable per display (`refresh_interval` column).
-- Owner-id is always entered manually; no localStorage auto-save in v1.
-- Display UI mirrors T-Skylt X: dark background, pixelated/dot-matrix font, amber/white text.
-- Secrets management: `.dev.vars` (gitignored) for local dev; `wrangler secret put` for production.
+- Should one display support multiple stops in v1 or later?
+- Should the frontend be SPA-only on Workers assets, or use React Router framework rendering from the Worker?
+- Do we want a component library on top of Tailwind, or Tailwind-only in v1?
+- Do we need a dedicated migration for seed/test data in local development?
