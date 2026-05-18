@@ -10,7 +10,7 @@
 
 ## Product goal
 
-Build an online SL departure board inspired by the physical [T-Skylt X](https://shop.t-skylt.se/products/t-skylt-x).
+Build an online SL departure board with an old-style public transit board look.
 Each display should be configurable by an owner and show SL departures on a TV, tablet, or browser without login.
 
 ---
@@ -53,8 +53,9 @@ Browser (config UI / display UI / future hardware clients)
 - Owner ID is always entered manually in v1.
 - Display refresh interval defaults to **30 seconds** and is configurable per display.
 - No backend caching in v1.
-- Display look and feel should mirror **T-Skylt X**: dark background, pixelated/dot-matrix feel, amber/white text.
+- Display look and feel should use an **old-style transit-board** aesthetic: dark background, pixelated/dot-matrix feel, amber/white text.
 - Traffic API responses returned by our backend must be **SLPanel-specific**, not raw upstream payloads.
+- The SLPanel backend API is the product contract; transit-provider integrations sit behind it and must be replaceable for other cities/countries later.
 
 ---
 
@@ -106,7 +107,14 @@ CREATE INDEX idx_displays_owner ON displays(owner_id);
 
 ### display filters
 
-Store filters explicitly instead of using a generic JSON config blob.
+Each display must explicitly store:
+
+- which single stop it is bound to
+- which line or lines it should show
+- optional direction filters
+- optional transport-mode filters
+
+Store these values explicitly instead of using a generic JSON config blob.
 
 Candidate tables:
 
@@ -130,6 +138,9 @@ CREATE TABLE display_mode_filters (
 ---
 
 ## Planned API contract
+
+The `/api/*` contract should represent **SLPanel concepts**, not provider concepts.
+Trafiklab-specific fields stay inside a provider adapter layer so the backend can later swap to another transit service without breaking the frontend or display clients.
 
 ### Displays
 
@@ -186,6 +197,8 @@ Planned response:
 }
 ```
 
+Provider-specific details should be normalized before they cross the SLPanel API boundary.
+
 ---
 
 ## Frontend plan
@@ -196,9 +209,13 @@ Use **React Router v7** as the frontend framework because it fits a Cloudflare W
 works cleanly with React and TypeScript, and keeps routing/data-loading structured without pulling in a
 heavier platform than needed.
 
+The **display frontend should be a SPA**.
+For the admin/config interface, use the best fit within the same app architecture; a SPA admin UI is acceptable and keeps the setup simple.
+
 ### Styling choice
 
 Use **Tailwind CSS** for layout, spacing, typography, and responsive TV-friendly design.
+An additional component library is optional and should only be added if it provides clear value for admin UI form controls or shared primitives without compromising the display UI simplicity.
 
 ### Planned routes
 
@@ -238,6 +255,7 @@ These should be tracked explicitly in the implementation plan:
 - Accessibility basics for the config UI
 - Logging/observability for Worker API failures
 - README/setup documentation
+- Provider abstraction boundary so non-SL backends can be introduced later
 
 ---
 
@@ -251,6 +269,7 @@ These should be tracked explicitly in the implementation plan:
 ### Phase 2 – Foundation
 - [ ] Scaffold React Router v7 + TypeScript app
 - [ ] Add Tailwind CSS
+- [ ] Decide whether to add a lightweight component library for admin/display primitives
 - [ ] Add Wrangler config for Cloudflare Workers + D1
 - [ ] Add ESLint, Prettier, Vitest
 - [ ] Add `npm run dev`, `npm run build`, `npm run test`, `npm run deploy`
@@ -258,8 +277,9 @@ These should be tracked explicitly in the implementation plan:
 
 ### Phase 3 – Worker API
 - [ ] Add Hono router for `/api/*`
-- [ ] Add D1 migrations for `owners`, `displays`, and filter tables
+- [ ] Add a single initial D1 migration for `owners`, `displays`, and filter tables
 - [ ] Implement display CRUD
+- [ ] Implement transit-provider adapter boundary
 - [ ] Implement stop search adapter
 - [ ] Implement departures adapter with SLPanel-specific response shapes
 - [ ] Add unit tests for validation, D1 helpers, and Trafiklab adapters
@@ -269,12 +289,13 @@ These should be tracked explicitly in the implementation plan:
 - [ ] Owner-id entry flow
 - [ ] Display list/create/edit/delete flows
 - [ ] Stop search UI
+- [ ] Display configuration fields for stop selection and line selection
 - [ ] Filter configuration UI (line, direction, mode)
 
 ### Phase 5 – Display UI
 - [ ] Display page for one display id
 - [ ] Auto-refresh using display `refresh_interval`
-- [ ] T-Skylt-inspired visual design
+- [ ] Old-style transit-board visual design
 - [ ] Primary row + next-3 departures layout
 - [ ] Loading, error, and empty states
 
@@ -286,11 +307,12 @@ These should be tracked explicitly in the implementation plan:
 
 ---
 
-## Open items
+## Settled decisions from review
 
-These still need explicit decisions or confirmation during implementation:
-
-- Should one display support multiple stops in v1 or later?
-- Should the frontend be SPA-only on Workers assets, or use React Router framework rendering from the Worker?
-- Do we want a component library on top of Tailwind, or Tailwind-only in v1?
-- Do we need a dedicated migration for seed/test data in local development?
+- Use Cloudflare Workers, not Pages.
+- The display frontend should be a SPA.
+- A display targets a **single stop**.
+- A display must be configurable with stop and line selection, plus optional direction/mode filters.
+- Prefer a single initial migration while the schema is still undeployed.
+- Use Tailwind CSS; add a component library only if it clearly improves the admin UI and/or shared primitives.
+- No dedicated seed migration is required initially; revisit only if local development becomes painful.

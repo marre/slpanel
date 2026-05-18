@@ -24,15 +24,19 @@
 - Owner id is entered manually in v1.
 - Default refresh interval is 30 seconds.
 - No backend caching in v1.
-- UI should visually mirror T-Skylt X.
+- UI should use an old-style transit-board look.
 - API responses must be shaped for SLPanel, not raw upstream payloads.
+- Keep transit-provider integrations behind a replaceable adapter boundary.
 
 ## Data model direction
 
 - `owners` table
 - `displays` table with `owner_id` foreign key
+- a single selected stop per display
+- explicit stop/line configuration per display
 - Explicit filter tables for line, direction, and mode
 - No generic JSON config blob
+- Prefer one initial migration while nothing is deployed
 
 ## Planning expectations
 
@@ -41,6 +45,8 @@ When updating the plan:
 - keep the plan implementation-oriented
 - include CI, testing, deploy, and observability work
 - keep architecture and API contracts concrete
+- treat the display frontend as a SPA
+- use Tailwind CSS; add a component library only if it clearly helps
 
 ## Change discipline
 
