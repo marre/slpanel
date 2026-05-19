@@ -12,9 +12,10 @@
 - Cloudflare D1
 - React Router v7
 - React + TypeScript
+- Vite 7 (requires Node.js 20.19+ or 22.12+)
 - Hono for `/api/*`
 - Tailwind CSS
-- Trafiklab SL Transport API
+- Trafiklab SL Transport API v3 (`https://transport.integration.sl.se/v1`) — no API key required
 
 ## Key product rules
 
@@ -37,6 +38,16 @@
 - Explicit filter tables for line, direction, and mode
 - No generic JSON config blob
 - Prefer one initial migration while nothing is deployed
+
+## Display hardware target
+
+- Physical target: **128×32 pixel LED matrix panel**.
+- Web prototype must use the same 128×32 px canvas (scale up with CSS `transform: scale(N)` for visibility).
+- Use `image-rendering: pixelated`, `font-smooth: never`.
+- Font: **custom SL bitmap renderer** — `src/font/sl-font.ts` (93 glyphs, proportional, CC0-compatible, supports åäö Å Ä Ö) + `src/font/sl-font-renderer.ts`. No TTF/WOFF2 required.
+  - Glyph shapes traced from [zmullett/Stockholm-SL-sign-font](https://github.com/zmullett/Stockholm-SL-sign-font). The name "Widgrens" (attributed to Bo Widgren) that appeared in earlier planning notes has no verifiable primary source.
+  - 2-row layout: `scale: 2` (20 px cells).
+  - 4-row layout: `scale: 1` (10 px cells).
 
 ## Planning expectations
 
