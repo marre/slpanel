@@ -277,51 +277,55 @@ The web prototype replicates this exact pixel grid to allow rapid layout iterati
 - Use `image-rendering: pixelated` and `font-smooth: never` to preserve the pixel-perfect look.
 - Background: black (`#000`). Foreground: amber (`#FF9900`) or white depending on theme.
 
-### Authentic SL font: Widgrens
+### Display font
 
-The original SL LED departure board font is called **Widgrens**, designed by Bo Widgren for Stockholm's transit LED matrix displays. Key properties:
+The dot-matrix display uses a **custom SL bitmap font** implemented directly in TypeScript as pixel-row data.
 
-- **Proportional (variable-width)** — character widths vary, unlike a fixed-width/monospaced font. This is a deliberate design choice to maximise readability on narrow bus destination signs and departure panels.
-- Optimised for low-resolution LED/flip-dot pixel grids (typically a 7×5 or 8×7 character cell).
-- Proprietary; not publicly distributed as a downloadable font file.
+#### Origin
 
-Because Widgrens is proportional, **do not use a fixed-width (mono) font** if the goal is an authentic SL look. Use the proportional variant of any pixel font chosen.
+The glyph shapes are based on [zmullett/Stockholm-SL-sign-font](https://github.com/zmullett/Stockholm-SL-sign-font), a community digitisation of the Stockholm T-bana dot-matrix signs. That repository contains no font name and no designer attribution — it is purely the pixel patterns traced from real signs. The original display font has no known public name; a previous version of this document claimed it was called "Widgrens" by designer Bo Widgren, but no primary source for that name has been found and it should be treated as unverified.
 
-### Pixel font selection
+#### Implementation
 
-All fonts below are freely licensed, available as TTF/WOFF2 for web embedding, and confirmed to include Swedish characters **å ä ö Å Ä Ö**.
-Use the **proportional** (non-mono) variant in all cases to match the Widgrens character.
+The font is implemented as a canvas renderer (no TTF/WOFF2 required):
 
-#### 2-row layout (16 px per row)
+| File | Purpose |
+|---|---|
+| `src/font/sl-font.ts` | 93 glyph definitions — 10-row cells, 7 descender characters (g j p q y , ;), full ASCII + å ä ö Å Ä Ö |
+| `src/font/sl-font-renderer.ts` | `measureText`, `renderText`, `renderTextLine`, `cellHeight` — paint directly to `CanvasRenderingContext2D` |
 
-Each row has 16 px of vertical space (32 px ÷ 2 rows).
+#### Character cell
 
-| Font | Variant | Cell height | Source | License |
-|---|---|---|---|---|
-| **Pixel Operator 8** | Proportional | 8 px → 2× = 16 px | [NotABug / dafont](https://notabug.org/HarvettFox96/ttf-pixeloperator) | CC0 (Public Domain) |
-| **Mx437 IBM VGA 8×16** | Proportional | 16 px | [int10h.org Oldschool PC Font Pack](https://int10h.org/oldschool-pc-fonts/) | CC BY-SA 4.0 |
-| **Unscii-16** | Proportional | 16 px | [github.com/viznut/unscii](https://github.com/viznut/unscii) | Public Domain |
+- Normal body: **10 rows** tall. Each row string is as wide as the glyph (proportional — character widths vary).
+- Descenders: 12 rows (2 extra below the baseline) for `g j p q y , ;`.
+- Scale factor multiplies every font pixel: `scale: 1` → 10 px tall, `scale: 2` → 20 px tall.
 
-**Recommended default for 2-row:** Pixel Operator 8 (proportional) at 2× — CC0 license, clean dot-matrix look, confirmed Swedish glyph coverage, matches Widgrens variable-width intent.
+#### Layout usage
 
-#### 4-row layout (8 px per row)
+| Layout | Scale | Cell height | Board rows |
+|---|---|---|---|
+| 2-row | 2 | 20 px | 1 row = 16 px usable; minor clipping acceptable |
+| 4-row | 1 | 10 px | 1 row = 8 px usable; minor clipping acceptable |
 
-Each row has 8 px of vertical space (32 px ÷ 4 rows).
+#### Colour
 
-| Font | Variant | Cell height | Source | License |
-|---|---|---|---|---|
-| **Pixel Operator 8** | Proportional | 8 px | [NotABug / dafont](https://notabug.org/HarvettFox96/ttf-pixeloperator) | CC0 (Public Domain) |
-| **Mx437 IBM CGA 8×8** | Proportional | 8 px | [int10h.org Oldschool PC Font Pack](https://int10h.org/oldschool-pc-fonts/) | CC BY-SA 4.0 |
-| **Unscii-8** | Proportional | 8 px | [github.com/viznut/unscii](https://github.com/viznut/unscii) | Public Domain |
+- Foreground (lit pixels): amber `#FF9900` (matches classic SL LED amber boards).
+- Background: black `#000000` — the canvas is cleared to black before each render.
 
-**Recommended default for 4-row:** Pixel Operator 8 (proportional) — same font file as 2-row, just at 1× scale.
+#### Example
 
-#### Usage notes
+```ts
+import { renderText, measureText } from '@/font/sl-font-renderer';
 
-- Use the **proportional** (non-mono) variant of Pixel Operator, not `Pixel Operator Mono`.
-- Self-host the WOFF2 file; do not rely on Google Fonts or other CDN for a LED panel app.
-- Set `font-size` to the exact cell height in pixels and `line-height: 1` to eliminate inter-row gaps.
-- The display page CSS should include `letter-spacing: 1px` to approximate the inter-pixel gap of a real LED matrix.
+// Paint "17  Centralstationen  3 min" onto a 128×32 canvas
+const ctx = canvas.getContext('2d')!;
+ctx.fillStyle = '#000';
+ctx.fillRect(0, 0, 128, 32);
+renderText(ctx, '17', 0, 1, { scale: 1, color: '#FF9900' });
+renderText(ctx, 'Centralstationen', 14, 1, { scale: 1 });
+const timeW = measureText('3 min', { scale: 1 });
+renderText(ctx, '3 min', 128 - timeW, 1, { scale: 1 });
+```
 
 ---
 
@@ -421,7 +425,7 @@ These should be tracked explicitly in the implementation plan:
 - [ ] Auto-refresh using display `refresh_interval`
 - [ ] Old-style transit-board visual design
 - [ ] Web panel: fixed 128×32 px canvas with `image-rendering: pixelated`
-- [ ] Self-host Pixel Operator 8 (proportional, not mono) WOFF2 font for the display page
+- [x] Custom SL bitmap font — `src/font/sl-font.ts` (93 glyphs) + `src/font/sl-font-renderer.ts` (canvas renderer)
 - [ ] 2-row and 4-row layout modes switchable per display configuration
 - [ ] Primary row + next-3 departures layout
 - [ ] Loading, error, and empty states
@@ -443,3 +447,4 @@ These should be tracked explicitly in the implementation plan:
 - Prefer a single initial migration while the schema is still undeployed.
 - Use Tailwind CSS; add a component library only if it clearly improves the admin UI and/or shared primitives.
 - No dedicated seed migration is required initially; revisit only if local development becomes painful.
+- The display font is a **custom SL bitmap renderer** (`src/font/sl-font.ts` + `src/font/sl-font-renderer.ts`), not a web font. No TTF/WOFF2 needed. The name "Widgrens" (previously noted in this document) has no verifiable primary source and should be disregarded.
