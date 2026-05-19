@@ -44,10 +44,10 @@
 - Physical target: **128×32 pixel LED matrix panel**.
 - Web prototype must use the same 128×32 px canvas (scale up with CSS `transform: scale(N)` for visibility).
 - Use `image-rendering: pixelated`, `font-smooth: never`.
-- Font: **Pixel Operator Mono 8** (CC0, Swedish åäö confirmed) — self-hosted WOFF2.
+- Font: **Pixel Operator 8** (proportional, CC0, supports åäö) — self-hosted WOFF2. **Do not use the Mono variant**; the authentic SL font "Widgrens" (by Bo Widgren) is proportional/variable-width.
   - 2-row layout: render at 2× (16 px font-size, 16 px line-height).
   - 4-row layout: render at 1× (8 px font-size, 8 px line-height).
-- Fallback alternatives: Unscii-8 / Unscii-16 (Public Domain), Mx437 IBM VGA/CGA (CC BY-SA 4.0).
+- Fallback alternatives: Unscii-8 / Unscii-16 (Public Domain), Mx437 IBM VGA/CGA (CC BY-SA 4.0) — proportional variants.
 
 ## Planning expectations
 

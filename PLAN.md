@@ -277,36 +277,48 @@ The web prototype replicates this exact pixel grid to allow rapid layout iterati
 - Use `image-rendering: pixelated` and `font-smooth: never` to preserve the pixel-perfect look.
 - Background: black (`#000`). Foreground: amber (`#FF9900`) or white depending on theme.
 
+### Authentic SL font: Widgrens
+
+The original SL LED departure board font is called **Widgrens**, designed by Bo Widgren for Stockholm's transit LED matrix displays. Key properties:
+
+- **Proportional (variable-width)** — character widths vary, unlike a fixed-width/monospaced font. This is a deliberate design choice to maximise readability on narrow bus destination signs and departure panels.
+- Optimised for low-resolution LED/flip-dot pixel grids (typically a 7×5 or 8×7 character cell).
+- Proprietary; not publicly distributed as a downloadable font file.
+
+Because Widgrens is proportional, **do not use a fixed-width (mono) font** if the goal is an authentic SL look. Use the proportional variant of any pixel font chosen.
+
 ### Pixel font selection
 
 All fonts below are freely licensed, available as TTF/WOFF2 for web embedding, and confirmed to include Swedish characters **å ä ö Å Ä Ö**.
+Use the **proportional** (non-mono) variant in all cases to match the Widgrens character.
 
 #### 2-row layout (16 px per row)
 
 Each row has 16 px of vertical space (32 px ÷ 2 rows).
 
-| Font | Cell size | Source | License |
-|---|---|---|---|
-| **Pixel Operator Mono 8** at 2× CSS scale | 8×8 → rendered 16 px | [NotABug / dafont](https://notabug.org/HarvettFox96/ttf-pixeloperator) | CC0 (Public Domain) |
-| **Mx437 IBM VGA 8×16** | 8×16 | [int10h.org Oldschool PC Font Pack](https://int10h.org/oldschool-pc-fonts/) | CC BY-SA 4.0 |
-| **Unscii-16** | 8×16 | [github.com/viznut/unscii](https://github.com/viznut/unscii) | Public Domain |
+| Font | Variant | Cell height | Source | License |
+|---|---|---|---|---|
+| **Pixel Operator 8** | Proportional | 8 px → 2× = 16 px | [NotABug / dafont](https://notabug.org/HarvettFox96/ttf-pixeloperator) | CC0 (Public Domain) |
+| **Mx437 IBM VGA 8×16** | Proportional | 16 px | [int10h.org Oldschool PC Font Pack](https://int10h.org/oldschool-pc-fonts/) | CC BY-SA 4.0 |
+| **Unscii-16** | Proportional | 16 px | [github.com/viznut/unscii](https://github.com/viznut/unscii) | Public Domain |
 
-**Recommended default for 2-row:** Pixel Operator Mono 8 at 2× — CC0 license, clean dot-matrix look, confirmed Swedish glyph coverage.
+**Recommended default for 2-row:** Pixel Operator 8 (proportional) at 2× — CC0 license, clean dot-matrix look, confirmed Swedish glyph coverage, matches Widgrens variable-width intent.
 
 #### 4-row layout (8 px per row)
 
 Each row has 8 px of vertical space (32 px ÷ 4 rows).
 
-| Font | Cell size | Source | License |
-|---|---|---|---|
-| **Pixel Operator Mono 8** | 8×8 | [NotABug / dafont](https://notabug.org/HarvettFox96/ttf-pixeloperator) | CC0 (Public Domain) |
-| **Mx437 IBM CGA 8×8** | 8×8 | [int10h.org Oldschool PC Font Pack](https://int10h.org/oldschool-pc-fonts/) | CC BY-SA 4.0 |
-| **Unscii-8** | 8×8 | [github.com/viznut/unscii](https://github.com/viznut/unscii) | Public Domain |
+| Font | Variant | Cell height | Source | License |
+|---|---|---|---|---|
+| **Pixel Operator 8** | Proportional | 8 px | [NotABug / dafont](https://notabug.org/HarvettFox96/ttf-pixeloperator) | CC0 (Public Domain) |
+| **Mx437 IBM CGA 8×8** | Proportional | 8 px | [int10h.org Oldschool PC Font Pack](https://int10h.org/oldschool-pc-fonts/) | CC BY-SA 4.0 |
+| **Unscii-8** | Proportional | 8 px | [github.com/viznut/unscii](https://github.com/viznut/unscii) | Public Domain |
 
-**Recommended default for 4-row:** Pixel Operator Mono 8 — same font as the 2-row option, just at 1× scale; single font asset covers both layouts.
+**Recommended default for 4-row:** Pixel Operator 8 (proportional) — same font file as 2-row, just at 1× scale.
 
 #### Usage notes
 
+- Use the **proportional** (non-mono) variant of Pixel Operator, not `Pixel Operator Mono`.
 - Self-host the WOFF2 file; do not rely on Google Fonts or other CDN for a LED panel app.
 - Set `font-size` to the exact cell height in pixels and `line-height: 1` to eliminate inter-row gaps.
 - The display page CSS should include `letter-spacing: 1px` to approximate the inter-pixel gap of a real LED matrix.
@@ -409,7 +421,7 @@ These should be tracked explicitly in the implementation plan:
 - [ ] Auto-refresh using display `refresh_interval`
 - [ ] Old-style transit-board visual design
 - [ ] Web panel: fixed 128×32 px canvas with `image-rendering: pixelated`
-- [ ] Self-host Pixel Operator Mono 8 WOFF2 font for the display page
+- [ ] Self-host Pixel Operator 8 (proportional, not mono) WOFF2 font for the display page
 - [ ] 2-row and 4-row layout modes switchable per display configuration
 - [ ] Primary row + next-3 departures layout
 - [ ] Loading, error, and empty states
