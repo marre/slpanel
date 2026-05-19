@@ -12,9 +12,10 @@
 - Cloudflare D1
 - React Router v7
 - React + TypeScript
+- Vite 7 (requires Node.js 20.19+ or 22.12+)
 - Hono for `/api/*`
 - Tailwind CSS
-- Trafiklab SL Transport API
+- Trafiklab SL Transport API v3 (`https://transport.integration.sl.se/v1`) — no API key required
 
 ## Key product rules
 
@@ -37,6 +38,16 @@
 - Explicit filter tables for line, direction, and mode
 - No generic JSON config blob
 - Prefer one initial migration while nothing is deployed
+
+## Display hardware target
+
+- Physical target: **128×32 pixel LED matrix panel**.
+- Web prototype must use the same 128×32 px canvas (scale up with CSS `transform: scale(N)` for visibility).
+- Use `image-rendering: pixelated`, `font-smooth: never`.
+- Font: **Pixel Operator Mono 8** (CC0, Swedish åäö confirmed) — self-hosted WOFF2.
+  - 2-row layout: render at 2× (16 px font-size, 16 px line-height).
+  - 4-row layout: render at 1× (8 px font-size, 8 px line-height).
+- Fallback alternatives: Unscii-8 / Unscii-16 (Public Domain), Mx437 IBM VGA/CGA (CC BY-SA 4.0).
 
 ## Planning expectations
 
