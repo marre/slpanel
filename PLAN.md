@@ -1,13 +1,5 @@
 # PLAN.md – SLPanel Replan
 
-## Current repository state
-
-- The previous prototype implementation has been removed from this branch on request.
-- The repository is back to a planning-first state.
-- The next implementation should start fresh around **Cloudflare Workers**, not Cloudflare Pages.
-
----
-
 ## Product goal
 
 Build an online SL departure board with an old-style public transit board look.
@@ -65,8 +57,8 @@ Browser (config UI / display UI / future hardware clients)
 
 ```text
 <owner-id>-<display-id>
- owner-id:   8 alphanumeric characters
- display-id: 12 alphanumeric characters
+ owner-id:   8 alphanumeric (lower and upper case) characters
+ display-id: 12 alphanumeric (lower and upper case) characters
 ```
 
 Example: `aB3xZ9kQ-fG7mNpQr2wLt`
@@ -98,9 +90,7 @@ CREATE TABLE displays (
   name TEXT NOT NULL DEFAULT '',
   site_id TEXT,
   site_name TEXT,
-  refresh_interval INTEGER NOT NULL DEFAULT 30,
-  created_at TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+  refresh_interval INTEGER NOT NULL DEFAULT 30
 );
 
 CREATE UNIQUE INDEX idx_displays_owner_display ON displays(owner_id, display_id);
@@ -389,10 +379,8 @@ These should be tracked explicitly in the implementation plan:
 
 ## Phased implementation plan
 
-### Phase 1 – Planning / reset ✅
-- [x] Document the new target architecture
-- [x] Remove the previous Pages-based prototype implementation
-- [x] Reframe the project around Workers + React Router v7 + Tailwind CSS
+### Phase 1 – Planning ✅
+- [x] Document the target architecture
 
 ### Phase 2 – Foundation
 - [ ] Scaffold React Router v7 + TypeScript app with Vite 7 (Node.js 20.19+ or 22.12+)
