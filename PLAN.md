@@ -345,20 +345,64 @@ An additional component library is optional and should only be added if it provi
 
 ### Display board layout
 
-Each row should show:
-- line number
-- destination
-- time left to departure
+Design the default display to match a standard **SL subway platform display** with **2 rows total** on the 128×32 panel.
 
-Second line of the same row:
-- next 3 departures for that line/direction
+#### Row 1: next departure summary
+
+The first row shows the **very next train only**.
+
+- Left: line number, for example `17`
+- Middle: destination, for example `Hagsätra`
+- Right: countdown text, right-aligned, for example `1 min`
+
+Visual rules:
+
+- Keep the line number visually tight to the left edge.
+- Keep the minutes text right-justified against the panel edge.
+- Let the destination consume the remaining middle space.
+- Preserve the classic SL look: black background, amber or white dot-matrix text, minimal decoration.
 
 Example:
 
 ```text
-17   Centralstationen     3 min
-     9   15   22
+17 Hagsätra          1 min
 ```
+
+#### Row 2: scrolling departures and messages
+
+The second row is a **single marquee line** that scrolls continuously from **right to left**.
+
+Content order:
+
+1. Show the same compact format for the **next 3 following trains**
+2. Optionally append warning text, service notices, or other public information after those trains
+3. When the final character has completely scrolled off the left side, restart the marquee from the beginning
+
+Each train entry in the marquee should use this compact pattern:
+
+```text
+<line number> <destination> <minutes>
+```
+
+Use clear spacing between entries so they remain readable while scrolling.
+
+Example marquee content before scrolling is applied:
+
+```text
+17 Hagsätra 5 min     18 Someplace 7 min     19 Elsewhere 12 min     Warning: track change at T-Centralen
+```
+
+Scrolling behaviour:
+
+- The marquee text should enter from the right.
+- It should move left at a steady, readable speed.
+- The full message must scroll through before restarting.
+- Restart from the first train entry after the final appended message has fully exited.
+
+#### Agent handoff note
+
+Treat this as the canonical visual behaviour for the default display mode.
+If an implementation detail is still ambiguous, ask targeted follow-up questions using the GitHub Copilot query UI.
 
 ---
 
@@ -415,7 +459,7 @@ These should be tracked explicitly in the implementation plan:
 - [ ] Web panel: fixed 128×32 px canvas with `image-rendering: pixelated`
 - [x] Custom SL bitmap font — `src/font/sl-font.ts` (93 glyphs) + `src/font/sl-font-renderer.ts` (canvas renderer)
 - [ ] 2-row and 4-row layout modes switchable per display configuration
-- [ ] Primary row + next-3 departures layout
+- [ ] Primary next-train row + scrolling departures and messages marquee
 - [ ] Loading, error, and empty states
 
 ### Phase 6 – Deploy and polish
