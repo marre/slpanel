@@ -427,13 +427,13 @@ These should be tracked explicitly in the implementation plan:
 - [x] Document the target architecture
 
 ### Phase 2 – Foundation
-- [ ] Scaffold React Router v7 + TypeScript app with Vite 7 (Node.js 20.19+ or 22.12+)
-- [ ] Add Tailwind CSS
-- [ ] Decide whether to add a lightweight component library for admin/display primitives
-- [ ] Add Wrangler config for Cloudflare Workers + D1
-- [ ] Add ESLint, Prettier, Vitest
-- [ ] Add `npm run dev`, `npm run build`, `npm run test`, `npm run deploy`
-- [ ] Add GitHub Actions CI
+- [x] Scaffold React Router v7 + TypeScript app with Vite 7 (Node.js 20.19+ or 22.12+)
+- [x] Add Tailwind CSS
+- [x] Decide whether to add a lightweight component library for admin/display primitives — no component library in Phase 2
+- [x] Add Wrangler config for Cloudflare Workers + D1-ready binding placeholder
+- [x] Add ESLint, Prettier, Vitest
+- [x] Add `npm run dev`, `npm run build`, `npm run test`, `npm run deploy`
+- [x] Add GitHub Actions CI
 
 ### Phase 3 – Worker API
 - [ ] Add Hono router for `/api/*`
@@ -478,5 +478,6 @@ These should be tracked explicitly in the implementation plan:
 - A display must be configurable with stop and line selection, plus optional direction/mode filters.
 - Prefer a single initial migration while the schema is still undeployed.
 - Use Tailwind CSS; add a component library only if it clearly improves the admin UI and/or shared primitives.
+- No component library is needed in Phase 2; revisit only if Phase 4 form work proves it valuable.
 - No dedicated seed migration is required initially; revisit only if local development becomes painful.
 - The display font is a **custom SL bitmap renderer** (`src/font/sl-font.ts` + `src/font/sl-font-renderer.ts`), not a web font. No TTF/WOFF2 needed. The name "Widgrens" (previously noted in this document) has no verifiable primary source and should be disregarded.

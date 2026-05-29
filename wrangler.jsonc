@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "slpanel",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-05-27",
+  "assets": {
+    "binding": "ASSETS",
+    "directory": "./dist/client",
+  },
+
+  // Uncomment this block after creating the Cloudflare D1 database.
+  // "d1_databases": [
+  //   {
+  //     "binding": "DB",
+  //     "database_name": "slpanel",
+  //     "database_id": "replace-with-your-d1-database-id"
+  //   }
+  // ]
+}

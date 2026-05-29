@@ -1,0 +1,51 @@
+@import 'tailwindcss';
+
+:root {
+  color-scheme: dark;
+  --app-bg: #081017;
+  --card-bg: rgba(15, 18, 21, 0.92);
+  --panel-bg: #020202;
+  --panel-border: rgba(255, 184, 77, 0.22);
+  --panel-chassis: #111519;
+  --panel-text: #ffb84d;
+  --panel-text-soft: #ffd280;
+  --app-text: #f6ead0;
+  --muted-text: #c9ba98;
+  font-family: 'IBM Plex Mono', 'Azeret Mono', 'Menlo', 'Monaco', monospace;
+  background:
+    radial-gradient(circle at top, rgba(255, 159, 28, 0.16), transparent 32%),
+    linear-gradient(180deg, #10171d 0%, #05080c 58%, #030405 100%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top, rgba(255, 159, 28, 0.16), transparent 32%),
+    linear-gradient(180deg, #10171d 0%, #05080c 58%, #030405 100%);
+  color: var(--app-text);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+canvas {
+  display: block;
+  background: var(--panel-bg);
+}
+
+::selection {
+  background: rgba(255, 184, 77, 0.28);
+  color: white;
+}

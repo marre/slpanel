@@ -1,0 +1,8 @@
+node_modules
+dist
+coverage
+.wrangler
+package-lock.json
+AGENT.md
+PLAN.md
+src/font/sl-font.ts
