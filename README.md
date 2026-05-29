@@ -72,8 +72,8 @@ The initial migration lives in `migrations/0001_initial.sql` and creates:
 
 ## Current routes
 
-- `/` foundation overview
-- `/config` config UI shell
+- `/` landing page with links into config and display flows
+- `/config` owner-based config workspace for display CRUD and filter management
 - `/display/:displayId` public display shell
 - `/api/health` Worker health endpoint
 - `/api/displays` display CRUD root
@@ -86,6 +86,17 @@ The initial migration lives in `migrations/0001_initial.sql` and creates:
 - Display CRUD is backed by D1 and stores line, direction, and transport-mode filters explicitly.
 - The Trafiklab provider lives behind a replaceable adapter boundary in the Worker.
 - The stop search adapter currently fetches `/sites` and applies local filtering because the live API host does not appear to honor search query parameters consistently.
+
+## Config workflow
+
+The `/config` route now supports:
+
+- entering or recalling an owner ID
+- listing existing displays for that owner
+- creating, editing, and deleting displays
+- binding a single stop via search
+- configuring line, direction, and transport-mode filters
+- opening a saved display URL directly from the config screen
 
 ## CI
 

@@ -445,12 +445,12 @@ These should be tracked explicitly in the implementation plan:
 - [x] Add unit tests for validation, D1 helpers, and Trafiklab adapters
 
 ### Phase 4 – Config UI
-- [ ] Landing page
-- [ ] Owner-id entry flow
-- [ ] Display list/create/edit/delete flows
-- [ ] Stop search UI
-- [ ] Display configuration fields for stop selection and line selection
-- [ ] Filter configuration UI (line, direction, mode)
+- [x] Landing page
+- [x] Owner-id entry flow
+- [x] Display list/create/edit/delete flows
+- [x] Stop search UI
+- [x] Display configuration fields for stop selection and line selection
+- [x] Filter configuration UI (line, direction, mode)
 
 ### Phase 5 – Display UI
 - [ ] Display page for one display id

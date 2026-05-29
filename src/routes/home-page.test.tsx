@@ -13,11 +13,11 @@ describe('HomePage', () => {
 
     expect(
       screen.getByRole('heading', {
-        name: /worker-backed display shell/i,
+        name: /admin workspace is live/i,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('link', { name: /open config shell/i }),
+      screen.getByRole('link', { name: /open config workspace/i }),
     ).toHaveAttribute('href', '/config');
     expect(
       screen.getByRole('link', { name: /open display shell/i }),

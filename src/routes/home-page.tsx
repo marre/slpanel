@@ -3,11 +3,11 @@ import { Link } from 'react-router-dom';
 import { PanelPreview } from '@/components/panel-preview';
 
 const checkpoints = [
-  'Vite 7 + React + TypeScript scaffold',
-  'React Router routes for overview, config, and display shells',
-  'Hono worker entry ready for /api routes and static asset fallback',
-  'Tailwind CSS, ESLint, Prettier, and Vitest wired into npm scripts',
-  'GitHub Actions CI running lint, test, format, and build checks',
+  'Owner-based config workspace wired to the Worker API',
+  'Display create, edit, and delete flows on /config',
+  'Stop search plus line, direction, and mode filters',
+  'Hono + D1 backend with migrations and typed frontend helpers',
+  'Tailwind, ESLint, Prettier, Vitest, and CI all active',
 ];
 
 export function HomePage() {
@@ -16,16 +16,17 @@ export function HomePage() {
       <section className="space-y-6">
         <div className="space-y-4">
           <p className="text-xs uppercase tracking-[0.35em] text-[var(--muted-text)]">
-            Phase 2 foundation
+            Phase 4 config UI
           </p>
           <div className="space-y-3">
             <h2 className="max-w-2xl text-3xl font-semibold leading-tight text-[var(--panel-text)] md:text-5xl">
-              A Worker-backed display shell with the transit-board tone already
-              in place.
+              The admin workspace is live, so owners can now manage boards from
+              the browser.
             </h2>
             <p className="max-w-2xl text-sm leading-7 text-[var(--muted-text)] md:text-base">
-              The app shell is intentionally small: one SPA, one Worker entry,
-              and enough tooling to start Phase 3 without reworking the build.
+              Phase 4 now includes the first working config workflow: load an
+              owner, manage displays, bind a stop, and set line, direction, and
+              transport-mode filters against the live Worker API.
             </p>
           </div>
         </div>
@@ -35,7 +36,7 @@ export function HomePage() {
             to="/config"
             className="rounded-full border border-[var(--panel-text)] bg-[var(--panel-text)] px-5 py-3 text-sm font-medium text-black transition hover:bg-[var(--panel-text-soft)]"
           >
-            Open config shell
+            Open config workspace
           </Link>
           <Link
             to="/display/demo-board"
@@ -63,11 +64,11 @@ export function HomePage() {
             Panel preview
           </p>
           <h3 className="text-xl font-semibold text-[var(--panel-text)]">
-            Bitmap renderer wired into the shell
+            Display preview stays in sync
           </h3>
           <p className="text-sm leading-6 text-[var(--muted-text)]">
-            This is only a static preview, but it proves the existing SL font
-            renderer fits cleanly into the new app foundation.
+            The display page is still the next big slice, but the existing font
+            renderer and panel preview are ready for the upcoming board UI.
           </p>
         </div>
 
