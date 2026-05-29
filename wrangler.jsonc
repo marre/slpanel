@@ -8,12 +8,11 @@
     "directory": "./dist/client",
   },
 
-  // Uncomment this block after creating the Cloudflare D1 database.
-  // "d1_databases": [
-  //   {
-  //     "binding": "DB",
-  //     "database_name": "slpanel",
-  //     "database_id": "replace-with-your-d1-database-id"
-  //   }
-  // ]
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "slpanel",
+      "database_id": "31ad8d02-c706-487e-bd5d-a7a94bf325ec",
+    },
+  ],
 }

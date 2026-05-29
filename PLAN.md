@@ -436,13 +436,13 @@ These should be tracked explicitly in the implementation plan:
 - [x] Add GitHub Actions CI
 
 ### Phase 3 – Worker API
-- [ ] Add Hono router for `/api/*`
-- [ ] Add a single initial D1 migration for `owners`, `displays`, and filter tables
-- [ ] Implement display CRUD
-- [ ] Implement transit-provider adapter boundary
-- [ ] Implement stop search adapter
-- [ ] Implement departures adapter with SLPanel-specific response shapes
-- [ ] Add unit tests for validation, D1 helpers, and Trafiklab adapters
+- [x] Add Hono router for `/api/*`
+- [x] Add a single initial D1 migration for `owners`, `displays`, and filter tables
+- [x] Implement display CRUD
+- [x] Implement transit-provider adapter boundary
+- [x] Implement stop search adapter
+- [x] Implement departures adapter with SLPanel-specific response shapes
+- [x] Add unit tests for validation, D1 helpers, and Trafiklab adapters
 
 ### Phase 4 – Config UI
 - [ ] Landing page

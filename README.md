@@ -41,18 +41,34 @@ The Vite dev server proxies `/api/*` requests to the Worker.
 - `npm run test` runs the Vitest suite
 - `npm run lint` runs ESLint
 - `npm run format` checks formatting with Prettier
+- `npm run db:migrate:local` applies D1 migrations to the local database
+- `npm run db:migrate:remote` applies D1 migrations to the remote database
 - `npm run deploy` builds and deploys with Wrangler
 
 ## D1 setup
 
 `wrangler.jsonc` already includes the Worker and static-asset setup.
-The D1 binding block is intentionally commented out until a real database exists.
+The D1 binding is now configured for the `slpanel` database.
 
-When you are ready to add D1:
+Apply the schema with:
 
-1. Run `wrangler d1 create slpanel`
-2. Copy the generated `database_id` into `wrangler.jsonc`
-3. Uncomment the `d1_databases` block
+```bash
+npm run db:migrate:local
+```
+
+When you are ready to update the remote database too:
+
+```bash
+npm run db:migrate:remote
+```
+
+The initial migration lives in `migrations/0001_initial.sql` and creates:
+
+- `owners`
+- `displays`
+- `display_line_filters`
+- `display_direction_filters`
+- `display_mode_filters`
 
 ## Current routes
 
@@ -60,6 +76,16 @@ When you are ready to add D1:
 - `/config` config UI shell
 - `/display/:displayId` public display shell
 - `/api/health` Worker health endpoint
+- `/api/displays` display CRUD root
+- `/api/displays/:id` single display CRUD route
+- `/api/stops/search` stop search adapter
+- `/api/departures/:siteId` normalized departures adapter
+
+## API notes
+
+- Display CRUD is backed by D1 and stores line, direction, and transport-mode filters explicitly.
+- The Trafiklab provider lives behind a replaceable adapter boundary in the Worker.
+- The stop search adapter currently fetches `/sites` and applies local filtering because the live API host does not appear to honor search query parameters consistently.
 
 ## CI
 

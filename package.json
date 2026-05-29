@@ -20,6 +20,8 @@
     "format:fix": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "db:migrate:local": "wrangler d1 migrations apply slpanel --local",
+    "db:migrate:remote": "wrangler d1 migrations apply slpanel --remote",
     "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
