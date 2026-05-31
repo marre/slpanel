@@ -96,4 +96,54 @@ describe('createTrafiklabProvider', () => {
       },
     ]);
   });
+
+  it('shows clock time for departures more than 30 minutes away', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          departures: [
+            {
+              destination: 'Vallentuna',
+              direction: 'Vallentuna',
+              direction_code: 1,
+              state: 'EXPECTED',
+              display: '35 min',
+              scheduled: '2026-05-31T14:05:00+02:00',
+              expected: '2026-05-31T14:05:00+02:00',
+              stop_point: { designation: '1' },
+              line: { designation: '27', transport_mode: 'TRAM' },
+              deviations: [],
+            },
+          ],
+        }),
+      ),
+    );
+
+    const provider = createTrafiklabProvider({
+      fetch: fetchMock,
+      baseUrl: 'https://example.com/v1',
+    });
+
+    await expect(
+      provider.getDepartures({
+        site_id: '9626',
+        lines: [],
+        directions: [],
+        modes: [],
+        forecast: 240,
+      }),
+    ).resolves.toEqual([
+      {
+        line_number: '27',
+        destination: 'Vallentuna',
+        display_time: '14:05',
+        minutes_until_departure: 35,
+        scheduled_at: '2026-05-31T14:05:00+02:00',
+        expected_at: '2026-05-31T14:05:00+02:00',
+        transport_mode: 'TRAM',
+        platform: '1',
+        state: 'EXPECTED',
+      },
+    ]);
+  });
 });

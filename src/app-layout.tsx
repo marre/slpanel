@@ -14,15 +14,15 @@ export function AppLayout() {
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div className="space-y-2">
               <p className="text-xs uppercase tracking-[0.35em] text-[var(--muted-text)]">
-                Stockholm display foundation
+                Stockholm display board
               </p>
               <div>
                 <h1 className="text-3xl font-semibold tracking-[0.08em] text-[var(--panel-text)] md:text-4xl">
                   SLPanel
                 </h1>
                 <p className="max-w-2xl text-sm leading-6 text-[var(--muted-text)] md:text-base">
-                  Phase 2 scaffold for a Cloudflare Worker, a React Router SPA,
-                  and the tooling needed to build the display board safely.
+                  Cloudflare Worker API, owner config workspace, and a live
+                  SL-style public board rendered with the custom bitmap font.
                 </p>
               </div>
             </div>

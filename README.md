@@ -1,8 +1,9 @@
 # SLPanel
 
 SLPanel is a Cloudflare Worker and React Router SPA for building Stockholm SL-style departure displays.
-The repository now includes the full Phase 2 foundation: frontend scaffold, Worker entry, Tailwind styling,
-linting, formatting, testing, and CI.
+The repository now includes the owner config flow and the first live public display board: one display can
+load its saved filters, fetch normalized departures through the Worker API, and render the custom bitmap
+font on a fixed 128x32 canvas.
 
 ## Stack
 
@@ -74,12 +75,14 @@ The initial migration lives in `migrations/0001_initial.sql` and creates:
 
 - `/` landing page with links into config and display flows
 - `/config` owner-based config workspace for display CRUD and filter management
-- `/display/:displayId` public display shell
+- `/display/:displayId` public display board with live departures and auto-refresh
 - `/api/health` Worker health endpoint
 - `/api/displays` display CRUD root
 - `/api/displays/:id` single display CRUD route
 - `/api/stops/search` stop search adapter
 - `/api/departures/:siteId` normalized departures adapter
+
+Use `/display/demo-board` to preview the board UI without needing a saved display resource.
 
 ## API notes
 
@@ -97,6 +100,16 @@ The `/config` route now supports:
 - binding a single stop via search
 - configuring line, direction, and transport-mode filters
 - opening a saved display URL directly from the config screen
+
+## Display workflow
+
+The `/display/:displayId` route now supports:
+
+- loading one saved display definition from the Worker API
+- fetching departures with the display's saved line, direction, and mode filters
+- rendering the default 2-row SL board layout on a fixed 128x32 pixel canvas
+- auto-refreshing departures using the display's configured `refresh_interval`
+- loading, error, empty, and stale-data states on the board itself
 
 ## CI
 

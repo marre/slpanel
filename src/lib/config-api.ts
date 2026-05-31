@@ -61,6 +61,20 @@ export async function createDisplay(
   return response.display;
 }
 
+export async function getDisplay(
+  displayId: string,
+  signal?: AbortSignal,
+): Promise<DisplayRecord> {
+  const response = await requestJson<{ display: DisplayRecord }>(
+    `/api/displays/${encodeURIComponent(displayId)}`,
+    {
+      signal,
+    },
+  );
+
+  return response.display;
+}
+
 export async function updateDisplay(
   displayId: string,
   input: UpdateDisplayInput,
@@ -104,9 +118,27 @@ export async function searchStops(
 
 export async function listDepartures(
   siteId: string,
-  options: { forecast?: number; signal?: AbortSignal } = {},
+  options: {
+    forecast?: number;
+    lines?: string[];
+    directions?: string[];
+    modes?: string[];
+    signal?: AbortSignal;
+  } = {},
 ): Promise<DepartureRecord[]> {
   const searchParams = new URLSearchParams();
+
+  for (const lineNumber of options.lines ?? []) {
+    searchParams.append('line', lineNumber);
+  }
+
+  for (const direction of options.directions ?? []) {
+    searchParams.append('direction', direction);
+  }
+
+  for (const mode of options.modes ?? []) {
+    searchParams.append('mode', mode);
+  }
 
   if (options.forecast) {
     searchParams.set('forecast', String(options.forecast));

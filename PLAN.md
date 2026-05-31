@@ -453,14 +453,14 @@ These should be tracked explicitly in the implementation plan:
 - [x] Filter configuration UI (line, direction, mode)
 
 ### Phase 5 – Display UI
-- [ ] Display page for one display id
-- [ ] Auto-refresh using display `refresh_interval`
-- [ ] Old-style transit-board visual design
-- [ ] Web panel: fixed 128×32 px canvas with `image-rendering: pixelated`
+- [x] Display page for one display id
+- [x] Auto-refresh using display `refresh_interval`
+- [x] Old-style transit-board visual design
+- [x] Web panel: fixed 128×32 px canvas with `image-rendering: pixelated`
 - [x] Custom SL bitmap font — `src/font/sl-font.ts` (93 glyphs) + `src/font/sl-font-renderer.ts` (canvas renderer)
 - [ ] 2-row and 4-row layout modes switchable per display configuration
-- [ ] Primary next-train row + scrolling departures and messages marquee
-- [ ] Loading, error, and empty states
+- [x] Primary next-train row + scrolling departures and messages marquee
+- [x] Loading, error, and empty states
 
 ### Phase 6 – Deploy and polish
 - [ ] Production Worker deploy

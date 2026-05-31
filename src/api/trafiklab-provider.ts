@@ -189,8 +189,7 @@ function normalizeDeparture(departure: RawDeparture): DepartureRecord {
   return {
     line_number: departure.line?.designation ?? '',
     destination: departure.destination ?? '',
-    display_time:
-      minutesUntilDeparture === 0 ? 'Now' : `${minutesUntilDeparture} min`,
+    display_time: formatDisplayTime(departure, minutesUntilDeparture),
     minutes_until_departure: minutesUntilDeparture,
     scheduled_at: departure.scheduled ?? null,
     expected_at: departure.expected ?? departure.scheduled ?? null,
@@ -226,6 +225,35 @@ function readMinutesUntilDeparture(departure: RawDeparture): number {
   }
 
   return Math.max(0, Math.ceil((parsed - Date.now()) / 60_000));
+}
+
+function formatDisplayTime(
+  departure: RawDeparture,
+  minutesUntilDeparture: number,
+): string {
+  if (minutesUntilDeparture === 0) {
+    return 'Now';
+  }
+
+  if (minutesUntilDeparture > 30) {
+    const clockTime = readClockTime(departure.expected ?? departure.scheduled);
+
+    if (clockTime) {
+      return clockTime;
+    }
+  }
+
+  return `${minutesUntilDeparture} min`;
+}
+
+function readClockTime(timestamp: string | undefined): string | null {
+  if (!timestamp) {
+    return null;
+  }
+
+  const match = timestamp.match(/[T ](\d{2}:\d{2})/);
+
+  return match?.[1] ?? null;
 }
 
 function deriveState(departure: RawDeparture): 'EXPECTED' | 'CANCELLED' {

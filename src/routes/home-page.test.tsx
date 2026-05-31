@@ -13,14 +13,14 @@ describe('HomePage', () => {
 
     expect(
       screen.getByRole('heading', {
-        name: /admin workspace is live/i,
+        name: /display board is live/i,
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('link', { name: /open config workspace/i }),
     ).toHaveAttribute('href', '/config');
     expect(
-      screen.getByRole('link', { name: /open display shell/i }),
+      screen.getByRole('link', { name: /open demo board/i }),
     ).toHaveAttribute('href', '/display/demo-board');
   });
 });
