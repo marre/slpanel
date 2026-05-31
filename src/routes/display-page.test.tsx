@@ -199,4 +199,24 @@ describe('DisplayPage', () => {
       screen.getByText(/4 empty pixels above, between, and below the two rows/i),
     ).toBeInTheDocument();
   });
+
+  it('renders a MicroPython hardware preview when requested in the URL', async () => {
+    render(
+      <MemoryRouter initialEntries={['/display/demo-board?surface=micropython']}>
+        <Routes>
+          <Route path="/display/:displayId" element={<DisplayPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByRole('heading', {
+        name: /micropython preview for interstate 75w/i,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/DISPLAY_INTERSTATE75_128X32/)).toBeInTheDocument();
+    expect(
+      screen.queryByRole('img', { name: /sl departure board for demo board preview/i }),
+    ).not.toBeInTheDocument();
+  });
 });

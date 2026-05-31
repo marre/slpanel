@@ -1,5 +1,5 @@
 import { startTransition, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import type { DepartureRecord, DisplayRecord } from '@/api/types';
 import { DisplayBoard } from '@/components/display-board';
@@ -69,10 +69,13 @@ const DEMO_DEPARTURES: DepartureRecord[] = [
 ];
 
 type BoardTone = 'live' | 'loading' | 'empty' | 'error';
+type DisplaySurface = 'web' | 'micropython';
 
 export function DisplayPage() {
   const { displayId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isDemoBoard = displayId === 'demo-board';
+  const displaySurface = readDisplaySurface(searchParams);
   const [display, setDisplay] = useState<DisplayRecord | null>(null);
   const [departures, setDepartures] = useState<DepartureRecord[]>([]);
   const [isLoadingDisplay, setIsLoadingDisplay] = useState(!isDemoBoard);
@@ -232,6 +235,24 @@ export function DisplayPage() {
     activeDisplay?.name || activeDisplay?.display_id || 'Unknown board';
   const stopName =
     activeDisplay?.site_name || activeDisplay?.site_id || 'No stop configured';
+  const hardwareScript = buildMicroPythonScript({
+    departures: activeDepartures,
+    tone: boardState.tone,
+    headline: boardState.headline,
+    detail: boardState.detail,
+  });
+
+  function handleDisplaySurfaceChange(nextSurface: DisplaySurface) {
+    const nextSearchParams = new URLSearchParams(searchParams);
+
+    if (nextSurface === 'web') {
+      nextSearchParams.delete('surface');
+    } else {
+      nextSearchParams.set('surface', nextSurface);
+    }
+
+    setSearchParams(nextSearchParams, { replace: true });
+  }
 
   return (
     <section className="space-y-8">
@@ -266,19 +287,55 @@ export function DisplayPage() {
               </span>
             ) : null}
           </div>
+
+          <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.24em] text-[var(--muted-text)]">
+            <button
+              type="button"
+              aria-pressed={displaySurface === 'web'}
+              onClick={() => handleDisplaySurfaceChange('web')}
+              className={[
+                'rounded-full border px-4 py-2 transition',
+                displaySurface === 'web'
+                  ? 'border-[var(--panel-text)] bg-[var(--panel-text)]/12 text-[var(--panel-text)]'
+                  : 'border-[var(--panel-border)] bg-black/20 hover:border-[var(--panel-text)]/60 hover:text-[var(--panel-text)]',
+              ].join(' ')}
+            >
+              Web board
+            </button>
+            <button
+              type="button"
+              aria-pressed={displaySurface === 'micropython'}
+              onClick={() => handleDisplaySurfaceChange('micropython')}
+              className={[
+                'rounded-full border px-4 py-2 transition',
+                displaySurface === 'micropython'
+                  ? 'border-[var(--panel-text)] bg-[var(--panel-text)]/12 text-[var(--panel-text)]'
+                  : 'border-[var(--panel-border)] bg-black/20 hover:border-[var(--panel-text)]/60 hover:text-[var(--panel-text)]',
+              ].join(' ')}
+            >
+              MicroPython (Interstate 75W)
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)] xl:items-start">
         <div className="space-y-5">
-          <DisplayBoard
-            displayName={displayName}
-            siteName={activeDisplay?.site_name ?? null}
-            departures={activeDepartures}
-            tone={boardState.tone}
-            headline={boardState.headline}
-            detail={boardState.detail}
-          />
+          {displaySurface === 'web' ? (
+            <DisplayBoard
+              displayName={displayName}
+              siteName={activeDisplay?.site_name ?? null}
+              departures={activeDepartures}
+              tone={boardState.tone}
+              headline={boardState.headline}
+              detail={boardState.detail}
+            />
+          ) : (
+            <MicroPythonDisplayScript
+              stopName={stopName}
+              script={hardwareScript}
+            />
+          )}
 
           <div className="rounded-[1.7rem] border border-[var(--panel-border)] bg-black/16 p-4">
             <div className="space-y-2">
@@ -509,6 +566,84 @@ function formatTimestamp(value: number) {
 
 function describeBoardLayout() {
   return '2-row layout is fixed. The board uses the native font with 4 empty pixels above, between, and below the two rows.';
+}
+
+function readDisplaySurface(searchParams: URLSearchParams): DisplaySurface {
+  const surface = searchParams.get('surface');
+
+  if (surface === 'micropython') {
+    return 'micropython';
+  }
+
+  return 'web';
+}
+
+function buildMicroPythonScript(input: {
+  departures: DepartureRecord[];
+  tone: BoardTone;
+  headline: string;
+  detail: string;
+}) {
+  const rowOneText =
+    input.tone === 'live' && input.departures.length > 0
+      ? `${input.departures[0].line_number} ${input.departures[0].destination} ${input.departures[0].display_time}`
+      : input.headline;
+  const rowTwoText =
+    input.tone === 'live' && input.departures.length > 1
+      ? input.departures
+          .slice(1, 4)
+          .map((departure) =>
+            `${departure.line_number} ${departure.destination} ${departure.display_time}`.trim(),
+          )
+          .join('   ')
+      : input.detail;
+
+  return [
+    'from interstate75 import Interstate75',
+    'from picographics import DISPLAY_INTERSTATE75_128X32',
+    '',
+    'i75 = Interstate75(display=DISPLAY_INTERSTATE75_128X32)',
+    'graphics = i75.display',
+    'AMBER = graphics.create_pen(255, 153, 0)',
+    'BLACK = graphics.create_pen(0, 0, 0)',
+    '',
+    `ROW_ONE = '${escapePythonSingleQuotedString(rowOneText)}'`,
+    `ROW_TWO = '${escapePythonSingleQuotedString(rowTwoText)}'`,
+    '',
+    "graphics.set_font('bitmap8')",
+    'graphics.set_pen(BLACK)',
+    'graphics.clear()',
+    'graphics.set_pen(AMBER)',
+    'graphics.text(ROW_ONE, 0, 4, scale=1)',
+    'graphics.text(ROW_TWO, 0, 18, scale=1)',
+    'i75.update()',
+  ].join('\n');
+}
+
+function escapePythonSingleQuotedString(value: string) {
+  return value.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+}
+
+function MicroPythonDisplayScript(input: { stopName: string; script: string }) {
+  return (
+    <div className="rounded-[1.7rem] border border-[var(--panel-border)] bg-black/18 p-4 md:p-5">
+      <div className="space-y-2">
+        <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted-text)]">
+          Hardware display
+        </p>
+        <h3 className="text-lg font-semibold text-[var(--panel-text)]">
+          MicroPython preview for Interstate 75W
+        </h3>
+        <p className="text-sm leading-6 text-[var(--muted-text)]">
+          Backend data stays unchanged. Copy this script to your Pico W client
+          for stop {input.stopName}.
+        </p>
+      </div>
+      <pre className="mt-4 overflow-x-auto rounded-[1rem] border border-[var(--panel-border)] bg-black/40 p-4 text-xs leading-6 text-[var(--panel-text)]">
+        <code>{input.script}</code>
+      </pre>
+    </div>
+  );
 }
 
 function StatCard(input: { label: string; value: string; detail: string }) {
