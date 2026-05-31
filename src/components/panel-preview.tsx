@@ -4,7 +4,7 @@ import { DisplayBoard } from '@/components/display-board';
 const previewDepartures: DepartureRecord[] = [
   {
     line_number: '17',
-    destination: 'Hagsatra',
+    destination: 'Hagsätra',
     display_time: '1 min',
     minutes_until_departure: 1,
     scheduled_at: '2026-05-29T12:01:00Z',
@@ -26,7 +26,7 @@ const previewDepartures: DepartureRecord[] = [
   },
   {
     line_number: '17',
-    destination: 'Skarpnack',
+    destination: 'Skarpnäck',
     display_time: '7 min',
     minutes_until_departure: 7,
     scheduled_at: '2026-05-29T12:07:00Z',

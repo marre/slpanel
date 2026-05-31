@@ -29,6 +29,11 @@ export interface Glyph {
   readonly width: number;
 }
 
+export interface BitmapFont {
+  readonly cellHeight: number;
+  readonly getGlyph: (char: string) => Glyph | undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Raw glyph data
 // Each entry: character → array of row strings (all the same length).
@@ -881,12 +886,12 @@ const RAW: Record<string, readonly string[]> = {
     'xx  xx',
     '      ',
     ' xxxx ',
-    'xxxxxx',
     'xx  xx',
     'xx  xx',
     'xx  xx',
     'xx  xx',
-    'xxxxxx',
+    'xx  xx',
+    'xx  xx',
     ' xxxx ',
   ],
 
@@ -1218,3 +1223,8 @@ export const GLYPHS: Readonly<Record<string, Glyph>> = Object.fromEntries(
 export function getGlyph(char: string): Glyph | undefined {
   return GLYPHS[char];
 }
+
+export const SL_FONT: BitmapFont = {
+  cellHeight: CELL_HEIGHT,
+  getGlyph,
+};

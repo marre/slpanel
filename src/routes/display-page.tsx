@@ -17,14 +17,14 @@ const DEMO_DISPLAY: DisplayRecord = {
   site_name: 'Slussen',
   refresh_interval: 45,
   line_numbers: ['17', '18'],
-  directions: ['Hagsatra'],
+  directions: ['Hagsätra'],
   modes: ['METRO'],
 };
 
 const DEMO_DEPARTURES: DepartureRecord[] = [
   {
     line_number: '17',
-    destination: 'Hagsatra',
+    destination: 'Hagsätra',
     display_time: '1 min',
     minutes_until_departure: 1,
     scheduled_at: '2026-05-29T12:01:00Z',
@@ -46,7 +46,7 @@ const DEMO_DEPARTURES: DepartureRecord[] = [
   },
   {
     line_number: '17',
-    destination: 'Skarpnack',
+    destination: 'Skarpnäck',
     display_time: '7 min',
     minutes_until_departure: 7,
     scheduled_at: '2026-05-29T12:07:00Z',
@@ -280,6 +280,17 @@ export function DisplayPage() {
             detail={boardState.detail}
           />
 
+          <div className="rounded-[1.7rem] border border-[var(--panel-border)] bg-black/16 p-4">
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted-text)]">
+                Display layout
+              </p>
+              <p className="text-sm leading-6 text-[var(--muted-text)]">
+                {describeBoardLayout()}
+              </p>
+            </div>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-3">
             <StatCard
               label="Next train"
@@ -494,6 +505,10 @@ function formatTimestamp(value: number) {
     minute: '2-digit',
     second: '2-digit',
   }).format(value);
+}
+
+function describeBoardLayout() {
+  return '2-row layout is fixed. The board uses the native font with 4 empty pixels above, between, and below the two rows.';
 }
 
 function StatCard(input: { label: string; value: string; detail: string }) {

@@ -17,6 +17,11 @@ describe('DisplayPage', () => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
       fillRect: vi.fn(),
       clearRect: vi.fn(),
+      drawImage: vi.fn(),
+      imageSmoothingEnabled: true,
+      beginPath: vi.fn(),
+      arc: vi.fn(),
+      fill: vi.fn(),
       fillStyle: '#000000',
     } as unknown as CanvasRenderingContext2D);
   });
@@ -42,7 +47,7 @@ describe('DisplayPage', () => {
               site_name: 'Slussen',
               refresh_interval: 45,
               line_numbers: ['17', '18'],
-              directions: ['Hagsatra'],
+              directions: ['Hagsätra'],
               modes: ['METRO'],
             },
           }),
@@ -55,7 +60,7 @@ describe('DisplayPage', () => {
             departures: [
               {
                 line_number: '17',
-                destination: 'Hagsatra',
+                destination: 'Hagsätra',
                 display_time: '1 min',
                 minutes_until_departure: 1,
                 scheduled_at: '2026-05-29T12:00:00Z',
@@ -99,7 +104,7 @@ describe('DisplayPage', () => {
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
-        '/api/departures/1011?line=17&line=18&direction=Hagsatra&mode=METRO&forecast=240',
+        '/api/departures/1011?line=17&line=18&direction=Hags%C3%A4tra&mode=METRO&forecast=240',
         expect.objectContaining({
           headers: expect.objectContaining({ accept: 'application/json' }),
         }),
@@ -176,5 +181,22 @@ describe('DisplayPage', () => {
     expect(fetchMock.mock.calls[2]?.[0]).toBe(
       '/api/departures/1011?line=17&forecast=240',
     );
+  });
+
+  it('describes the fixed 2-row board layout', async () => {
+    render(
+      <MemoryRouter initialEntries={['/display/demo-board']}>
+        <Routes>
+          <Route path="/display/:displayId" element={<DisplayPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText(/2-row layout is fixed/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/4 empty pixels above, between, and below the two rows/i),
+    ).toBeInTheDocument();
   });
 });

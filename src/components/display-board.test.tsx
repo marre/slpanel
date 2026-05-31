@@ -2,10 +2,20 @@ import { render } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { DepartureRecord } from '@/api/types';
+import { DisplayBoard } from '@/components/display-board';
+
+const DIODE_SCALE = 4;
+const PANEL_WIDTH = 128 * DIODE_SCALE;
+const MARQUEE_SPEED = 18 * DIODE_SCALE;
+const ROW_ONE_Y = 4 * DIODE_SCALE;
+const ROW_TWO_Y = 18 * DIODE_SCALE;
 
 const { measureTextMock, renderTextMock, renderTextLineMock } = vi.hoisted(
   () => ({
-    measureTextMock: vi.fn((text: string) => Math.max(text.length * 6, 1)),
+    measureTextMock: vi.fn(
+      (text: string, options?: { scale?: number }) =>
+        Math.max(text.length * 6, 1) * (options?.scale ?? 1),
+    ),
     renderTextMock: vi.fn(),
     renderTextLineMock: vi.fn(),
   }),
@@ -16,8 +26,6 @@ vi.mock('@/font/sl-font-renderer', () => ({
   renderText: renderTextMock,
   renderTextLine: renderTextLineMock,
 }));
-
-import { DisplayBoard } from '@/components/display-board';
 
 describe('DisplayBoard', () => {
   let animationFrameCallback: FrameRequestCallback | null = null;
@@ -53,14 +61,14 @@ describe('DisplayBoard', () => {
 
   it('keeps the marquee moving when live departures refresh', () => {
     const initialDepartures: DepartureRecord[] = [
-      createDeparture('17', 'Hagsatra', '1 min', 1),
+      createDeparture('17', 'Hagsätra', '1 min', 1),
       createDeparture('18', 'Farsta strand', '4 min', 4),
-      createDeparture('19', 'Skarpnack', '7 min', 7),
+      createDeparture('19', 'Skarpnäck', '7 min', 7),
     ];
     const refreshedDepartures: DepartureRecord[] = [
-      createDeparture('17', 'Hagsatra', 'Now', 0),
+      createDeparture('17', 'Hagsätra', 'Now', 0),
       createDeparture('18', 'Farsta strand', '3 min', 3),
-      createDeparture('19', 'Skarpnack', '6 min', 6),
+      createDeparture('19', 'Skarpnäck', '6 min', 6),
     ];
 
     const { rerender } = render(
@@ -89,7 +97,7 @@ describe('DisplayBoard', () => {
 
     const marqueeXBeforeRefresh = readPrimaryMarqueeX();
 
-    expect(marqueeXBeforeRefresh).toBeLessThan(128);
+    expect(marqueeXBeforeRefresh).toBeLessThan(PANEL_WIDTH);
 
     renderTextMock.mockClear();
 
@@ -114,11 +122,11 @@ describe('DisplayBoard', () => {
 
   it('lets the full departure set scroll out before restarting', () => {
     const liveDepartures: DepartureRecord[] = [
-      createDeparture('17', 'Hagsatra', '1 min', 1),
+      createDeparture('17', 'Hagsätra', '1 min', 1),
       createDeparture('18', 'Farsta strand', '4 min', 4),
-      createDeparture('19', 'Skarpnack', '7 min', 7),
+      createDeparture('19', 'Skarpnäck', '7 min', 7),
     ];
-    const expectedMarqueeText = '18 Farsta strand 4 min     19 Skarpnack 7 min';
+    const expectedMarqueeText = '18 Farsta strand 4 min     19 Skarpnäck 7 min';
 
     render(
       <DisplayBoard
@@ -139,21 +147,26 @@ describe('DisplayBoard', () => {
     const restartTimestamp =
       1_000 +
       Math.ceil(
-        ((128 + Number(measureTextMock(expectedMarqueeText))) / 18) * 1_000,
+        ((PANEL_WIDTH +
+          Number(
+            measureTextMock(expectedMarqueeText, { scale: DIODE_SCALE }),
+          )) /
+          MARQUEE_SPEED) *
+          1_000,
       );
 
     renderTextMock.mockClear();
     animationFrameCallback?.(restartTimestamp);
 
     expect(readRowTwoTexts()).toEqual([expectedMarqueeText]);
-    expect(readPrimaryMarqueeX()).toBe(128);
+    expect(readPrimaryMarqueeX()).toBe(PANEL_WIDTH);
   });
 
   it('switches from empty-state text to live departures on the next frame', () => {
     const liveDepartures: DepartureRecord[] = [
-      createDeparture('17', 'Hagsatra', '1 min', 1),
+      createDeparture('17', 'Hagsätra', '1 min', 1),
       createDeparture('18', 'Farsta strand', '4 min', 4),
-      createDeparture('19', 'Skarpnack', '7 min', 7),
+      createDeparture('19', 'Skarpnäck', '7 min', 7),
     ];
 
     const { rerender } = render(
@@ -189,6 +202,55 @@ describe('DisplayBoard', () => {
     expect(readPrimaryMarqueeText()).toContain('18 Farsta strand 4 min');
     expect(readPrimaryMarqueeText()).not.toContain('No departures right now');
   });
+
+  it('uses the primary tone color for the fixed 2-row layout', () => {
+    render(
+      <DisplayBoard
+        displayName="Southbound platform"
+        siteName="Slussen"
+        departures={[]}
+        tone="loading"
+        headline="Loading departures"
+        detail="Board is running"
+      />,
+    );
+
+    renderTextMock.mockClear();
+    renderTextLineMock.mockClear();
+    animationFrameCallback?.(1_000);
+
+    const headlineCall = renderTextLineMock.mock.calls.find(
+      (call) => call[3] === ROW_ONE_Y,
+    );
+    const marqueeCall = renderTextMock.mock.calls.find((call) => call[3] === ROW_TWO_Y);
+
+    expect(headlineCall?.[5]).toMatchObject({ color: '#ffbe64' });
+    expect(marqueeCall?.[4]).toMatchObject({ color: '#ffbe64' });
+  });
+
+  it('uses 4 pixels of spacing above, between, and below the two rows', () => {
+    render(
+      <DisplayBoard
+        displayName="Southbound platform"
+        siteName="Slussen"
+        departures={[]}
+        tone="loading"
+        headline="Loading departures"
+        detail="Board is running"
+      />,
+    );
+
+    renderTextMock.mockClear();
+    renderTextLineMock.mockClear();
+    animationFrameCallback?.(1_000);
+
+    expect(renderTextLineMock.mock.calls.some((call) => call[3] === ROW_ONE_Y)).toBe(
+      true,
+    );
+    expect(renderTextMock.mock.calls.some((call) => call[3] === ROW_TWO_Y)).toBe(
+      true,
+    );
+  });
 });
 
 function createDeparture(
@@ -212,7 +274,7 @@ function createDeparture(
 
 function readPrimaryMarqueeX() {
   const rowTwoCalls = renderTextMock.mock.calls.filter(
-    (call) => call[3] === 19,
+    (call) => call[3] === ROW_TWO_Y,
   );
   const primaryMarqueeCall = rowTwoCalls[0];
 
@@ -239,5 +301,5 @@ function readRowTwoTexts() {
 }
 
 function readRowTwoCalls() {
-  return renderTextMock.mock.calls.filter((call) => call[3] === 19);
+  return renderTextMock.mock.calls.filter((call) => call[3] === ROW_TWO_Y);
 }

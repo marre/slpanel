@@ -8,7 +8,9 @@
  *   const w = measureText('17', { scale: 2 });
  */
 
-import { CELL_HEIGHT, getGlyph } from './sl-font';
+import { CELL_HEIGHT, SL_FONT, type BitmapFont } from './sl-font';
+
+export type PixelShape = 'square' | 'circle';
 
 export interface RenderOptions {
   /**
@@ -30,6 +32,18 @@ export interface RenderOptions {
    * Default: 1
    */
   gap?: number;
+
+  /**
+   * Bitmap font definition used to resolve glyphs.
+   * Default: the native SL board font.
+   */
+  font?: BitmapFont;
+
+  /**
+   * Shape used for each lit font pixel.
+   * Default: 'square'
+   */
+  pixelShape?: PixelShape;
 }
 
 // ---------------------------------------------------------------------------
@@ -42,8 +56,9 @@ export interface RenderOptions {
  */
 export function measureText(
   text: string,
-  options?: Pick<RenderOptions, 'scale' | 'gap'>,
+  options?: Pick<RenderOptions, 'font' | 'scale' | 'gap'>,
 ): number {
+  const font = options?.font ?? SL_FONT;
   const scale = options?.scale ?? 1;
   const gap = options?.gap ?? 1;
 
@@ -51,7 +66,7 @@ export function measureText(
   let glyphCount = 0;
 
   for (const char of text) {
-    const glyph = getGlyph(char);
+    const glyph = font.getGlyph(char);
     fontPixels += glyph ? glyph.width : 3;
     glyphCount++;
   }
@@ -83,16 +98,18 @@ export function renderText(
   y: number,
   options?: RenderOptions,
 ): void {
+  const font = options?.font ?? SL_FONT;
   const scale = options?.scale ?? 1;
   const color = options?.color ?? '#FF9900';
   const gap = options?.gap ?? 1;
+  const pixelShape = options?.pixelShape ?? 'square';
 
   ctx.fillStyle = color;
 
   let cx = x;
 
   for (const char of text) {
-    const glyph = getGlyph(char);
+    const glyph = font.getGlyph(char);
 
     if (!glyph) {
       // Unknown character: advance by a narrow space.
@@ -100,17 +117,9 @@ export function renderText(
       continue;
     }
 
-    const { rows, width } = glyph;
+    const { width } = glyph;
 
-    for (let row = 0; row < rows.length; row++) {
-      const rowStr = rows[row];
-      const py = y + row * scale;
-      for (let col = 0; col < rowStr.length; col++) {
-        if (rowStr[col] === 'x') {
-          ctx.fillRect(cx + col * scale, py, scale, scale);
-        }
-      }
-    }
+    drawGlyph(ctx, glyph, cx, y, scale, pixelShape);
 
     cx += (width + gap) * scale;
   }
@@ -134,32 +143,26 @@ export function renderTextLine(
   maxWidth: number,
   options?: RenderOptions,
 ): number {
+  const font = options?.font ?? SL_FONT;
   const scale = options?.scale ?? 1;
   const gap = options?.gap ?? 1;
+  const pixelShape = options?.pixelShape ?? 'square';
 
   let cx = x;
   let drawn = 0;
 
   for (const char of text) {
-    const glyph = getGlyph(char);
+    const glyph = font.getGlyph(char);
     const charWidth = ((glyph ? glyph.width : 3) + gap) * scale;
 
     if (cx + charWidth - gap * scale > x + maxWidth) break;
 
     if (glyph) {
-      const { rows, width } = glyph;
+      const { width } = glyph;
       const color = options?.color ?? '#FF9900';
       ctx.fillStyle = color;
 
-      for (let row = 0; row < rows.length; row++) {
-        const rowStr = rows[row];
-        const py = y + row * scale;
-        for (let col = 0; col < rowStr.length; col++) {
-          if (rowStr[col] === 'x') {
-            ctx.fillRect(cx + col * scale, py, scale, scale);
-          }
-        }
-      }
+      drawGlyph(ctx, glyph, cx, y, scale, pixelShape);
 
       cx += (width + gap) * scale;
     } else {
@@ -176,7 +179,52 @@ export function renderTextLine(
 // Utility: cell height in canvas pixels
 // ---------------------------------------------------------------------------
 
-/** Returns CELL_HEIGHT multiplied by the given scale. */
-export function cellHeight(scale = 1): number {
-  return CELL_HEIGHT * scale;
+/** Returns the selected font cell height multiplied by the given scale. */
+export function cellHeight(scale = 1, font: BitmapFont = SL_FONT): number {
+  return font.cellHeight * scale;
+}
+
+function drawGlyph(
+  ctx: CanvasRenderingContext2D,
+  glyph: ReturnType<BitmapFont['getGlyph']>,
+  x: number,
+  y: number,
+  scale: number,
+  pixelShape: PixelShape,
+) {
+  if (!glyph) {
+    return;
+  }
+
+  const { rows } = glyph;
+
+  for (let row = 0; row < rows.length; row++) {
+    const rowStr = rows[row];
+    const py = y + row * scale;
+
+    for (let col = 0; col < rowStr.length; col++) {
+      if (rowStr[col] !== 'x') {
+        continue;
+      }
+
+      drawLitPixel(ctx, x + col * scale, py, scale, pixelShape);
+    }
+  }
+}
+
+function drawLitPixel(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  scale: number,
+  pixelShape: PixelShape,
+) {
+  if (pixelShape === 'circle') {
+    ctx.beginPath();
+    ctx.arc(x + scale / 2, y + scale / 2, Math.max(0.5, scale * 0.42), 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
+
+  ctx.fillRect(x, y, scale, scale);
 }

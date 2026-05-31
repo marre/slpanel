@@ -5,16 +5,28 @@ import {
   measureText,
   renderText,
   renderTextLine,
+  type RenderOptions,
 } from '@/font/sl-font-renderer';
 
-const PANEL_WIDTH = 128;
-const PANEL_HEIGHT = 32;
-const ROW_ONE_Y = 3;
-const ROW_TWO_Y = 19;
-const MARQUEE_SPEED = 18;
-const FONT_OPTIONS = { scale: 1, gap: 1 } as const;
+const LOGICAL_PANEL_WIDTH = 128;
+const LOGICAL_PANEL_HEIGHT = 32;
+const DIODE_SCALE = 4;
+const PANEL_WIDTH = scaleBoardUnit(LOGICAL_PANEL_WIDTH);
+const PANEL_HEIGHT = scaleBoardUnit(LOGICAL_PANEL_HEIGHT);
+const MARQUEE_SPEED = scaleBoardUnit(18);
 
 type BoardTone = 'live' | 'loading' | 'empty' | 'error';
+
+type BoardFontOptions = Pick<
+  RenderOptions,
+  'font' | 'gap' | 'pixelShape' | 'scale'
+>;
+
+const BOARD_FONT_OPTIONS: BoardFontOptions = {
+  gap: 1,
+  pixelShape: 'circle',
+  scale: DIODE_SCALE,
+};
 
 interface DisplayBoardProps {
   displayName: string;
@@ -28,6 +40,14 @@ interface DisplayBoardProps {
 interface MarqueeContent {
   text: string;
   interruptible: boolean;
+}
+
+interface BoardLayout {
+  rowYs: readonly [number, number];
+  fontOptions: BoardFontOptions;
+  panelPadding: number;
+  leadDepartureGap: number;
+  marqueeSpeed: number;
 }
 
 export function DisplayBoard({
@@ -105,6 +125,7 @@ export function DisplayBoard({
     const renderFrame = (timestamp: number) => {
       const frameInput = frameInputRef.current;
       const marqueeState = marqueeStateRef.current;
+      const layout = getBoardLayout();
 
       marqueeState.pendingContent = buildMarqueeContent(frameInput);
 
@@ -127,7 +148,7 @@ export function DisplayBoard({
       }
 
       const marqueeWidth = Math.max(
-        measureText(marqueeState.activeContent.text, FONT_OPTIONS),
+        measureText(marqueeState.activeContent.text, layout.fontOptions),
         1,
       );
 
@@ -136,7 +157,7 @@ export function DisplayBoard({
       } else {
         const delta = timestamp - marqueeState.lastTimestamp;
         marqueeState.lastTimestamp = timestamp;
-        marqueeState.marqueeOffset -= (delta / 1000) * MARQUEE_SPEED;
+        marqueeState.marqueeOffset -= (delta / 1000) * layout.marqueeSpeed;
       }
 
       if (marqueeState.marqueeOffset <= -marqueeWidth) {
@@ -195,7 +216,7 @@ export function DisplayBoard({
           role="img"
           aria-label={`SL departure board for ${displayName}`}
           aria-describedby={`display-board-summary-${slugify(displayName)}`}
-          className="h-auto w-full rounded-[0.6rem] bg-black [image-rendering:pixelated]"
+          className="h-auto w-full rounded-[0.6rem] bg-black"
         />
         <p
           id={`display-board-summary-${slugify(displayName)}`}
@@ -220,28 +241,43 @@ function drawBoard(
     marqueeOffset: number;
   },
 ) {
+  const colors = getToneColors(input.tone);
+  const layout = getBoardLayout();
+  const [rowOneY, rowTwoY] = layout.rowYs;
+
   context.fillStyle = '#020202';
   context.fillRect(0, 0, PANEL_WIDTH, PANEL_HEIGHT);
 
-  const colors = getToneColors(input.tone);
-
   if (input.tone === 'live' && input.departures.length > 0) {
-    drawLeadDeparture(context, input.departures[0], colors.primary);
+    drawLeadDeparture(
+      context,
+      input.departures[0],
+      colors.primary,
+      layout,
+      rowOneY,
+    );
   } else {
-    renderTextLine(context, input.headline, 2, ROW_ONE_Y, PANEL_WIDTH - 4, {
-      ...FONT_OPTIONS,
-      color: colors.primary,
-    });
+    renderTextLine(
+      context,
+      input.headline,
+      layout.panelPadding,
+      rowOneY,
+      PANEL_WIDTH - layout.panelPadding * 2,
+      {
+        ...layout.fontOptions,
+        color: colors.primary,
+      },
+    );
   }
 
   renderText(
     context,
     input.marqueeText,
     Math.round(input.marqueeOffset),
-    ROW_TWO_Y,
+    rowTwoY,
     {
-      ...FONT_OPTIONS,
-      color: colors.secondary,
+      ...layout.fontOptions,
+      color: colors.primary,
     },
   );
 }
@@ -250,18 +286,23 @@ function drawLeadDeparture(
   context: CanvasRenderingContext2D,
   departure: DepartureRecord,
   color: string,
+  layout: Pick<BoardLayout, 'fontOptions' | 'panelPadding' | 'leadDepartureGap'>,
+  rowY: number,
 ) {
   const lineNumber = departure.line_number || '--';
   const destination = departure.destination || 'Unknown';
   const displayTime = departure.display_time || 'Now';
-  const lineWidth = measureText(lineNumber, FONT_OPTIONS);
-  const timeWidth = measureText(displayTime, FONT_OPTIONS);
-  const timeX = PANEL_WIDTH - timeWidth - 2;
-  const destinationX = lineWidth + 5;
-  const destinationWidth = Math.max(0, timeX - destinationX - 2);
+  const lineWidth = measureText(lineNumber, layout.fontOptions);
+  const timeWidth = measureText(displayTime, layout.fontOptions);
+  const timeX = PANEL_WIDTH - timeWidth - layout.panelPadding;
+  const destinationX = lineWidth + layout.leadDepartureGap;
+  const destinationWidth = Math.max(
+    0,
+    timeX - destinationX - layout.panelPadding,
+  );
 
-  renderText(context, lineNumber, 2, ROW_ONE_Y, {
-    ...FONT_OPTIONS,
+  renderText(context, lineNumber, layout.panelPadding, rowY, {
+    ...layout.fontOptions,
     color,
   });
 
@@ -269,16 +310,16 @@ function drawLeadDeparture(
     context,
     destination,
     destinationX,
-    ROW_ONE_Y,
+    rowY,
     destinationWidth,
     {
-      ...FONT_OPTIONS,
+      ...layout.fontOptions,
       color,
     },
   );
 
-  renderText(context, displayTime, timeX, ROW_ONE_Y, {
-    ...FONT_OPTIONS,
+  renderText(context, displayTime, timeX, rowY, {
+    ...layout.fontOptions,
     color,
   });
 }
@@ -378,6 +419,24 @@ function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 }
 
-function buildBoardKey(displayName: string, siteName: string | null) {
+function buildBoardKey(
+  displayName: string,
+  siteName: string | null,
+) {
   return `${displayName}::${siteName ?? ''}`;
+}
+
+function getBoardLayout(): BoardLayout {
+  return {
+    // 4 empty rows + 10 font rows + 4 empty rows + 10 font rows + 4 empty rows.
+    rowYs: [scaleBoardUnit(4), scaleBoardUnit(18)] as const,
+    fontOptions: BOARD_FONT_OPTIONS,
+    panelPadding: scaleBoardUnit(2),
+    leadDepartureGap: scaleBoardUnit(5),
+    marqueeSpeed: MARQUEE_SPEED,
+  };
+}
+
+function scaleBoardUnit(value: number) {
+  return value * DIODE_SCALE;
 }
