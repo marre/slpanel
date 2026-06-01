@@ -1,8 +1,9 @@
 import { createCanvasPicographics } from '@/lib/picographics-canvas';
 import {
+  loadBoardEngineSource,
+  loadPicographicsBridgeSource,
   loadPicographicsModuleSource,
-  loadPicographicsPythonSource,
-  loadSlpanelInstrumentationSource,
+  loadRuntimeInstrumentationSource,
 } from '@/lib/picographics-python-source';
 import {
   createPyScriptPicographicsController,
@@ -23,7 +24,7 @@ const PYTHON_INTERPRETER_READY_TIMEOUT_MS = 1500;
 
 declare global {
   interface Window {
-    __slpanelPicographicsPythonSource?: string;
+    __slpanelPicographicsBridgeSource?: string;
   }
 }
 
@@ -32,11 +33,6 @@ interface MainThreadPicographicsApi {
   createMarqueeStateJson: (frameInputJson: string) => void;
   setFrameInputJson: (frameInputJson: string) => void;
   setMeasurementsJson: (measurementsJson: string) => void;
-  advanceAndDrawCurrentFrameBatchJson: (
-    firstDeltaSeconds: number,
-    nextDeltaSeconds: number,
-    frameCount: number,
-  ) => void;
   advanceAndDrawCurrentFrameJson: (deltaSeconds: number) => void;
   advanceAndDrawFrameJson: (
     frameInputJson: string,
@@ -98,16 +94,22 @@ export function createPyScriptPicographicsRuntime(options?: {
       await waitForMicroPythonInterpreter(win, coreModule.whenDefined);
 
       const fetcher = options?.fetcher ?? fetch;
-      const [picographicsModuleSource, instrumentationModuleSource, source] =
-        await Promise.all([
+      const [
+        picographicsModuleSource,
+        instrumentationModuleSource,
+        engineModuleSource,
+        bridgeSource,
+      ] = await Promise.all([
         loadPicographicsModuleSource(fetcher),
-        loadSlpanelInstrumentationSource(fetcher),
-        loadPicographicsPythonSource(fetcher),
-        ]);
+        loadRuntimeInstrumentationSource(fetcher),
+        loadBoardEngineSource(fetcher),
+        loadPicographicsBridgeSource(fetcher),
+      ]);
       logRuntime('initialize:source-loaded', {
         picographicsModuleSourceLength: picographicsModuleSource.length,
         instrumentationModuleSourceLength: instrumentationModuleSource.length,
-        sourceLength: source.length,
+        engineModuleSourceLength: engineModuleSource.length,
+        bridgeSourceLength: bridgeSource.length,
       });
       const runtimeTarget = ensureHiddenRuntimeTarget(doc);
       const apiProperty = `${PYTHON_API_PROPERTY_PREFIX}${Math.random().toString(36).slice(2, 10)}`;
@@ -115,9 +117,10 @@ export function createPyScriptPicographicsRuntime(options?: {
         doc,
         runtimeTarget.id,
         buildPythonBootstrapSource({
-          source,
+          bridgeSource,
           picographicsModuleSource,
           instrumentationModuleSource,
+          engineModuleSource,
           apiProperty,
         }),
       );
@@ -143,7 +146,7 @@ export function createPyScriptPicographicsRuntime(options?: {
         throw error;
       }
 
-      runtimeWindow.__slpanelPicographicsPythonSource = source;
+      runtimeWindow.__slpanelPicographicsBridgeSource = bridgeSource;
 
       logRuntime('initialize:ready', {
         apiProperty,
@@ -185,23 +188,6 @@ function createMainThreadPyScriptBridge(
       invokeBridgeVoid(api, 'setMeasurementsJson', () => {
         api.setMeasurementsJson(measurementsJson);
       });
-    },
-    advanceAndDrawCurrentFrameBatchJson(
-      firstDeltaSeconds,
-      nextDeltaSeconds,
-      frameCount,
-    ) {
-      return readBridgeJsonResult(
-        api,
-        'advanceAndDrawCurrentFrameBatchJson',
-        () => {
-          api.advanceAndDrawCurrentFrameBatchJson(
-            firstDeltaSeconds,
-            nextDeltaSeconds,
-            frameCount,
-          );
-        },
-      );
     },
     advanceAndDrawCurrentFrameJson(deltaSeconds) {
       return readBridgeJsonResult(api, 'advanceAndDrawCurrentFrameJson', () => {
@@ -408,15 +394,17 @@ function resolveMainThreadPicographicsApi(
 }
 
 function buildPythonBootstrapSource(options: {
-  source: string;
+  bridgeSource: string;
   picographicsModuleSource: string;
   instrumentationModuleSource: string;
+  engineModuleSource: string;
   apiProperty: string;
 }) {
   const {
-    source,
+    bridgeSource,
     picographicsModuleSource,
     instrumentationModuleSource,
+    engineModuleSource,
     apiProperty,
   } = options;
 
@@ -440,15 +428,17 @@ function buildPythonBootstrapSource(options: {
     '    sys.modules[module_name] = _module',
     '',
     `_slpanel_picographics_module_source = ${JSON.stringify(picographicsModuleSource)}`,
-    `_slpanel_instrumentation_module_source = ${JSON.stringify(instrumentationModuleSource)}`,
+    `_slpanel_runtime_instrumentation_module_source = ${JSON.stringify(instrumentationModuleSource)}`,
+    `_slpanel_board_engine_module_source = ${JSON.stringify(engineModuleSource)}`,
     '',
-    '_slpanel_register_module("picographics", _slpanel_picographics_module_source)',
     '_slpanel_register_module(',
-    '    "slpanel_instrumentation",',
-    '    _slpanel_instrumentation_module_source,',
+    '    "runtime_instrumentation",',
+    '    _slpanel_runtime_instrumentation_module_source,',
     ')',
+    '_slpanel_register_module("picographics", _slpanel_picographics_module_source)',
+    '_slpanel_register_module("board_engine", _slpanel_board_engine_module_source)',
     '',
-    source.trimEnd(),
+    bridgeSource.trimEnd(),
     '',
     'from js import Object',
     'from pyscript import window',
@@ -465,17 +455,6 @@ function buildPythonBootstrapSource(options: {
     '',
     'def _slpanel_set_measurements_json(measurements_json="{}"):',
     '    set_measurements_json(measurements_json)',
-    '',
-    'def _slpanel_advance_and_draw_current_frame_batch_json(',
-    '    first_delta_seconds,',
-    '    next_delta_seconds,',
-    '    frame_count,',
-    '):',
-    '    _slpanel_api.result = advance_and_draw_current_frame_batch_json(',
-    '        first_delta_seconds,',
-    '        next_delta_seconds,',
-    '        frame_count,',
-    '    )',
     '',
     'def _slpanel_advance_and_draw_current_frame_json(delta_seconds):',
     '    _slpanel_api.result = advance_and_draw_current_frame_json(delta_seconds)',
@@ -520,7 +499,6 @@ function buildPythonBootstrapSource(options: {
     '_slpanel_api.createMarqueeStateJson = create_proxy(_slpanel_create_marquee_state_json)',
     '_slpanel_api.setFrameInputJson = create_proxy(_slpanel_set_frame_input_json)',
     '_slpanel_api.setMeasurementsJson = create_proxy(_slpanel_set_measurements_json)',
-    '_slpanel_api.advanceAndDrawCurrentFrameBatchJson = create_proxy(_slpanel_advance_and_draw_current_frame_batch_json)',
     '_slpanel_api.advanceAndDrawCurrentFrameJson = create_proxy(_slpanel_advance_and_draw_current_frame_json)',
     '_slpanel_api.advanceAndDrawFrameJson = create_proxy(_slpanel_advance_and_draw_frame_json)',
     '_slpanel_api.advanceMarqueeStateJson = create_proxy(_slpanel_advance_marquee_state_json)',

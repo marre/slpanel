@@ -24,11 +24,6 @@ export interface PyScriptPicographicsBridge {
   createMarqueeStateJson: (frameInputJson: string) => string;
   setFrameInputJson?: (frameInputJson: string) => void | Promise<void>;
   setMeasurementsJson?: (measurementsJson: string) => void | Promise<void>;
-  advanceAndDrawCurrentFrameBatchJson?: (
-    firstDeltaSeconds: number,
-    nextDeltaSeconds: number,
-    frameCount: number,
-  ) => string | Promise<string>;
   advanceAndDrawCurrentFrameJson?: (
     deltaSeconds: number,
   ) => string | Promise<string>;

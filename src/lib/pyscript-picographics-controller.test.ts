@@ -53,7 +53,6 @@ describe('createPyScriptPicographicsController', () => {
     const controller = createPyScriptPicographicsController({
       createMarqueeStateJson,
       setMeasurementsJson,
-      advanceAndDrawCurrentFrameBatchJson: vi.fn(),
       advanceAndDrawCurrentFrameJson,
       advanceAndDrawFrameJson,
       advanceMarqueeStateJson: vi.fn(),
@@ -115,7 +114,6 @@ describe('createPyScriptPicographicsController', () => {
         }),
       ),
       advanceMarqueeStateJson: vi.fn(),
-      advanceAndDrawCurrentFrameBatchJson: vi.fn(),
       advanceAndDrawFrameJson: vi.fn(),
       setMeasurementsJson: vi.fn(),
       advanceAndDrawCurrentFrameJson: vi.fn(),
@@ -171,7 +169,6 @@ describe('createPyScriptPicographicsController', () => {
         }),
       ),
       setMeasurementsJson: vi.fn(),
-      advanceAndDrawCurrentFrameBatchJson: vi.fn(),
       advanceAndDrawCurrentFrameJson: vi.fn().mockResolvedValue(
         JSON.stringify({
           marquee_state: {
@@ -225,59 +222,6 @@ describe('createPyScriptPicographicsController', () => {
 
     expect(graphics.clear).toHaveBeenCalledTimes(1);
     expect(graphics.update).toHaveBeenCalledTimes(1);
-  });
-
-  it('prefers the smoother single-frame bridge even when the batch API exists', async () => {
-    const graphics = createGraphics(18);
-    const advanceAndDrawCurrentFrameBatchJson = vi.fn();
-    const advanceAndDrawCurrentFrameJson = vi.fn().mockResolvedValue(
-      JSON.stringify({
-        marquee_state: {
-          active_content: {
-            text: 'Loading departures',
-            interruptible: true,
-          },
-          pending_content: {
-            text: 'Loading departures',
-            interruptible: true,
-          },
-          marquee_offset: 110,
-        },
-        commands: [['set_pen', '#020202'], ['clear'], ['update']],
-      }),
-    );
-    const controller = createPyScriptPicographicsController({
-      createMarqueeStateJson: vi.fn().mockReturnValue(
-        JSON.stringify({
-          active_content: {
-            text: 'Loading departures',
-            interruptible: true,
-          },
-          pending_content: {
-            text: 'Loading departures',
-            interruptible: true,
-          },
-          marquee_offset: 128,
-        }),
-      ),
-      setMeasurementsJson: vi.fn(),
-      advanceAndDrawCurrentFrameBatchJson,
-      advanceAndDrawCurrentFrameJson,
-      advanceAndDrawFrameJson: vi.fn(),
-      advanceMarqueeStateJson: vi.fn(),
-      drawBoardCommandsJson: vi.fn(),
-    });
-    const frameInput = {
-      departures: [],
-      tone: 'loading' as const,
-      headline: 'Loading departures',
-      detail: 'Board is starting',
-    };
-    const initialState = controller.createMarqueeState(frameInput);
-    await controller.advanceMarqueeState(graphics, initialState, frameInput, 1);
-
-    expect(advanceAndDrawCurrentFrameJson).toHaveBeenCalledTimes(1);
-    expect(advanceAndDrawCurrentFrameBatchJson).not.toHaveBeenCalled();
   });
 
   it('falls back to the stateless bridge when the stateful frame API is unavailable', async () => {

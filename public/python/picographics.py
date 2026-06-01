@@ -1,7 +1,23 @@
 class PicoGraphics:
-    def __init__(self, measurements=None):
-        self.measurements = measurements or {}
+    """PicoGraphics-compatible fake for browser bridge/testing.
+
+    Accepts arbitrary constructor args/kwargs so call sites can look like
+    device code while still supporting optional text measurement injection.
+    """
+
+    def __init__(self, *args, measurements=None, **kwargs):
+        inferred_measurements = measurements
+
+        if inferred_measurements is None and args and isinstance(args[0], dict):
+            inferred_measurements = args[0]
+
+        self.measurements = inferred_measurements or {}
         self.commands = []
+        self._init_args = args
+        self._init_kwargs = kwargs
+
+    def set_measurements(self, measurements):
+        self.measurements = measurements or {}
 
     # PicoGraphics-style pen creation. The fake returns CSS hex values so the
     # TypeScript bridge can replay commands on the canvas implementation.

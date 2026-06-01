@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const loadPyScriptCoreModuleMock = vi.hoisted(() => vi.fn());
-const loadPicographicsPythonSourceMock = vi.hoisted(() => vi.fn());
+const loadPicographicsBridgeSourceMock = vi.hoisted(() => vi.fn());
 const loadPicographicsModuleSourceMock = vi.hoisted(() => vi.fn());
-const loadSlpanelInstrumentationSourceMock = vi.hoisted(() => vi.fn());
+const loadBoardEngineSourceMock = vi.hoisted(() => vi.fn());
+const loadRuntimeInstrumentationSourceMock = vi.hoisted(() => vi.fn());
 const whenDefinedMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/pyscript-loader', () => ({
@@ -11,9 +12,10 @@ vi.mock('@/lib/pyscript-loader', () => ({
 }));
 
 vi.mock('@/lib/picographics-python-source', () => ({
+  loadBoardEngineSource: loadBoardEngineSourceMock,
+  loadPicographicsBridgeSource: loadPicographicsBridgeSourceMock,
   loadPicographicsModuleSource: loadPicographicsModuleSourceMock,
-  loadPicographicsPythonSource: loadPicographicsPythonSourceMock,
-  loadSlpanelInstrumentationSource: loadSlpanelInstrumentationSourceMock,
+  loadRuntimeInstrumentationSource: loadRuntimeInstrumentationSourceMock,
 }));
 
 import { createPyScriptPicographicsRuntime } from '@/lib/pyscript-picographics-runtime';
@@ -26,25 +28,29 @@ describe('createPyScriptPicographicsRuntime', () => {
     loadPyScriptCoreModuleMock.mockResolvedValue({
       whenDefined: whenDefinedMock,
     });
-    loadPicographicsPythonSourceMock.mockResolvedValue(
+    loadPicographicsBridgeSourceMock.mockResolvedValue(
       'def draw_board():\n    pass\n',
     );
     loadPicographicsModuleSourceMock.mockResolvedValue(
       'class PicoGraphics:\n    pass\n',
     );
-    loadSlpanelInstrumentationSourceMock.mockResolvedValue(
+    loadBoardEngineSourceMock.mockResolvedValue(
+      'class BoardEngine:\n    pass\n',
+    );
+    loadRuntimeInstrumentationSourceMock.mockResolvedValue(
       'def debug_log(event, payload=None):\n    pass\n',
     );
-    delete window.__slpanelPicographicsPythonSource;
+    delete window.__slpanelPicographicsBridgeSource;
   });
 
   afterEach(() => {
     loadPyScriptCoreModuleMock.mockReset();
-    loadPicographicsPythonSourceMock.mockReset();
+    loadPicographicsBridgeSourceMock.mockReset();
     loadPicographicsModuleSourceMock.mockReset();
-    loadSlpanelInstrumentationSourceMock.mockReset();
+    loadBoardEngineSourceMock.mockReset();
+    loadRuntimeInstrumentationSourceMock.mockReset();
     whenDefinedMock.mockReset();
-    delete window.__slpanelPicographicsPythonSource;
+    delete window.__slpanelPicographicsBridgeSource;
   });
 
   it('loads PyScript, executes the shared Python source, and returns a Python-backed controller session', async () => {
@@ -95,27 +101,6 @@ describe('createPyScriptPicographicsRuntime', () => {
 
     Object.assign(window, {
       [apiProperty ?? '']: {
-        advanceAndDrawCurrentFrameBatchJson: vi
-          .fn()
-          .mockImplementation(function (this: { result?: unknown }) {
-            this.result = JSON.stringify([
-              {
-                marquee_state: {
-                  active_content: {
-                    text: 'Loading departures',
-                    interruptible: true,
-                  },
-                  pending_content: {
-                    text: 'Loading departures',
-                    interruptible: true,
-                  },
-                  marquee_offset: 120,
-                },
-                commands: [['set_pen', '#020202'], ['clear'], ['update']],
-              },
-            ]);
-            return asThenableJson('ignored');
-          }),
         advanceAndDrawCurrentFrameJson: vi
           .fn()
           .mockImplementation(function (this: { result?: unknown }) {
@@ -184,8 +169,9 @@ describe('createPyScriptPicographicsRuntime', () => {
     expect(loadPyScriptCoreModuleMock).toHaveBeenCalledWith(document);
     expect(whenDefinedMock).toHaveBeenCalledWith('mpy');
     expect(loadPicographicsModuleSourceMock).toHaveBeenCalledWith(fetch);
-    expect(loadSlpanelInstrumentationSourceMock).toHaveBeenCalledWith(fetch);
-    expect(loadPicographicsPythonSourceMock).toHaveBeenCalledWith(fetch);
+    expect(loadRuntimeInstrumentationSourceMock).toHaveBeenCalledWith(fetch);
+    expect(loadBoardEngineSourceMock).toHaveBeenCalledWith(fetch);
+    expect(loadPicographicsBridgeSourceMock).toHaveBeenCalledWith(fetch);
     expect(script).toHaveAttribute('type', 'mpy');
     expect(script).toHaveAttribute(
       'target',
@@ -201,13 +187,23 @@ describe('createPyScriptPicographicsRuntime', () => {
       '_slpanel_register_module(',
     );
     expect(script?.textContent).toContain(
-      '"slpanel_instrumentation",',
+      '_slpanel_register_module("board_engine", _slpanel_board_engine_module_source)',
+    );
+    expect(script?.textContent?.indexOf(
+      '_slpanel_register_module("picographics", _slpanel_picographics_module_source)',
+    )).toBeLessThan(
+      script?.textContent?.indexOf(
+        '_slpanel_register_module("board_engine", _slpanel_board_engine_module_source)',
+      ) ?? 0,
     );
     expect(script?.textContent).toContain(
-      '_slpanel_instrumentation_module_source',
+      '"runtime_instrumentation",',
+    );
+    expect(script?.textContent).toContain(
+      '_slpanel_runtime_instrumentation_module_source',
     );
     expect(script?.textContent).not.toContain('types.ModuleType("picographics")');
-    expect(window.__slpanelPicographicsPythonSource).toContain('draw_board');
+    expect(window.__slpanelPicographicsBridgeSource).toContain('draw_board');
     await session.controller.drawBoard(
       session.graphics,
       {
@@ -269,26 +265,6 @@ describe('createPyScriptPicographicsRuntime', () => {
         }),
         setFrameInputJson: vi.fn(),
         setMeasurementsJson: vi.fn(),
-        advanceAndDrawCurrentFrameBatchJson: vi.fn(function (this: {
-          result?: unknown;
-        }) {
-          this.result = JSON.stringify([
-            {
-              marquee_state: {
-                active_content: {
-                  text: 'Loading departures',
-                  interruptible: true,
-                },
-                pending_content: {
-                  text: 'Loading departures',
-                  interruptible: true,
-                },
-                marquee_offset: 120,
-              },
-              commands: [['set_pen', '#020202'], ['clear'], ['update']],
-            },
-          ]);
-        }),
         advanceAndDrawCurrentFrameJson: vi.fn(function (this: {
           result?: unknown;
         }) {
@@ -366,7 +342,7 @@ describe('createPyScriptPicographicsRuntime', () => {
       'target',
       expect.stringMatching(/^#slpanel-pyscript-target-/),
     );
-    expect(window.__slpanelPicographicsPythonSource).toContain('draw_board');
+    expect(window.__slpanelPicographicsBridgeSource).toContain('draw_board');
   });
 });
 
