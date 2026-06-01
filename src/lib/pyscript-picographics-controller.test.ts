@@ -4,13 +4,17 @@ import { createPyScriptPicographicsController } from '@/lib/pyscript-picographic
 
 describe('createPyScriptPicographicsController', () => {
   it('advances a frame through the Python bridge', async () => {
-    const advanceAndDrawFrameJson = vi.fn().mockResolvedValue(
-      JSON.stringify([['set_pen', '#020202'], ['clear'], ['update']]),
-    );
+    const advanceAndDrawFrameJson = vi
+      .fn()
+      .mockResolvedValue(
+        JSON.stringify([['set_pen', '#020202'], ['clear'], ['update']]),
+      );
     const setMeasurementsJson = vi.fn();
-    const advanceAndDrawCurrentFrameJson = vi.fn().mockResolvedValue(
-      JSON.stringify([['set_pen', '#020202'], ['clear'], ['update']]),
-    );
+    const advanceAndDrawCurrentFrameJson = vi
+      .fn()
+      .mockResolvedValue(
+        JSON.stringify([['set_pen', '#020202'], ['clear'], ['update']]),
+      );
     const graphics = createGraphics(24);
     const controller = createPyScriptPicographicsController({
       setMeasurementsJson,
@@ -22,10 +26,10 @@ describe('createPyScriptPicographicsController', () => {
     await controller.advanceFrame(
       graphics,
       {
-      departures: [],
-      tone: 'live',
-      headline: 'Live departures',
-      detail: 'Board is running',
+        departures: [],
+        tone: 'live',
+        headline: 'Live departures',
+        detail: 'Board is running',
       },
       1,
     );
@@ -57,15 +61,12 @@ describe('createPyScriptPicographicsController', () => {
       drawBoardCommandsJson,
     });
 
-    await controller.drawFrame(
-      graphics,
-      {
-        departures: [],
-        tone: 'loading',
-        headline: 'Loading departures',
-        detail: 'Board is starting',
-      },
-    );
+    await controller.drawFrame(graphics, {
+      departures: [],
+      tone: 'loading',
+      headline: 'Loading departures',
+      detail: 'Board is starting',
+    });
 
     expect(drawBoardCommandsJson).toHaveBeenCalledWith(
       expect.stringContaining('"tone":"loading"'),
@@ -81,12 +82,16 @@ describe('createPyScriptPicographicsController', () => {
     const graphics = createGraphics(18);
     const controller = createPyScriptPicographicsController({
       setMeasurementsJson: vi.fn(),
-      advanceAndDrawCurrentFrameJson: vi.fn().mockResolvedValue(
-        JSON.stringify([['set_pen', '#020202'], ['clear'], ['update']]),
-      ),
-      advanceAndDrawFrameJson: vi.fn().mockResolvedValue(
-        JSON.stringify([['set_pen', '#020202'], ['clear'], ['update']]),
-      ),
+      advanceAndDrawCurrentFrameJson: vi
+        .fn()
+        .mockResolvedValue(
+          JSON.stringify([['set_pen', '#020202'], ['clear'], ['update']]),
+        ),
+      advanceAndDrawFrameJson: vi
+        .fn()
+        .mockResolvedValue(
+          JSON.stringify([['set_pen', '#020202'], ['clear'], ['update']]),
+        ),
       drawBoardCommandsJson: vi.fn(),
     });
     const frameInput = {
@@ -104,9 +109,11 @@ describe('createPyScriptPicographicsController', () => {
   });
 
   it('falls back to the stateless bridge when the stateful frame API is unavailable', async () => {
-    const advanceAndDrawFrameJson = vi.fn().mockResolvedValue(
-      JSON.stringify([['set_pen', '#020202'], ['clear'], ['update']]),
-    );
+    const advanceAndDrawFrameJson = vi
+      .fn()
+      .mockResolvedValue(
+        JSON.stringify([['set_pen', '#020202'], ['clear'], ['update']]),
+      );
     const controller = createPyScriptPicographicsController({
       advanceAndDrawFrameJson,
       drawBoardCommandsJson: vi.fn(),
@@ -129,8 +136,9 @@ describe('createPyScriptPicographicsController', () => {
 
 function createGraphics(measurement: number) {
   return {
-    create_pen: vi.fn((red: number, green: number, blue: number) =>
-      `#${toHex(red)}${toHex(green)}${toHex(blue)}`,
+    create_pen: vi.fn(
+      (red: number, green: number, blue: number) =>
+        `#${toHex(red)}${toHex(green)}${toHex(blue)}`,
     ),
     set_pen: vi.fn(),
     clear: vi.fn(),

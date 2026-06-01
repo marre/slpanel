@@ -22,9 +22,7 @@ export async function loadRuntimeInstrumentationSource(
   return loadPythonSource(RUNTIME_INSTRUMENTATION_SOURCE_URL, fetcher);
 }
 
-export async function loadBoardEngineSource(
-  fetcher: typeof fetch = fetch,
-) {
+export async function loadBoardEngineSource(fetcher: typeof fetch = fetch) {
   return loadPythonSource(BOARD_ENGINE_SOURCE_URL, fetcher);
 }
 

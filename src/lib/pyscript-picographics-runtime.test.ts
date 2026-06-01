@@ -150,36 +150,33 @@ describe('createPyScriptPicographicsRuntime', () => {
     expect(script?.textContent).toContain(
       '_slpanel_register_module("picographics", _slpanel_picographics_module_source)',
     );
-    expect(script?.textContent).toContain(
-      '_slpanel_register_module(',
-    );
+    expect(script?.textContent).toContain('_slpanel_register_module(');
     expect(script?.textContent).toContain(
       '_slpanel_register_module("board_engine", _slpanel_board_engine_module_source)',
     );
-    expect(script?.textContent?.indexOf(
-      '_slpanel_register_module("picographics", _slpanel_picographics_module_source)',
-    )).toBeLessThan(
+    expect(
+      script?.textContent?.indexOf(
+        '_slpanel_register_module("picographics", _slpanel_picographics_module_source)',
+      ),
+    ).toBeLessThan(
       script?.textContent?.indexOf(
         '_slpanel_register_module("board_engine", _slpanel_board_engine_module_source)',
       ) ?? 0,
     );
-    expect(script?.textContent).toContain(
-      '"runtime_instrumentation",',
-    );
+    expect(script?.textContent).toContain('"runtime_instrumentation",');
     expect(script?.textContent).toContain(
       '_slpanel_runtime_instrumentation_module_source',
     );
-    expect(script?.textContent).not.toContain('types.ModuleType("picographics")');
-    expect(window.__slpanelPicographicsBridgeSource).toContain('draw_board');
-    await session.controller.drawFrame(
-      session.graphics,
-      {
-        departures: [],
-        tone: 'loading',
-        headline: 'Loading departures',
-        detail: 'Board is starting',
-      },
+    expect(script?.textContent).not.toContain(
+      'types.ModuleType("picographics")',
     );
+    expect(window.__slpanelPicographicsBridgeSource).toContain('draw_board');
+    await session.controller.drawFrame(session.graphics, {
+      departures: [],
+      tone: 'loading',
+      headline: 'Loading departures',
+      detail: 'Board is starting',
+    });
 
     expect(drawBoardCommandsJson).toHaveBeenCalled();
     expect(typeof session.graphics.set_pen).toBe('function');

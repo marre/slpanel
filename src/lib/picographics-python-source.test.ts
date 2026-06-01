@@ -47,9 +47,7 @@ describe('loadPicographicsModuleSource', () => {
   it('loads the shared picographics module from the public asset path', async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
-      .mockResolvedValue(
-        new Response('class PicoGraphics:\n    pass\n'),
-      );
+      .mockResolvedValue(new Response('class PicoGraphics:\n    pass\n'));
 
     await expect(loadPicographicsModuleSource(fetchMock)).resolves.toContain(
       'PicoGraphics',
@@ -87,9 +85,7 @@ describe('loadBoardEngineSource', () => {
   it('loads the shared engine module from the public asset path', async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
-      .mockResolvedValue(
-        new Response('class BoardEngine:\n    pass\n'),
-      );
+      .mockResolvedValue(new Response('class BoardEngine:\n    pass\n'));
 
     await expect(loadBoardEngineSource(fetchMock)).resolves.toContain(
       'BoardEngine',

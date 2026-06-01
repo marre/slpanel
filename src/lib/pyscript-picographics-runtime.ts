@@ -180,11 +180,7 @@ function createMainThreadPyScriptBridge(
         api.advanceAndDrawCurrentFrameJson(deltaSeconds);
       });
     },
-    advanceAndDrawFrameJson(
-      frameInputJson,
-      deltaSeconds,
-      measurementsJson,
-    ) {
+    advanceAndDrawFrameJson(frameInputJson, deltaSeconds, measurementsJson) {
       return readBridgeJsonResult(api, 'advanceAndDrawFrameJson', () => {
         api.advanceAndDrawFrameJson(
           frameInputJson,

@@ -230,10 +230,7 @@ function createTextSprite(
       maxWidth,
     ),
   );
-  const height = Math.max(
-    1,
-    logicalHeight * DIODE_SCALE,
-  );
+  const height = Math.max(1, logicalHeight * DIODE_SCALE);
 
   spriteCanvas.width = width;
   spriteCanvas.height = height;

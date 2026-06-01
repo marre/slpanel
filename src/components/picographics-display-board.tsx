@@ -149,11 +149,13 @@ export function PicographicsDisplayBoard({
       );
 
       if (isPromiseLike(advanceResult)) {
-        advanceResult.then(() => {
-          scheduleNextFrame(session);
-        }).catch(() => {
-          void handleError();
-        });
+        advanceResult
+          .then(() => {
+            scheduleNextFrame(session);
+          })
+          .catch(() => {
+            void handleError();
+          });
         stopFrameProfile();
         return;
       }
@@ -204,10 +206,7 @@ export function PicographicsDisplayBoard({
 
       handleDrawResult(
         session,
-        session.controller.drawFrame(
-          session.graphics,
-          frameInputRef.current,
-        ),
+        session.controller.drawFrame(session.graphics, frameInputRef.current),
       );
     };
 

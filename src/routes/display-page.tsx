@@ -412,10 +412,7 @@ export function DisplayPage() {
               value={getRendererLabel(activeRenderer)}
             />
             {activeRenderer === 'interstate75' ? (
-              <DetailRow
-                label="Renderer runtime"
-                value="PyScript bootstrap"
-              />
+              <DetailRow label="Renderer runtime" value="PyScript bootstrap" />
             ) : null}
             <DetailRow label="Board message" value={boardState.detail} />
           </dl>
