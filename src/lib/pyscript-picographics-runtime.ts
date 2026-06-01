@@ -1,0 +1,473 @@
+import { createCanvasPicographics } from '@/lib/picographics-canvas';
+import {
+  loadPicographicsPythonSource,
+} from '@/lib/picographics-python-source';
+import {
+  createPyScriptPicographicsController,
+  type PyScriptPicographicsBridge,
+} from '@/lib/pyscript-picographics-controller';
+import {
+  logPicographicsError,
+  logPicographicsInfo,
+} from '@/lib/picographics-debug';
+import type { PicographicsRuntime } from '@/lib/picographics-runtime';
+import { loadPyScriptCoreModule } from '@/lib/pyscript-loader';
+
+const PYTHON_API_PROPERTY_PREFIX = '__slpanelPicographicsPythonApi_';
+const PYTHON_BOOTSTRAP_POLL_INTERVAL_MS = 0;
+const PYTHON_BOOTSTRAP_TIMEOUT_MS = 5000;
+const PYTHON_INTERPRETER_READY_TIMEOUT_MS = 1500;
+
+declare global {
+  interface Window {
+    __slpanelPicographicsPythonSource?: string;
+  }
+}
+
+interface MainThreadPicographicsApi {
+  result?: unknown;
+  createMarqueeStateJson: (frameInputJson: string) => void;
+  advanceAndDrawFrameJson: (
+    frameInputJson: string,
+    marqueeStateJson: string,
+    deltaSeconds: number,
+    measurementsJson: string,
+  ) => void;
+  advanceMarqueeStateJson: (
+    frameInputJson: string,
+    marqueeStateJson: string,
+    deltaSeconds: number,
+    measurementsJson: string,
+  ) => void;
+  drawBoardCommandsJson: (
+    frameInputJson: string,
+    marqueeStateJson: string,
+    measurementsJson: string,
+  ) => void;
+}
+
+type DynamicWindow = Window & Record<string, unknown>;
+
+export function createPyScriptPicographicsRuntime(options?: {
+  document?: Document;
+  fetcher?: typeof fetch;
+}): PicographicsRuntime {
+  return {
+    id: 'pyscript-bootstrap',
+    label: 'PyScript bootstrap',
+    async initialize(context) {
+      logRuntime('initialize:start', {
+        hasCanvas: Boolean(context.canvas),
+      });
+
+      const doc =
+        options?.document ?? context.canvas.ownerDocument ?? globalThis.document;
+
+      if (!doc) {
+        throw new Error('Could not resolve a document for the PyScript runtime.');
+      }
+
+      const coreModule = await loadPyScriptCoreModule(doc);
+      const win = doc.defaultView;
+      const runtimeWindow = win as unknown as DynamicWindow;
+
+      if (!win) {
+        throw new Error('Could not resolve a window for the PyScript runtime.');
+      }
+
+      if (!coreModule.whenDefined) {
+        throw new Error('PyScript MicroPython runtime API is not available.');
+      }
+
+      logRuntime('initialize:whenDefined', { interpreter: 'mpy' });
+      await waitForMicroPythonInterpreter(win, coreModule.whenDefined);
+
+      const source = await loadPicographicsPythonSource(
+        options?.fetcher ?? fetch,
+      );
+      logRuntime('initialize:source-loaded', {
+        sourceLength: source.length,
+      });
+      const runtimeTarget = ensureHiddenRuntimeTarget(doc);
+      const apiProperty = `${PYTHON_API_PROPERTY_PREFIX}${Math.random().toString(36).slice(2, 10)}`;
+      const bootstrapScript = createMainThreadMicroPythonScript(
+        doc,
+        runtimeTarget.id,
+        buildPythonBootstrapSource(source, apiProperty),
+      );
+      let api: MainThreadPicographicsApi | null = null;
+
+      try {
+        logRuntime('initialize:bootstrap-script-created', {
+          apiProperty,
+          target: bootstrapScript.getAttribute('target'),
+        });
+        await runMainThreadMicroPythonScript(
+          bootstrapScript,
+          runtimeTarget,
+          win,
+          apiProperty,
+        );
+        api = resolveMainThreadPicographicsApi(win, apiProperty, runtimeTarget);
+      } catch (error) {
+        logRuntimeError('initialize:bootstrap-failed', error);
+        bootstrapScript.remove();
+        runtimeTarget.remove();
+        delete runtimeWindow[apiProperty];
+        throw error;
+      }
+
+      runtimeWindow.__slpanelPicographicsPythonSource = source;
+
+      logRuntime('initialize:ready', {
+        apiProperty,
+      });
+
+      return {
+        graphics: createCanvasPicographics(context),
+        controller: createPyScriptPicographicsController(
+          createMainThreadPyScriptBridge(api),
+        ),
+        dispose() {
+          logRuntime('dispose', { apiProperty });
+          bootstrapScript.remove();
+          runtimeTarget.remove();
+          delete runtimeWindow[apiProperty];
+        },
+      };
+    },
+  };
+}
+
+export const pyScriptPicographicsRuntime = createPyScriptPicographicsRuntime();
+
+function createMainThreadPyScriptBridge(
+  api: MainThreadPicographicsApi,
+): PyScriptPicographicsBridge {
+  return {
+    createMarqueeStateJson(frameInputJson) {
+      return readBridgeJsonResult(api, 'createMarqueeStateJson', () => {
+        api.createMarqueeStateJson(frameInputJson);
+      });
+    },
+    advanceAndDrawFrameJson(
+      frameInputJson,
+      marqueeStateJson,
+      deltaSeconds,
+      measurementsJson,
+    ) {
+      return readBridgeJsonResult(api, 'advanceAndDrawFrameJson', () => {
+        api.advanceAndDrawFrameJson(
+          frameInputJson,
+          marqueeStateJson,
+          deltaSeconds,
+          measurementsJson,
+        );
+      });
+    },
+    advanceMarqueeStateJson(
+      frameInputJson,
+      marqueeStateJson,
+      deltaSeconds,
+      measurementsJson,
+    ) {
+      return readBridgeJsonResult(api, 'advanceMarqueeStateJson', () => {
+        api.advanceMarqueeStateJson(
+          frameInputJson,
+          marqueeStateJson,
+          deltaSeconds,
+          measurementsJson,
+        );
+      });
+    },
+    drawBoardCommandsJson(
+      frameInputJson,
+      marqueeStateJson,
+      measurementsJson,
+    ) {
+      return readBridgeJsonResult(api, 'drawBoardCommandsJson', () => {
+        api.drawBoardCommandsJson(
+          frameInputJson,
+          marqueeStateJson,
+          measurementsJson,
+        );
+      });
+    },
+  };
+}
+
+function readBridgeJsonResult(
+  api: MainThreadPicographicsApi,
+  operation: string,
+  invoke: () => void,
+) {
+  logRuntime(`bridge:${operation}:request`, {});
+  api.result = null;
+  invoke();
+
+  if (typeof api.result !== 'string') {
+    throw new Error('PyScript bridge did not produce a JSON string result.');
+  }
+
+  logRuntime(`bridge:${operation}:response`, {
+    resultPreview: summarizeText(api.result, 120),
+  });
+
+  return api.result;
+}
+
+function createMainThreadMicroPythonScript(
+  doc: Document,
+  targetId: string,
+  source: string,
+) {
+  const script = doc.createElement('script');
+
+  script.type = 'mpy';
+  script.dataset.slpanelPyscriptRuntime = 'true';
+  script.setAttribute('target', `#${targetId}`);
+  script.textContent = source;
+
+  return script;
+}
+
+async function runMainThreadMicroPythonScript(
+  script: HTMLScriptElement,
+  target: HTMLElement,
+  win: Window,
+  apiProperty: string,
+) {
+  const runtimeWindow = win as DynamicWindow;
+
+  await new Promise<void>((resolve, reject) => {
+    let settled = false;
+    let pollTimeoutId = 0;
+    let bootstrapTimeoutId = 0;
+
+    const finish = (callback: () => void) => {
+      if (settled) {
+        return;
+      }
+
+      settled = true;
+      script.removeEventListener('mpy:done', handleDone);
+      script.removeEventListener('error', handleError);
+      win.clearTimeout(pollTimeoutId);
+      win.clearTimeout(bootstrapTimeoutId);
+      callback();
+    };
+
+    const checkReady = () => {
+      if (runtimeWindow[apiProperty]) {
+        logRuntime('bootstrap:api-registered', { apiProperty });
+        finish(resolve);
+        return;
+      }
+
+      pollTimeoutId = win.setTimeout(
+        checkReady,
+        PYTHON_BOOTSTRAP_POLL_INTERVAL_MS,
+      );
+    };
+
+    const handleDone = () => {
+      logRuntime('bootstrap:mpy-done', { apiProperty });
+      finish(resolve);
+    };
+    const handleError = () => {
+      logRuntime('bootstrap:error-event', { apiProperty });
+      finish(() => {
+        reject(new Error('Could not execute the PyScript MicroPython bootstrap.'));
+      });
+    };
+
+    const handleTimeout = () => {
+      logRuntime('bootstrap:timeout', { apiProperty });
+      finish(() => {
+        reject(
+          new Error(
+            'Timed out while waiting for the PyScript MicroPython bootstrap.',
+          ),
+        );
+      });
+    };
+
+    script.addEventListener('mpy:done', handleDone, { once: true });
+    script.addEventListener('error', handleError, { once: true });
+    logRuntime('bootstrap:append-script', {
+      apiProperty,
+      target: script.getAttribute('target'),
+    });
+    target.ownerDocument.body.appendChild(script);
+    bootstrapTimeoutId = win.setTimeout(
+      handleTimeout,
+      PYTHON_BOOTSTRAP_TIMEOUT_MS,
+    );
+    checkReady();
+  });
+}
+
+function resolveMainThreadPicographicsApi(
+  win: Window,
+  apiProperty: string,
+  target: HTMLElement,
+) {
+  const api = (win as DynamicWindow)[apiProperty] as
+    | MainThreadPicographicsApi
+    | undefined;
+
+  if (!api) {
+    const message = target.textContent?.trim();
+
+    throw new Error(
+      message || 'Could not initialize the PyScript MicroPython bridge.',
+    );
+  }
+
+  return api;
+}
+
+function buildPythonBootstrapSource(source: string, apiProperty: string) {
+  return [
+    source.trimEnd(),
+    '',
+    'from js import Object',
+    'from pyscript import window',
+    'from pyscript.ffi import create_proxy',
+    '',
+    '_slpanel_api = Object.new()',
+    '_slpanel_api.result = None',
+    '',
+    'def _slpanel_create_marquee_state_json(frame_input_json):',
+    '    _slpanel_api.result = create_marquee_state_json(frame_input_json)',
+    '',
+    'def _slpanel_advance_marquee_state_json(',
+    '    frame_input_json,',
+    '    marquee_state_json,',
+    '    delta_seconds,',
+    '    measurements_json="{}",',
+    '):',
+    '    _slpanel_api.result = advance_marquee_state_json(',
+    '        frame_input_json,',
+    '        marquee_state_json,',
+    '        delta_seconds,',
+    '        measurements_json,',
+    '    )',
+    '',
+    'def _slpanel_advance_and_draw_frame_json(',
+    '    frame_input_json,',
+    '    marquee_state_json,',
+    '    delta_seconds,',
+    '    measurements_json="{}",',
+    '):',
+    '    _slpanel_api.result = advance_and_draw_frame_json(',
+    '        frame_input_json,',
+    '        marquee_state_json,',
+    '        delta_seconds,',
+    '        measurements_json,',
+    '    )',
+    '',
+    'def _slpanel_draw_board_commands_json(',
+    '    frame_input_json,',
+    '    marquee_state_json,',
+    '    measurements_json="{}",',
+    '):',
+    '    _slpanel_api.result = draw_board_commands_json(',
+    '        frame_input_json,',
+    '        marquee_state_json,',
+    '        measurements_json,',
+    '    )',
+    '',
+    '_slpanel_api.createMarqueeStateJson = create_proxy(_slpanel_create_marquee_state_json)',
+    '_slpanel_api.advanceAndDrawFrameJson = create_proxy(_slpanel_advance_and_draw_frame_json)',
+    '_slpanel_api.advanceMarqueeStateJson = create_proxy(_slpanel_advance_marquee_state_json)',
+    '_slpanel_api.drawBoardCommandsJson = create_proxy(_slpanel_draw_board_commands_json)',
+    `window.${apiProperty} = _slpanel_api`,
+    '',
+  ].join('\n');
+}
+
+function ensureHiddenRuntimeTarget(doc: Document) {
+  const target = doc.createElement('div');
+
+  target.id = `slpanel-pyscript-target-${Math.random().toString(36).slice(2, 10)}`;
+  target.dataset.slpanelPyscriptTarget = 'true';
+  target.setAttribute('aria-hidden', 'true');
+  target.style.position = 'fixed';
+  target.style.left = '-9999px';
+  target.style.top = '0';
+  target.style.width = '1px';
+  target.style.height = '1px';
+  target.style.overflow = 'hidden';
+  target.style.opacity = '0';
+  target.style.pointerEvents = 'none';
+
+  const parent = doc.body ?? doc.documentElement;
+  parent.appendChild(target);
+
+  return target;
+}
+
+async function waitForMicroPythonInterpreter(
+  win: Window,
+  whenDefined: ((type: string) => Promise<object>) | undefined,
+) {
+  const readinessChecks: Array<Promise<unknown>> = [];
+
+  if (whenDefined) {
+    readinessChecks.push(
+      whenDefined('mpy').then(() => {
+        logRuntime('initialize:whenDefined-resolved', { interpreter: 'mpy' });
+      }),
+    );
+  }
+
+  if (win.customElements) {
+    readinessChecks.push(
+      win.customElements.whenDefined('mpy-script').then(() => {
+        logRuntime('initialize:custom-element-ready', {
+          element: 'mpy-script',
+        });
+      }),
+    );
+  }
+
+  if (readinessChecks.length === 0) {
+    return;
+  }
+
+  const timeoutResult = new Promise<'timeout'>((resolve) => {
+    win.setTimeout(() => {
+      resolve('timeout');
+    }, PYTHON_INTERPRETER_READY_TIMEOUT_MS);
+  });
+
+  const readinessResult = await Promise.race<unknown | 'timeout'>([
+    Promise.any(readinessChecks),
+    Promise.resolve(timeoutResult),
+  ]);
+
+  if (readinessResult === 'timeout') {
+    logRuntime('initialize:interpreter-ready-timeout', {
+      timeoutMs: PYTHON_INTERPRETER_READY_TIMEOUT_MS,
+    });
+  }
+}
+
+function logRuntime(event: string, payload: Record<string, unknown>) {
+  logPicographicsInfo('[slpanel/pyscript-runtime]', event, payload);
+}
+
+function logRuntimeError(event: string, error: unknown) {
+  logPicographicsError('[slpanel/pyscript-runtime]', event, error);
+}
+
+function summarizeText(value: unknown, maxLength = 80) {
+  const text = typeof value === 'string' ? value : String(value);
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maxLength - 3)}...`;
+}

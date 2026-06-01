@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -198,5 +198,61 @@ describe('DisplayPage', () => {
     expect(
       screen.getByText(/4 empty pixels above, between, and below the two rows/i),
     ).toBeInTheDocument();
+  });
+
+  it('defaults to the classic renderer and can switch to the interstate preview', async () => {
+    render(
+      <MemoryRouter initialEntries={['/display/demo-board']}>
+        <Routes>
+          <Route path="/display/:displayId" element={<DisplayPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const classicButton = screen.getByRole('button', {
+      name: /classic board/i,
+    });
+    const previewButton = screen.getByRole('button', {
+      name: /interstate 75 w preview/i,
+    });
+
+    expect(classicButton).toHaveAttribute('aria-pressed', 'true');
+    expect(previewButton).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('classic-display-board')).toBeInTheDocument();
+
+    fireEvent.click(previewButton);
+
+    expect(classicButton).toHaveAttribute('aria-pressed', 'false');
+    expect(previewButton).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('picographics-display-board')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /local shim/i })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(
+      screen.getByRole('button', { name: /pyscript bootstrap/i }),
+    ).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('renders the interstate preview when the renderer query param is set', async () => {
+    render(
+      <MemoryRouter
+        initialEntries={['/display/demo-board?renderer=interstate75']}
+      >
+        <Routes>
+          <Route path="/display/:displayId" element={<DisplayPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByRole('button', { name: /interstate 75 w preview/i }),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /local shim/i })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    expect(screen.getByTestId('picographics-display-board')).toBeInTheDocument();
+    expect(screen.queryByTestId('classic-display-board')).not.toBeInTheDocument();
   });
 });

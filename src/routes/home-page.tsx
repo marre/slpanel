@@ -46,6 +46,12 @@ export function HomePage() {
           >
             Open demo board
           </Link>
+          <Link
+            to="/display/demo-board?renderer=interstate75&runtime=pyscript"
+            className="rounded-full border border-[#84d8ff]/50 bg-[#84d8ff]/8 px-5 py-3 text-sm font-medium text-[#b9edff] transition hover:border-[#84d8ff]/80 hover:bg-[#84d8ff]/14"
+          >
+            Open PyScript preview
+          </Link>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">

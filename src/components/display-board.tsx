@@ -2,53 +2,24 @@ import { useEffect, useRef } from 'react';
 
 import type { DepartureRecord } from '@/api/types';
 import {
+  buildAccessibleSummary,
+  buildBoardKey,
+  buildMarqueeContent,
+  CLASSIC_BOARD_FONT_OPTIONS,
+  createBoardGeometry,
+  DIODE_SCALE,
+  type DisplayBoardProps,
+  getToneColors,
+  PANEL_HEIGHT,
+  PANEL_WIDTH,
+  shouldSwapMarqueeImmediately,
+  slugify,
+} from '@/components/display-board-shared';
+import {
   measureText,
   renderText,
   renderTextLine,
-  type RenderOptions,
 } from '@/font/sl-font-renderer';
-
-const LOGICAL_PANEL_WIDTH = 128;
-const LOGICAL_PANEL_HEIGHT = 32;
-const DIODE_SCALE = 4;
-const PANEL_WIDTH = scaleBoardUnit(LOGICAL_PANEL_WIDTH);
-const PANEL_HEIGHT = scaleBoardUnit(LOGICAL_PANEL_HEIGHT);
-const MARQUEE_SPEED = scaleBoardUnit(18);
-
-type BoardTone = 'live' | 'loading' | 'empty' | 'error';
-
-type BoardFontOptions = Pick<
-  RenderOptions,
-  'font' | 'gap' | 'pixelShape' | 'scale'
->;
-
-const BOARD_FONT_OPTIONS: BoardFontOptions = {
-  gap: 1,
-  pixelShape: 'circle',
-  scale: DIODE_SCALE,
-};
-
-interface DisplayBoardProps {
-  displayName: string;
-  siteName: string | null;
-  departures: DepartureRecord[];
-  tone: BoardTone;
-  headline: string;
-  detail: string;
-}
-
-interface MarqueeContent {
-  text: string;
-  interruptible: boolean;
-}
-
-interface BoardLayout {
-  rowYs: readonly [number, number];
-  fontOptions: BoardFontOptions;
-  panelPadding: number;
-  leadDepartureGap: number;
-  marqueeSpeed: number;
-}
 
 export function DisplayBoard({
   displayName,
@@ -125,7 +96,7 @@ export function DisplayBoard({
     const renderFrame = (timestamp: number) => {
       const frameInput = frameInputRef.current;
       const marqueeState = marqueeStateRef.current;
-      const layout = getBoardLayout();
+      const layout = createBoardGeometry(DIODE_SCALE);
 
       marqueeState.pendingContent = buildMarqueeContent(frameInput);
 
@@ -148,7 +119,7 @@ export function DisplayBoard({
       }
 
       const marqueeWidth = Math.max(
-        measureText(marqueeState.activeContent.text, layout.fontOptions),
+        measureText(marqueeState.activeContent.text, CLASSIC_BOARD_FONT_OPTIONS),
         1,
       );
 
@@ -167,9 +138,7 @@ export function DisplayBoard({
 
       drawBoard(context, {
         departures: frameInput.departures,
-        displayName: frameInput.displayName,
         headline: frameInput.headline,
-        detail: frameInput.detail,
         tone: frameInput.tone,
         marqueeText: marqueeState.activeContent.text,
         marqueeOffset: marqueeState.marqueeOffset,
@@ -183,9 +152,7 @@ export function DisplayBoard({
 
     drawBoard(context, {
       departures: frameInput.departures,
-      displayName: frameInput.displayName,
       headline: frameInput.headline,
-      detail: frameInput.detail,
       tone: frameInput.tone,
       marqueeText: marqueeState.activeContent.text,
       marqueeOffset: marqueeState.marqueeOffset,
@@ -207,7 +174,10 @@ export function DisplayBoard({
   });
 
   return (
-    <div className="inline-flex w-full max-w-[68rem] rounded-[2.4rem] border border-[var(--panel-border)] bg-[linear-gradient(180deg,rgba(18,24,28,0.96),rgba(6,9,12,0.98))] p-4 shadow-[inset_0_0_0_1px_rgba(255,188,85,0.08),0_28px_80px_rgba(0,0,0,0.52)] md:p-5">
+    <div
+      data-testid="classic-display-board"
+      className="inline-flex w-full max-w-[68rem] rounded-[2.4rem] border border-[var(--panel-border)] bg-[linear-gradient(180deg,rgba(18,24,28,0.96),rgba(6,9,12,0.98))] p-4 shadow-[inset_0_0_0_1px_rgba(255,188,85,0.08),0_28px_80px_rgba(0,0,0,0.52)] md:p-5"
+    >
       <div className="w-full rounded-[1.55rem] border border-black/70 bg-[radial-gradient(circle_at_top,rgba(255,176,84,0.06),transparent_40%),#000] p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] md:p-4">
         <canvas
           ref={canvasRef}
@@ -233,16 +203,14 @@ function drawBoard(
   context: CanvasRenderingContext2D,
   input: {
     departures: DepartureRecord[];
-    displayName: string;
     headline: string;
-    detail: string;
-    tone: BoardTone;
+    tone: DisplayBoardProps['tone'];
     marqueeText: string;
     marqueeOffset: number;
   },
 ) {
   const colors = getToneColors(input.tone);
-  const layout = getBoardLayout();
+  const layout = createBoardGeometry(DIODE_SCALE);
   const [rowOneY, rowTwoY] = layout.rowYs;
 
   context.fillStyle = '#020202';
@@ -264,7 +232,7 @@ function drawBoard(
       rowOneY,
       PANEL_WIDTH - layout.panelPadding * 2,
       {
-        ...layout.fontOptions,
+        ...CLASSIC_BOARD_FONT_OPTIONS,
         color: colors.primary,
       },
     );
@@ -276,7 +244,7 @@ function drawBoard(
     Math.round(input.marqueeOffset),
     rowTwoY,
     {
-      ...layout.fontOptions,
+      ...CLASSIC_BOARD_FONT_OPTIONS,
       color: colors.primary,
     },
   );
@@ -286,14 +254,17 @@ function drawLeadDeparture(
   context: CanvasRenderingContext2D,
   departure: DepartureRecord,
   color: string,
-  layout: Pick<BoardLayout, 'fontOptions' | 'panelPadding' | 'leadDepartureGap'>,
+  layout: Pick<
+    ReturnType<typeof createBoardGeometry>,
+    'panelPadding' | 'leadDepartureGap'
+  >,
   rowY: number,
 ) {
   const lineNumber = departure.line_number || '--';
   const destination = departure.destination || 'Unknown';
   const displayTime = departure.display_time || 'Now';
-  const lineWidth = measureText(lineNumber, layout.fontOptions);
-  const timeWidth = measureText(displayTime, layout.fontOptions);
+  const lineWidth = measureText(lineNumber, CLASSIC_BOARD_FONT_OPTIONS);
+  const timeWidth = measureText(displayTime, CLASSIC_BOARD_FONT_OPTIONS);
   const timeX = PANEL_WIDTH - timeWidth - layout.panelPadding;
   const destinationX = lineWidth + layout.leadDepartureGap;
   const destinationWidth = Math.max(
@@ -302,7 +273,7 @@ function drawLeadDeparture(
   );
 
   renderText(context, lineNumber, layout.panelPadding, rowY, {
-    ...layout.fontOptions,
+    ...CLASSIC_BOARD_FONT_OPTIONS,
     color,
   });
 
@@ -313,130 +284,13 @@ function drawLeadDeparture(
     rowY,
     destinationWidth,
     {
-      ...layout.fontOptions,
+      ...CLASSIC_BOARD_FONT_OPTIONS,
       color,
     },
   );
 
   renderText(context, displayTime, timeX, rowY, {
-    ...layout.fontOptions,
+    ...CLASSIC_BOARD_FONT_OPTIONS,
     color,
   });
-}
-
-function buildMarqueeContent(input: {
-  departures: DepartureRecord[];
-  tone: BoardTone;
-  headline: string;
-  detail: string;
-}): MarqueeContent {
-  if (input.tone === 'live' && input.departures.length > 0) {
-    const followingDepartures = input.departures
-      .slice(1, 4)
-      .map((departure) => formatCompactDeparture(departure));
-
-    return {
-      text: followingDepartures.join('     ') || 'No later departures',
-      interruptible: false,
-    };
-  }
-
-  return {
-    text: [input.headline ?? '', input.detail].filter(Boolean).join('     '),
-    interruptible: true,
-  };
-}
-
-function shouldSwapMarqueeImmediately(
-  activeContent: MarqueeContent,
-  pendingContent: MarqueeContent,
-) {
-  return (
-    activeContent.interruptible && activeContent.text !== pendingContent.text
-  );
-}
-
-function buildAccessibleSummary(input: {
-  departures: DepartureRecord[];
-  headline: string;
-  detail: string;
-  tone: BoardTone;
-  siteName: string | null;
-}) {
-  if (input.tone === 'live' && input.departures.length > 0) {
-    const nextDeparture = input.departures[0];
-
-    return [
-      input.siteName ? `Stop ${input.siteName}.` : '',
-      `Next departure: line ${nextDeparture.line_number} to ${nextDeparture.destination}, ${nextDeparture.display_time}.`,
-      input.departures.length > 1
-        ? `Later departures include ${input.departures
-            .slice(1, 4)
-            .map(
-              (departure) =>
-                `line ${departure.line_number} to ${departure.destination} in ${departure.display_time}`,
-            )
-            .join(', ')}.`
-        : '',
-    ]
-      .filter(Boolean)
-      .join(' ');
-  }
-
-  return [input.headline, input.detail].filter(Boolean).join(' ');
-}
-
-function formatCompactDeparture(departure: DepartureRecord) {
-  return `${departure.line_number} ${departure.destination} ${departure.display_time}`.trim();
-}
-
-function getToneColors(tone: BoardTone) {
-  switch (tone) {
-    case 'error':
-      return {
-        primary: '#ffd7a0',
-        secondary: '#ffbf6b',
-      };
-    case 'loading':
-      return {
-        primary: '#ffbe64',
-        secondary: '#ff9b29',
-      };
-    case 'empty':
-      return {
-        primary: '#ffc978',
-        secondary: '#ffae43',
-      };
-    default:
-      return {
-        primary: '#ffb347',
-        secondary: '#ff9625',
-      };
-  }
-}
-
-function slugify(value: string) {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-}
-
-function buildBoardKey(
-  displayName: string,
-  siteName: string | null,
-) {
-  return `${displayName}::${siteName ?? ''}`;
-}
-
-function getBoardLayout(): BoardLayout {
-  return {
-    // 4 empty rows + 10 font rows + 4 empty rows + 10 font rows + 4 empty rows.
-    rowYs: [scaleBoardUnit(4), scaleBoardUnit(18)] as const,
-    fontOptions: BOARD_FONT_OPTIONS,
-    panelPadding: scaleBoardUnit(2),
-    leadDepartureGap: scaleBoardUnit(5),
-    marqueeSpeed: MARQUEE_SPEED,
-  };
-}
-
-function scaleBoardUnit(value: number) {
-  return value * DIODE_SCALE;
 }

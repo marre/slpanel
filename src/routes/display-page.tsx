@@ -1,9 +1,12 @@
 import { startTransition, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import type { DepartureRecord, DisplayRecord } from '@/api/types';
 import { DisplayBoard } from '@/components/display-board';
+import { PicographicsDisplayBoard } from '@/components/picographics-display-board';
 import { ConfigApiError, getDisplay, listDepartures } from '@/lib/config-api';
+import { localPicographicsRuntime } from '@/lib/picographics-runtime';
+import { pyScriptPicographicsRuntime } from '@/lib/pyscript-picographics-runtime';
 
 const DEPARTURES_FORECAST_MINUTES = 240;
 const DEMO_LAST_UPDATED_AT = Date.parse('2026-05-29T12:00:00Z');
@@ -69,10 +72,17 @@ const DEMO_DEPARTURES: DepartureRecord[] = [
 ];
 
 type BoardTone = 'live' | 'loading' | 'empty' | 'error';
+type DisplayRenderer = 'classic' | 'interstate75';
+type PicographicsRuntimeMode = 'local' | 'pyscript';
 
 export function DisplayPage() {
   const { displayId } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const isDemoBoard = displayId === 'demo-board';
+  const activeRenderer = parseDisplayRenderer(searchParams.get('renderer'));
+  const activePicographicsRuntime = parsePicographicsRuntime(
+    searchParams.get('runtime'),
+  );
   const [display, setDisplay] = useState<DisplayRecord | null>(null);
   const [departures, setDepartures] = useState<DepartureRecord[]>([]);
   const [isLoadingDisplay, setIsLoadingDisplay] = useState(!isDemoBoard);
@@ -232,6 +242,57 @@ export function DisplayPage() {
     activeDisplay?.name || activeDisplay?.display_id || 'Unknown board';
   const stopName =
     activeDisplay?.site_name || activeDisplay?.site_id || 'No stop configured';
+  const picographicsRuntime =
+    activePicographicsRuntime === 'pyscript'
+      ? pyScriptPicographicsRuntime
+      : localPicographicsRuntime;
+
+  function handleRendererChange(renderer: DisplayRenderer) {
+    const nextSearchParams = new URLSearchParams(searchParams);
+
+    if (renderer === 'classic') {
+      nextSearchParams.delete('renderer');
+    } else {
+      nextSearchParams.set('renderer', renderer);
+    }
+
+    setSearchParams(nextSearchParams, { replace: true });
+  }
+
+  function handlePicographicsRuntimeChange(runtime: PicographicsRuntimeMode) {
+    const nextSearchParams = new URLSearchParams(searchParams);
+
+    if (runtime === 'local') {
+      nextSearchParams.delete('runtime');
+    } else {
+      nextSearchParams.set('runtime', runtime);
+      nextSearchParams.set('renderer', 'interstate75');
+    }
+
+    setSearchParams(nextSearchParams, { replace: true });
+  }
+
+  const boardElement =
+    activeRenderer === 'interstate75' ? (
+      <PicographicsDisplayBoard
+        displayName={displayName}
+        siteName={activeDisplay?.site_name ?? null}
+        departures={activeDepartures}
+        tone={boardState.tone}
+        headline={boardState.headline}
+        detail={boardState.detail}
+        runtime={picographicsRuntime}
+      />
+    ) : (
+      <DisplayBoard
+        displayName={displayName}
+        siteName={activeDisplay?.site_name ?? null}
+        departures={activeDepartures}
+        tone={boardState.tone}
+        headline={boardState.headline}
+        detail={boardState.detail}
+      />
+    );
 
   return (
     <section className="space-y-8">
@@ -265,20 +326,49 @@ export function DisplayPage() {
                 Demo mode
               </span>
             ) : null}
+            <div className="inline-flex rounded-full border border-[var(--panel-border)] bg-black/24 p-1">
+              {DISPLAY_RENDERER_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  aria-pressed={activeRenderer === option.value}
+                  onClick={() => handleRendererChange(option.value)}
+                  className={`rounded-full px-3 py-2 text-[0.65rem] font-medium uppercase tracking-[0.24em] transition ${
+                    activeRenderer === option.value
+                      ? 'bg-[var(--panel-text)] text-black'
+                      : 'text-[var(--muted-text)] hover:bg-[var(--panel-text)]/10 hover:text-[var(--panel-text)]'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+            {activeRenderer === 'interstate75' ? (
+              <div className="inline-flex rounded-full border border-[var(--panel-border)] bg-black/24 p-1">
+                {PICOGRAPHICS_RUNTIME_OPTIONS.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    aria-pressed={activePicographicsRuntime === option.value}
+                    onClick={() => handlePicographicsRuntimeChange(option.value)}
+                    className={`rounded-full px-3 py-2 text-[0.65rem] font-medium uppercase tracking-[0.24em] transition ${
+                      activePicographicsRuntime === option.value
+                        ? 'bg-[var(--panel-text)] text-black'
+                        : 'text-[var(--muted-text)] hover:bg-[var(--panel-text)]/10 hover:text-[var(--panel-text)]'
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
       </div>
 
       <div className="grid gap-8 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)] xl:items-start">
         <div className="space-y-5">
-          <DisplayBoard
-            displayName={displayName}
-            siteName={activeDisplay?.site_name ?? null}
-            departures={activeDepartures}
-            tone={boardState.tone}
-            headline={boardState.headline}
-            detail={boardState.detail}
-          />
+          {boardElement}
 
           <div className="rounded-[1.7rem] border border-[var(--panel-border)] bg-black/16 p-4">
             <div className="space-y-2">
@@ -357,6 +447,16 @@ export function DisplayPage() {
               label="Mode filter"
               value={activeDisplay?.modes.join(', ') || 'All modes'}
             />
+            <DetailRow
+              label="Renderer"
+              value={getRendererLabel(activeRenderer)}
+            />
+            {activeRenderer === 'interstate75' ? (
+              <DetailRow
+                label="Renderer runtime"
+                value={getPicographicsRuntimeLabel(activePicographicsRuntime)}
+              />
+            ) : null}
             <DetailRow label="Board message" value={boardState.detail} />
           </dl>
 
@@ -510,6 +610,52 @@ function formatTimestamp(value: number) {
 function describeBoardLayout() {
   return '2-row layout is fixed. The board uses the native font with 4 empty pixels above, between, and below the two rows.';
 }
+
+function parseDisplayRenderer(value: string | null): DisplayRenderer {
+  return value === 'interstate75' ? value : 'classic';
+}
+
+function parsePicographicsRuntime(value: string | null): PicographicsRuntimeMode {
+  return value === 'pyscript' ? value : 'local';
+}
+
+function getRendererLabel(renderer: DisplayRenderer) {
+  return renderer === 'interstate75'
+    ? 'Interstate 75 W preview'
+    : 'Classic board';
+}
+
+function getPicographicsRuntimeLabel(runtime: PicographicsRuntimeMode) {
+  return runtime === 'pyscript' ? 'PyScript bootstrap' : 'Local shim';
+}
+
+const DISPLAY_RENDERER_OPTIONS: Array<{
+  value: DisplayRenderer;
+  label: string;
+}> = [
+  {
+    value: 'classic',
+    label: 'Classic board',
+  },
+  {
+    value: 'interstate75',
+    label: 'Interstate 75 W preview',
+  },
+];
+
+const PICOGRAPHICS_RUNTIME_OPTIONS: Array<{
+  value: PicographicsRuntimeMode;
+  label: string;
+}> = [
+  {
+    value: 'local',
+    label: 'Local shim',
+  },
+  {
+    value: 'pyscript',
+    label: 'PyScript bootstrap',
+  },
+];
 
 function StatCard(input: { label: string; value: string; detail: string }) {
   return (
