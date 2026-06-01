@@ -12,7 +12,7 @@ import {
 } from '@/lib/picographics-profiler';
 
 type DrawCommand =
-  | ['set_pen', string]
+  | ['set_pen', string | number]
   | ['clear']
   | ['pixel', number, number]
   | ['rectangle', number, number, number, number]
@@ -335,7 +335,7 @@ function replayDrawCommands(
 
     switch (operation) {
       case 'set_pen':
-        graphics.set_pen(args[0] as string);
+        graphics.set_pen(args[0] as string | number);
         break;
       case 'clear':
         graphics.clear();

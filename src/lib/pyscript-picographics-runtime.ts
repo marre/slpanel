@@ -1,5 +1,9 @@
 import { createCanvasPicographics } from '@/lib/picographics-canvas';
-import { loadPicographicsPythonSource } from '@/lib/picographics-python-source';
+import {
+  loadPicographicsModuleSource,
+  loadPicographicsPythonSource,
+  loadSlpanelInstrumentationSource,
+} from '@/lib/picographics-python-source';
 import {
   createPyScriptPicographicsController,
   type PyScriptPicographicsBridge,
@@ -93,10 +97,16 @@ export function createPyScriptPicographicsRuntime(options?: {
       logRuntime('initialize:whenDefined', { interpreter: 'mpy' });
       await waitForMicroPythonInterpreter(win, coreModule.whenDefined);
 
-      const source = await loadPicographicsPythonSource(
-        options?.fetcher ?? fetch,
-      );
+      const fetcher = options?.fetcher ?? fetch;
+      const [picographicsModuleSource, instrumentationModuleSource, source] =
+        await Promise.all([
+        loadPicographicsModuleSource(fetcher),
+        loadSlpanelInstrumentationSource(fetcher),
+        loadPicographicsPythonSource(fetcher),
+        ]);
       logRuntime('initialize:source-loaded', {
+        picographicsModuleSourceLength: picographicsModuleSource.length,
+        instrumentationModuleSourceLength: instrumentationModuleSource.length,
         sourceLength: source.length,
       });
       const runtimeTarget = ensureHiddenRuntimeTarget(doc);
@@ -104,7 +114,12 @@ export function createPyScriptPicographicsRuntime(options?: {
       const bootstrapScript = createMainThreadMicroPythonScript(
         doc,
         runtimeTarget.id,
-        buildPythonBootstrapSource(source, apiProperty),
+        buildPythonBootstrapSource({
+          source,
+          picographicsModuleSource,
+          instrumentationModuleSource,
+          apiProperty,
+        }),
       );
       let api: MainThreadPicographicsApi;
 
@@ -392,8 +407,47 @@ function resolveMainThreadPicographicsApi(
   return api;
 }
 
-function buildPythonBootstrapSource(source: string, apiProperty: string) {
+function buildPythonBootstrapSource(options: {
+  source: string;
+  picographicsModuleSource: string;
+  instrumentationModuleSource: string;
+  apiProperty: string;
+}) {
+  const {
+    source,
+    picographicsModuleSource,
+    instrumentationModuleSource,
+    apiProperty,
+  } = options;
+
   return [
+    'import sys',
+    '',
+    'def _slpanel_register_module(module_name, module_source):',
+    '    class _SlpanelModuleShim:',
+    '        pass',
+    '',
+    '    _namespace = {"__name__": module_name}',
+    '    exec(module_source, _namespace)',
+    '',
+    '    _module = _SlpanelModuleShim()',
+    '    _module.__name__ = module_name',
+    '    for _name, _value in _namespace.items():',
+    '        if _name == "__name__":',
+    '            continue',
+    '        setattr(_module, _name, _value)',
+    '',
+    '    sys.modules[module_name] = _module',
+    '',
+    `_slpanel_picographics_module_source = ${JSON.stringify(picographicsModuleSource)}`,
+    `_slpanel_instrumentation_module_source = ${JSON.stringify(instrumentationModuleSource)}`,
+    '',
+    '_slpanel_register_module("picographics", _slpanel_picographics_module_source)',
+    '_slpanel_register_module(',
+    '    "slpanel_instrumentation",',
+    '    _slpanel_instrumentation_module_source,',
+    ')',
+    '',
     source.trimEnd(),
     '',
     'from js import Object',

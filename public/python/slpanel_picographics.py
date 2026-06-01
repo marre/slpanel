@@ -1,10 +1,13 @@
 import json
-import time
 
-try:
-    import js
-except ImportError:
-    js = None
+from picographics import PicoGraphics
+from slpanel_instrumentation import (
+    debug_log,
+    profile_now_ms,
+    profile_record_count,
+    profile_record_ms,
+    summarize_text,
+)
 
 
 LOGICAL_PANEL_WIDTH = 128
@@ -14,6 +17,14 @@ PANEL_PADDING = 2
 LEAD_DEPARTURE_GAP = 5
 MARQUEE_SPEED = 18
 
+BACKGROUND_RGB = (2, 2, 2)
+TONE_RGB = {
+    "error": {"primary": (255, 215, 160), "secondary": (255, 191, 107)},
+    "loading": {"primary": (255, 190, 100), "secondary": (255, 155, 41)},
+    "empty": {"primary": (255, 201, 120), "secondary": (255, 174, 67)},
+    "live": {"primary": (255, 179, 71), "secondary": (255, 150, 37)},
+}
+
 _JSON_PARSE_CACHE = {
     "frame_input": {"raw": None, "parsed": None},
     "measurements": {"raw": None, "parsed": None},
@@ -21,65 +32,6 @@ _JSON_PARSE_CACHE = {
 _CURRENT_FRAME_INPUT = None
 _CURRENT_MEASUREMENTS = {}
 _CURRENT_MARQUEE_STATE = None
-
-
-def debug_log(event, payload=None):
-    if payload is None:
-        payload = {}
-
-    if js is not None:
-        window = getattr(js, "window", None)
-
-        if not getattr(window, "__slpanelPicographicsDebug", False):
-            return
-
-        js.console.log("[slpanel/python]", event, json.dumps(payload))
-        return
-
-    print("[slpanel/python]", event, payload)
-
-
-def is_profile_enabled():
-    if js is None:
-        return False
-
-    window = getattr(js, "window", None)
-
-    return bool(getattr(window, "__slpanelPicographicsProfile", False))
-
-
-def profile_now_ms():
-    if js is not None:
-        performance = getattr(js, "performance", None)
-
-        if performance is not None and hasattr(performance, "now"):
-            return float(performance.now())
-
-    return time.perf_counter() * 1000.0
-
-
-def profile_record_ms(metric, duration_ms):
-    if not is_profile_enabled() or js is None:
-        return
-
-    profiler = getattr(getattr(js, "window", None), "__slpanelPicographicsProfiler", None)
-
-    if profiler is None or not hasattr(profiler, "recordMs"):
-        return
-
-    profiler.recordMs(metric, float(duration_ms))
-
-
-def profile_record_count(metric, value=1):
-    if not is_profile_enabled() or js is None:
-        return
-
-    profiler = getattr(getattr(js, "window", None), "__slpanelPicographicsProfiler", None)
-
-    if profiler is None or not hasattr(profiler, "recordCount"):
-        return
-
-    profiler.recordCount(metric, value)
 
 
 def parse_json_cached(cache_name, value):
@@ -103,15 +55,6 @@ def parse_json_cached(cache_name, value):
     profile_record_count(f"python.json_cache.{cache_name}.miss")
 
     return parsed
-
-
-def summarize_text(value, max_length=48):
-    text = value or ""
-
-    if len(text) <= max_length:
-        return text
-
-    return text[: max_length - 3] + "..."
 
 
 def create_marquee_state(frame_input):
@@ -183,16 +126,18 @@ def advance_marquee_state(graphics, marquee_state, frame_input, delta_seconds):
 
 
 def draw_board(graphics, frame_input, marquee_state):
-    colors = get_tone_colors(frame_input.get("tone", "loading"))
+    tone_rgb = get_tone_rgb(frame_input.get("tone", "loading"))
     departures = frame_input.get("departures", [])
+    background_pen = graphics.create_pen(*BACKGROUND_RGB)
+    primary_pen = graphics.create_pen(*tone_rgb["primary"])
 
-    graphics.set_pen("#020202")
+    graphics.set_pen(background_pen)
     graphics.clear()
 
     if frame_input.get("tone") == "live" and departures:
-        draw_lead_departure(graphics, departures[0], colors["primary"])
+        draw_lead_departure(graphics, departures[0], primary_pen)
     else:
-        graphics.set_pen(colors["primary"])
+        graphics.set_pen(primary_pen)
         graphics.text(
             frame_input.get("headline", ""),
             PANEL_PADDING,
@@ -200,7 +145,7 @@ def draw_board(graphics, frame_input, marquee_state):
             LOGICAL_PANEL_WIDTH - PANEL_PADDING * 2,
         )
 
-    graphics.set_pen(colors["primary"])
+    graphics.set_pen(primary_pen)
     graphics.text(
         marquee_state.get("active_content", {}).get("text", ""),
         round(marquee_state.get("marquee_offset", LOGICAL_PANEL_WIDTH)),
@@ -224,7 +169,7 @@ def draw_board(graphics, frame_input, marquee_state):
     )
 
 
-def draw_lead_departure(graphics, departure, color):
+def draw_lead_departure(graphics, departure, pen):
     line_number = departure.get("line_number") or "--"
     destination = departure.get("destination") or "Unknown"
     display_time = departure.get("display_time") or "Now"
@@ -234,7 +179,7 @@ def draw_lead_departure(graphics, departure, color):
     destination_x = line_width + LEAD_DEPARTURE_GAP
     destination_width = max(0, time_x - destination_x - PANEL_PADDING)
 
-    graphics.set_pen(color)
+    graphics.set_pen(pen)
     graphics.text(line_number, PANEL_PADDING, ROW_ONE_Y)
     graphics.text(destination, destination_x, ROW_ONE_Y, destination_width)
     graphics.text(display_time, time_x, ROW_ONE_Y)
@@ -273,46 +218,12 @@ def format_compact_departure(departure):
     ).strip()
 
 
-def get_tone_colors(tone):
-    if tone == "error":
-        return {"primary": "#ffd7a0", "secondary": "#ffbf6b"}
-    if tone == "loading":
-        return {"primary": "#ffbe64", "secondary": "#ff9b29"}
-    if tone == "empty":
-        return {"primary": "#ffc978", "secondary": "#ffae43"}
-    return {"primary": "#ffb347", "secondary": "#ff9625"}
+def get_tone_rgb(tone):
+    return TONE_RGB.get(tone, TONE_RGB["live"])
 
 
-class RecordingGraphics:
-    def __init__(self, measurements=None):
-        self.measurements = measurements or {}
-        self.commands = []
-
-    def set_pen(self, red_or_color, green=None, blue=None):
-        self.commands.append(["set_pen", normalize_pen(red_or_color, green, blue)])
-
-    def clear(self):
-        self.commands.append(["clear"])
-
-    def pixel(self, x, y):
-        self.commands.append(["pixel", x, y])
-
-    def rectangle(self, x, y, width, height):
-        self.commands.append(["rectangle", x, y, width, height])
-
-    def text(self, value, x, y, max_width=None):
-        command = ["text", value, x, y]
-
-        if max_width is not None:
-            command.append(max_width)
-
-        self.commands.append(command)
-
-    def measure_text(self, value):
-        return int(self.measurements.get(value, 0))
-
-    def update(self):
-        self.commands.append(["update"])
+class RecordingGraphics(PicoGraphics):
+    pass
 
 
 def create_marquee_state_json(frame_input_json):
@@ -555,7 +466,7 @@ def advance_and_draw_current_frame_batch_json(
     safe_frame_count = max(1, int(frame_count))
 
     if _CURRENT_MARQUEE_STATE is None:
-      _CURRENT_MARQUEE_STATE = create_marquee_state(frame_input)
+        _CURRENT_MARQUEE_STATE = create_marquee_state(frame_input)
 
     for index in range(safe_frame_count):
         graphics = RecordingGraphics(measurements)
@@ -605,24 +516,3 @@ def clone_marquee_state(marquee_state):
     }
 
 
-def normalize_pen(red_or_color, green=None, blue=None):
-    if isinstance(red_or_color, str):
-        return red_or_color
-
-    if green is None or blue is None:
-        value = clamp_color(red_or_color)
-        return color_to_hex(value, value, value)
-
-    return color_to_hex(red_or_color, green, blue)
-
-
-def color_to_hex(red, green, blue):
-    return f"#{to_hex(red)}{to_hex(green)}{to_hex(blue)}"
-
-
-def to_hex(value):
-    return f"{clamp_color(value):02x}"
-
-
-def clamp_color(value):
-    return max(0, min(255, int(round(value))))

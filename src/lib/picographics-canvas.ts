@@ -16,6 +16,7 @@ import {
 } from '@/lib/picographics-profiler';
 
 export interface PicographicsCanvas {
+  create_pen: (red: number, green: number, blue: number) => string;
   set_pen: (redOrColor: string | number, green?: number, blue?: number) => void;
   clear: () => void;
   pixel: (x: number, y: number) => void;
@@ -57,6 +58,9 @@ export function createCanvasPicographics(
   };
 
   return {
+    create_pen(red, green, blue) {
+      return colorToHex(red, green, blue);
+    },
     set_pen(redOrColor, green, blue) {
       currentPen = normalizeColor(redOrColor, green, blue);
       applyPen();

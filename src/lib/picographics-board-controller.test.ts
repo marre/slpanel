@@ -103,6 +103,7 @@ function createDeparture(
 
 function createGraphics(measurement: number) {
   return {
+    create_pen: vi.fn(),
     set_pen: vi.fn(),
     clear: vi.fn(),
     pixel: vi.fn(),

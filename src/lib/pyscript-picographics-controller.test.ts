@@ -341,6 +341,9 @@ describe('createPyScriptPicographicsController', () => {
 
 function createGraphics(measurement: number) {
   return {
+    create_pen: vi.fn((red: number, green: number, blue: number) =>
+      `#${toHex(red)}${toHex(green)}${toHex(blue)}`,
+    ),
     set_pen: vi.fn(),
     clear: vi.fn(),
     pixel: vi.fn(),
@@ -349,4 +352,10 @@ function createGraphics(measurement: number) {
     measure_text: vi.fn(() => measurement),
     update: vi.fn(),
   };
+}
+
+function toHex(value: number) {
+  return Math.max(0, Math.min(255, Math.round(value)))
+    .toString(16)
+    .padStart(2, '0');
 }

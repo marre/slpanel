@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const loadPyScriptCoreModuleMock = vi.hoisted(() => vi.fn());
 const loadPicographicsPythonSourceMock = vi.hoisted(() => vi.fn());
+const loadPicographicsModuleSourceMock = vi.hoisted(() => vi.fn());
+const loadSlpanelInstrumentationSourceMock = vi.hoisted(() => vi.fn());
 const whenDefinedMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/pyscript-loader', () => ({
@@ -9,7 +11,9 @@ vi.mock('@/lib/pyscript-loader', () => ({
 }));
 
 vi.mock('@/lib/picographics-python-source', () => ({
+  loadPicographicsModuleSource: loadPicographicsModuleSourceMock,
   loadPicographicsPythonSource: loadPicographicsPythonSourceMock,
+  loadSlpanelInstrumentationSource: loadSlpanelInstrumentationSourceMock,
 }));
 
 import { createPyScriptPicographicsRuntime } from '@/lib/pyscript-picographics-runtime';
@@ -25,12 +29,20 @@ describe('createPyScriptPicographicsRuntime', () => {
     loadPicographicsPythonSourceMock.mockResolvedValue(
       'def draw_board():\n    pass\n',
     );
+    loadPicographicsModuleSourceMock.mockResolvedValue(
+      'class PicoGraphics:\n    pass\n',
+    );
+    loadSlpanelInstrumentationSourceMock.mockResolvedValue(
+      'def debug_log(event, payload=None):\n    pass\n',
+    );
     delete window.__slpanelPicographicsPythonSource;
   });
 
   afterEach(() => {
     loadPyScriptCoreModuleMock.mockReset();
     loadPicographicsPythonSourceMock.mockReset();
+    loadPicographicsModuleSourceMock.mockReset();
+    loadSlpanelInstrumentationSourceMock.mockReset();
     whenDefinedMock.mockReset();
     delete window.__slpanelPicographicsPythonSource;
   });
@@ -171,12 +183,30 @@ describe('createPyScriptPicographicsRuntime', () => {
 
     expect(loadPyScriptCoreModuleMock).toHaveBeenCalledWith(document);
     expect(whenDefinedMock).toHaveBeenCalledWith('mpy');
+    expect(loadPicographicsModuleSourceMock).toHaveBeenCalledWith(fetch);
+    expect(loadSlpanelInstrumentationSourceMock).toHaveBeenCalledWith(fetch);
     expect(loadPicographicsPythonSourceMock).toHaveBeenCalledWith(fetch);
     expect(script).toHaveAttribute('type', 'mpy');
     expect(script).toHaveAttribute(
       'target',
       expect.stringMatching(/^#slpanel-pyscript-target-/),
     );
+    expect(script?.textContent).toContain(
+      'def _slpanel_register_module(module_name, module_source):',
+    );
+    expect(script?.textContent).toContain(
+      '_slpanel_register_module("picographics", _slpanel_picographics_module_source)',
+    );
+    expect(script?.textContent).toContain(
+      '_slpanel_register_module(',
+    );
+    expect(script?.textContent).toContain(
+      '"slpanel_instrumentation",',
+    );
+    expect(script?.textContent).toContain(
+      '_slpanel_instrumentation_module_source',
+    );
+    expect(script?.textContent).not.toContain('types.ModuleType("picographics")');
     expect(window.__slpanelPicographicsPythonSource).toContain('draw_board');
     await session.controller.drawBoard(
       session.graphics,

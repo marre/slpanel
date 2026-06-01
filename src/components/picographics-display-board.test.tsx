@@ -112,6 +112,7 @@ describe('PicographicsDisplayBoard', () => {
       initialize() {
         return {
           graphics: {
+            create_pen: vi.fn(),
             set_pen: vi.fn(),
             clear: vi.fn(),
             pixel: vi.fn(),
@@ -207,6 +208,7 @@ describe('PicographicsDisplayBoard', () => {
       initialize() {
         return {
           graphics: {
+            create_pen: vi.fn(),
             set_pen: vi.fn(),
             clear: vi.fn(),
             pixel: vi.fn(),
@@ -297,6 +299,7 @@ describe('PicographicsDisplayBoard', () => {
       initialize() {
         return {
           graphics: {
+            create_pen: vi.fn(),
             set_pen: vi.fn(),
             clear: vi.fn(),
             pixel: vi.fn(),
