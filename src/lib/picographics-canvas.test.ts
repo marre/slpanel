@@ -46,7 +46,13 @@ describe('createCanvasPicographics', () => {
     graphics.pixel(1, 2);
     graphics.rectangle(2, 3, 4, 5);
 
-    expect(context.fillRect).toHaveBeenNthCalledWith(1, 0, 0, PANEL_WIDTH, PANEL_HEIGHT);
+    expect(context.fillRect).toHaveBeenNthCalledWith(
+      1,
+      0,
+      0,
+      PANEL_WIDTH,
+      PANEL_HEIGHT,
+    );
     expect(context.arc).toHaveBeenCalledWith(
       1 * DIODE_SCALE + DIODE_SCALE / 2,
       2 * DIODE_SCALE + DIODE_SCALE / 2,

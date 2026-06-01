@@ -192,11 +192,11 @@ describe('DisplayPage', () => {
       </MemoryRouter>,
     );
 
+    expect(screen.getByText(/2-row layout is fixed/i)).toBeInTheDocument();
     expect(
-      screen.getByText(/2-row layout is fixed/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/4 empty pixels above, between, and below the two rows/i),
+      screen.getByText(
+        /4 empty pixels above, between, and below the two rows/i,
+      ),
     ).toBeInTheDocument();
   });
 
@@ -224,7 +224,9 @@ describe('DisplayPage', () => {
 
     expect(classicButton).toHaveAttribute('aria-pressed', 'false');
     expect(previewButton).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('picographics-display-board')).toBeInTheDocument();
+    expect(
+      screen.getByTestId('picographics-display-board'),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /local shim/i })).toHaveAttribute(
       'aria-pressed',
       'true',
@@ -252,7 +254,11 @@ describe('DisplayPage', () => {
       'aria-pressed',
       'true',
     );
-    expect(screen.getByTestId('picographics-display-board')).toBeInTheDocument();
-    expect(screen.queryByTestId('classic-display-board')).not.toBeInTheDocument();
+    expect(
+      screen.getByTestId('picographics-display-board'),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByTestId('classic-display-board'),
+    ).not.toBeInTheDocument();
   });
 });

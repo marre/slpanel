@@ -1,5 +1,4 @@
-export const PICOGRAPHICS_PYTHON_SOURCE_URL =
-  '/python/slpanel_picographics.py';
+export const PICOGRAPHICS_PYTHON_SOURCE_URL = '/python/slpanel_picographics.py';
 
 export async function loadPicographicsPythonSource(
   fetcher: typeof fetch = fetch,

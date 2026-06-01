@@ -1,8 +1,6 @@
 export const PYSCRIPT_VERSION = '2026.3.1';
-export const PYSCRIPT_CORE_CSS_URL =
-  `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.css`;
-export const PYSCRIPT_CORE_JS_URL =
-  `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.js`;
+export const PYSCRIPT_CORE_CSS_URL = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.css`;
+export const PYSCRIPT_CORE_JS_URL = `https://pyscript.net/releases/${PYSCRIPT_VERSION}/core.js`;
 
 export interface PyScriptDonkeyInstance {
   execute: (code: string) => Promise<unknown>;

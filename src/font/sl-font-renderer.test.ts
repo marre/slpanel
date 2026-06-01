@@ -45,7 +45,8 @@ describe('sl-font-renderer', () => {
     expect(ctx.arc).toHaveBeenCalledTimes(1);
     expect(ctx.fill).toHaveBeenCalledTimes(1);
 
-    const [centerX, centerY, radius, startAngle, endAngle] = ctx.arc.mock.calls[0];
+    const [centerX, centerY, radius, startAngle, endAngle] =
+      ctx.arc.mock.calls[0];
 
     expect(centerX).toBe(10);
     expect(centerY).toBe(14);

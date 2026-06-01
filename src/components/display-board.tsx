@@ -119,7 +119,10 @@ export function DisplayBoard({
       }
 
       const marqueeWidth = Math.max(
-        measureText(marqueeState.activeContent.text, CLASSIC_BOARD_FONT_OPTIONS),
+        measureText(
+          marqueeState.activeContent.text,
+          CLASSIC_BOARD_FONT_OPTIONS,
+        ),
         1,
       );
 
@@ -277,17 +280,10 @@ function drawLeadDeparture(
     color,
   });
 
-  renderTextLine(
-    context,
-    destination,
-    destinationX,
-    rowY,
-    destinationWidth,
-    {
-      ...CLASSIC_BOARD_FONT_OPTIONS,
-      color,
-    },
-  );
+  renderTextLine(context, destination, destinationX, rowY, destinationWidth, {
+    ...CLASSIC_BOARD_FONT_OPTIONS,
+    color,
+  });
 
   renderText(context, displayTime, timeX, rowY, {
     ...CLASSIC_BOARD_FONT_OPTIONS,
