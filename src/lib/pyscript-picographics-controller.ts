@@ -1,12 +1,7 @@
 import {
   type PicographicsBoardController,
   type PicographicsBoardFrameInput,
-  type PicographicsBoardMarqueeState,
 } from '@/lib/picographics-board-controller';
-import {
-  buildMarqueeContent,
-  LOGICAL_PANEL_WIDTH,
-} from '@/components/display-board-shared';
 import type { PicographicsCanvas } from '@/lib/picographics-canvas';
 import { logPicographicsInfo } from '@/lib/picographics-debug';
 import {
@@ -40,25 +35,12 @@ export interface PyScriptPicographicsBridge {
   ) => string | Promise<string>;
 }
 
-interface PythonMarqueeState {
-  active_content?: PythonMarqueeContent;
-  pending_content?: PythonMarqueeContent;
-  marquee_offset?: number;
-}
-
-interface PythonMarqueeContent {
-  text?: string;
-  interruptible?: boolean;
-}
-
 interface PythonRenderedFrame {
-  marquee_state?: PythonMarqueeState;
   commands?: DrawCommand[];
 }
 
 interface CachedRenderedFrame {
   frameInput: PicographicsBoardFrameInput;
-  marqueeState: PicographicsBoardMarqueeState;
   commands: DrawCommand[];
 }
 
@@ -70,98 +52,14 @@ export function createPyScriptPicographicsController(
   let cachedMeasurementsJson: string | null = null;
 
   return {
-    createMarqueeState(frameInput) {
-      cachedRenderedFrame = null;
-      cachedMeasurementsJson = null;
-      cachedFrameInputJson = JSON.stringify(frameInput);
-      logController('createMarqueeState:request', {
-        tone: frameInput.tone,
-        headline: summarizeText(frameInput.headline),
-        detail: summarizeText(frameInput.detail),
-      });
-      const content = buildMarqueeContent(frameInput);
-      const nextState: PicographicsBoardMarqueeState = {
-        activeContent: content,
-        pendingContent: content,
-        marqueeOffset: LOGICAL_PANEL_WIDTH,
-      };
-
-      logController('createMarqueeState:response', {
-        activeText: summarizeText(nextState.activeContent.text),
-        marqueeOffset: nextState.marqueeOffset,
-      });
-
-      return nextState;
-    },
-
-    async advanceMarqueeState(
-      graphics,
-      marqueeState,
-      frameInput,
-      deltaSeconds,
-    ) {
-      const stopAdvanceProfile = startPicographicsProfile(
-        'controller.advance.total',
-      );
-
-      try {
-        const stopMeasurementProfile = startPicographicsProfile(
-          'controller.measurements',
-        );
-        const measurements = collectMeasurements(
-          graphics,
-          frameInput,
-          marqueeState,
-        );
-        stopMeasurementProfile();
-        const frameInputJson = syncFrameInput(frameInput);
-        const measurementsJson = syncMeasurements(measurements);
-        logController('advanceMarqueeState:request', {
-          deltaSeconds,
-          activeText: summarizeText(marqueeState.activeContent.text),
-          marqueeOffset: marqueeState.marqueeOffset,
-          measurements,
-        });
-        const response = bridge.advanceAndDrawCurrentFrameJson
-          ? await bridge.advanceAndDrawCurrentFrameJson(deltaSeconds)
-          : await bridge.advanceAndDrawFrameJson(
-              frameInputJson,
-              deltaSeconds,
-              measurementsJson,
-            );
-        const stopParseProfile = startPicographicsProfile(
-          'controller.parseFrame',
-        );
-        const renderedFrame = toCachedRenderedFrame(
-          frameInput,
-          JSON.parse(String(response)) as PythonRenderedFrame,
-        );
-        stopParseProfile();
-
-        const nextState = consumeRenderedFrame(renderedFrame);
-
-        logController('advanceMarqueeState:response', {
-          activeText: summarizeText(nextState.activeContent.text),
-          pendingText: summarizeText(nextState.pendingContent.text),
-          marqueeOffset: nextState.marqueeOffset,
-        });
-
-        return nextState;
-      } finally {
-        stopAdvanceProfile();
-      }
-    },
-
-    async drawBoard(graphics, frameInput, marqueeState) {
+    async drawFrame(graphics, frameInput) {
       const stopDrawProfile = startPicographicsProfile('controller.draw.total');
-      const cachedCommands = getCachedCommands(frameInput, marqueeState);
+      const cachedCommands = getCachedCommands(frameInput);
 
       if (cachedCommands) {
         recordPicographicsCount('controller.draw.cached');
-        logController('drawBoard:cached-response', {
+        logController('drawFrame:cached-response', {
           tone: frameInput.tone,
-          activeText: summarizeText(marqueeState.activeContent.text),
-          marqueeOffset: marqueeState.marqueeOffset,
           commandCount: cachedCommands.length,
         });
         replayDrawCommands(graphics, cachedCommands);
@@ -173,18 +71,12 @@ export function createPyScriptPicographicsController(
         const stopMeasurementProfile = startPicographicsProfile(
           'controller.measurements',
         );
-        const measurements = collectMeasurements(
-          graphics,
-          frameInput,
-          marqueeState,
-        );
+        const measurements = collectMeasurements(graphics, frameInput);
         stopMeasurementProfile();
         const frameInputJson = syncFrameInput(frameInput);
         const measurementsJson = syncMeasurements(measurements);
-        logController('drawBoard:request', {
+        logController('drawFrame:request', {
           tone: frameInput.tone,
-          activeText: summarizeText(marqueeState.activeContent.text),
-          marqueeOffset: marqueeState.marqueeOffset,
         });
         const response = await bridge.drawBoardCommandsJson(
           frameInputJson,
@@ -193,10 +85,10 @@ export function createPyScriptPicographicsController(
         const stopParseProfile = startPicographicsProfile(
           'controller.parseCommands',
         );
-        const commands = JSON.parse(String(response)) as DrawCommand[];
+        const commands = parseCommandsResponse(response);
         stopParseProfile();
 
-        logController('drawBoard:response', {
+        logController('drawFrame:response', {
           commandCount: commands.length,
           commandPreview: commands.slice(0, 5),
         });
@@ -206,16 +98,51 @@ export function createPyScriptPicographicsController(
         stopDrawProfile();
       }
     },
+
+    async advanceFrame(graphics, frameInput, deltaSeconds) {
+      const stopAdvanceProfile = startPicographicsProfile(
+        'controller.advance.total',
+      );
+
+      try {
+        const stopMeasurementProfile = startPicographicsProfile(
+          'controller.measurements',
+        );
+        const measurements = collectMeasurements(graphics, frameInput);
+        stopMeasurementProfile();
+        const frameInputJson = syncFrameInput(frameInput);
+        const measurementsJson = syncMeasurements(measurements);
+        logController('advanceFrame:request', {
+          deltaSeconds,
+          measurements,
+        });
+        const response = bridge.advanceAndDrawCurrentFrameJson
+          ? await bridge.advanceAndDrawCurrentFrameJson(deltaSeconds)
+          : await bridge.advanceAndDrawFrameJson(
+              frameInputJson,
+              deltaSeconds,
+              measurementsJson,
+            );
+        const stopParseProfile = startPicographicsProfile(
+          'controller.parseCommands',
+        );
+        const commands = parseCommandsResponse(response);
+        stopParseProfile();
+        consumeRenderedFrame({ frameInput, commands });
+
+        logController('advanceFrame:response', {
+          commandCount: commands.length,
+        });
+
+        replayDrawCommands(graphics, commands);
+      } finally {
+        stopAdvanceProfile();
+      }
+    },
   };
 
-  function getCachedCommands(
-    frameInput: PicographicsBoardFrameInput,
-    marqueeState: PicographicsBoardMarqueeState,
-  ) {
-    if (
-      cachedRenderedFrame?.frameInput !== frameInput ||
-      cachedRenderedFrame.marqueeState !== marqueeState
-    ) {
+  function getCachedCommands(frameInput: PicographicsBoardFrameInput) {
+    if (cachedRenderedFrame?.frameInput !== frameInput) {
       cachedRenderedFrame = null;
       return null;
     }
@@ -255,19 +182,18 @@ export function createPyScriptPicographicsController(
       'controller.commands.prepared',
       cachedRenderedFrame.commands.length,
     );
-
-    return cachedRenderedFrame.marqueeState;
   }
 
-  function toCachedRenderedFrame(
-    frameInput: PicographicsBoardFrameInput,
-    renderedFrame: PythonRenderedFrame,
-  ): CachedRenderedFrame {
-    return {
-      frameInput,
-      marqueeState: normalizeMarqueeState(renderedFrame.marquee_state),
-      commands: renderedFrame.commands ?? [],
-    };
+  function parseCommandsResponse(response: string | Promise<string>) {
+    const parsed = JSON.parse(String(response)) as
+      | DrawCommand[]
+      | PythonRenderedFrame;
+
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
+
+    return parsed.commands ?? [];
   }
 }
 
@@ -275,25 +201,11 @@ function logController(event: string, payload: Record<string, unknown>) {
   logPicographicsInfo('[slpanel/pyscript-controller]', event, payload);
 }
 
-function summarizeText(value: string, maxLength = 60) {
-  if (value.length <= maxLength) {
-    return value;
-  }
-
-  return `${value.slice(0, maxLength - 3)}...`;
-}
-
 function collectMeasurements(
   graphics: PicographicsCanvas,
   frameInput: PicographicsBoardFrameInput,
-  marqueeState: PicographicsBoardMarqueeState,
 ) {
   const measurements: Record<string, number> = {};
-  const activeMarqueeText = marqueeState.activeContent.text;
-
-  if (activeMarqueeText) {
-    measurements[activeMarqueeText] = graphics.measure_text(activeMarqueeText);
-  }
 
   if (frameInput.tone === 'live' && frameInput.departures.length > 0) {
     const leadDeparture = frameInput.departures[0];
@@ -350,23 +262,4 @@ function replayDrawCommands(
   }
 
   stopReplayProfile();
-}
-
-function normalizeMarqueeState(
-  pythonState: PythonMarqueeState | undefined,
-): PicographicsBoardMarqueeState {
-  return {
-    activeContent: normalizeMarqueeContent(pythonState?.active_content),
-    pendingContent: normalizeMarqueeContent(pythonState?.pending_content),
-    marqueeOffset: pythonState?.marquee_offset ?? 128,
-  };
-}
-
-function normalizeMarqueeContent(
-  content: PythonMarqueeContent | undefined,
-): MarqueeContent {
-  return {
-    text: content?.text ?? '',
-    interruptible: content?.interruptible ?? true,
-  };
 }

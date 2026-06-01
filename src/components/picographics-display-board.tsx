@@ -3,21 +3,12 @@ import { useEffect, useRef, useState } from 'react';
 import {
   buildAccessibleSummary,
   buildBoardKey,
-  createBoardGeometry,
   type DisplayBoardProps,
-  LOGICAL_PANEL_WIDTH,
   PANEL_HEIGHT,
   PANEL_WIDTH,
   slugify,
 } from '@/components/display-board-shared';
 import {
-  localPicographicsBoardController,
-  type PicographicsBoardController,
-  type PicographicsBoardMarqueeState,
-} from '@/lib/picographics-board-controller';
-import { createCanvasPicographics } from '@/lib/picographics-canvas';
-import {
-  localPicographicsRuntime,
   type PicographicsRuntime,
   type PicographicsRuntimeSession,
 } from '@/lib/picographics-runtime';
@@ -28,7 +19,7 @@ import {
 } from '@/lib/picographics-profiler';
 
 interface PicographicsDisplayBoardProps extends DisplayBoardProps {
-  runtime?: PicographicsRuntime;
+  runtime: PicographicsRuntime;
 }
 
 export function PicographicsDisplayBoard({
@@ -38,7 +29,7 @@ export function PicographicsDisplayBoard({
   tone,
   headline,
   detail,
-  runtime = localPicographicsRuntime,
+  runtime,
 }: PicographicsDisplayBoardProps) {
   const initialFrameInput: DisplayBoardProps = {
     displayName,
@@ -53,22 +44,9 @@ export function PicographicsDisplayBoard({
     'loading' | 'ready' | 'error'
   >('loading');
   const [runtimeLabel, setRuntimeLabel] = useState(runtime.label);
-  const controllerRef = useRef<PicographicsBoardController>(
-    localPicographicsBoardController,
-  );
   const frameInputRef = useRef<DisplayBoardProps>(initialFrameInput);
-  const marqueeStateRef = useRef<PicographicsBoardMarqueeState>(
-    localPicographicsBoardController.createMarqueeState({
-      departures,
-      tone,
-      headline,
-      detail,
-    }),
-  );
   const lastTimestampRef = useRef(0);
   const pendingDeltaSecondsRef = useRef(0);
-  const lastAdvancedFrameInputRef =
-    useRef<DisplayBoardProps>(initialFrameInput);
   const boardKeyRef = useRef(buildBoardKey(displayName, siteName));
 
   useEffect(() => {
@@ -88,9 +66,6 @@ export function PicographicsDisplayBoard({
       boardKeyRef.current = nextBoardKey;
       lastTimestampRef.current = 0;
       pendingDeltaSecondsRef.current = 0;
-      lastAdvancedFrameInputRef.current = nextFrameInput;
-      marqueeStateRef.current =
-        controllerRef.current.createMarqueeState(nextFrameInput);
     }
   }, [departures, detail, displayName, headline, siteName, tone]);
 
@@ -158,68 +133,32 @@ export function PicographicsDisplayBoard({
       lastTimestampRef.current = timestamp;
       pendingDeltaSecondsRef.current += deltaSeconds;
 
-      if (
-        !isFirstFrame &&
-        !shouldRenderVisibleFrame(
-          session,
-          frameInputRef.current,
-          marqueeStateRef.current,
-          pendingDeltaSecondsRef.current,
-          lastAdvancedFrameInputRef.current,
-        )
-      ) {
-        recordPicographicsCount('display.frame.skipped');
-        scheduleNextFrame(session);
-        stopFrameProfile();
-        return;
-      }
-
       recordPicographicsCount('display.frame.rendered');
       const effectiveDeltaSeconds = pendingDeltaSecondsRef.current;
 
       pendingDeltaSecondsRef.current = 0;
-      lastAdvancedFrameInputRef.current = frameInputRef.current;
       logDisplayBoard('renderFrame', {
         runtimeId: runtime.id,
         timestamp,
         deltaSeconds: effectiveDeltaSeconds,
-        marqueeOffset: marqueeStateRef.current.marqueeOffset,
-        activeText: summarizeText(marqueeStateRef.current.activeContent.text),
       });
-      const nextState = session.controller.advanceMarqueeState(
+      const advanceResult = session.controller.advanceFrame(
         session.graphics,
-        marqueeStateRef.current,
         frameInputRef.current,
         effectiveDeltaSeconds,
       );
 
-      const handleResolvedState = (
-        resolvedState: PicographicsBoardMarqueeState,
-      ) => {
-        if (disposed) {
-          return;
-        }
-
-        marqueeStateRef.current = resolvedState;
-        handleDrawResult(
-          session,
-          session.controller.drawBoard(
-            session.graphics,
-            frameInputRef.current,
-            marqueeStateRef.current,
-          ),
-        );
-      };
-
-      if (isPromiseLike(nextState)) {
-        nextState.then(handleResolvedState).catch(() => {
+      if (isPromiseLike(advanceResult)) {
+        advanceResult.then(() => {
+          scheduleNextFrame(session);
+        }).catch(() => {
           void handleError();
         });
         stopFrameProfile();
         return;
       }
 
-      handleResolvedState(nextState);
+      scheduleNextFrame(session);
       stopFrameProfile();
     };
 
@@ -232,29 +171,6 @@ export function PicographicsDisplayBoard({
         runtimeId: runtime.id,
         runtimeLabel: runtime.label,
       });
-
-      if (runtime.id !== localPicographicsRuntime.id) {
-        try {
-          const fallbackRuntime = localPicographicsRuntime.initialize(context);
-
-          if (isPromiseLike(fallbackRuntime)) {
-            const session = await fallbackRuntime;
-            handleReady(session, {
-              status: 'error',
-              label: `${runtime.label} unavailable, local fallback`,
-            });
-            return;
-          }
-
-          handleReady(fallbackRuntime, {
-            status: 'error',
-            label: `${runtime.label} unavailable, local fallback`,
-          });
-          return;
-        } catch {
-          // Fall through to the plain error state if even the local runtime fails.
-        }
-      }
 
       setRuntimeState('error');
       setRuntimeLabel(`${runtime.label} unavailable`);
@@ -281,22 +197,16 @@ export function PicographicsDisplayBoard({
       });
 
       activeSession = session;
-      controllerRef.current = session.controller;
-      marqueeStateRef.current = session.controller.createMarqueeState(
-        frameInputRef.current,
-      );
       lastTimestampRef.current = 0;
       pendingDeltaSecondsRef.current = 0;
-      lastAdvancedFrameInputRef.current = frameInputRef.current;
       setRuntimeState(options.status);
       setRuntimeLabel(options.label);
 
       handleDrawResult(
         session,
-        session.controller.drawBoard(
+        session.controller.drawFrame(
           session.graphics,
           frameInputRef.current,
-          marqueeStateRef.current,
         ),
       );
     };
@@ -308,22 +218,8 @@ export function PicographicsDisplayBoard({
       });
       setRuntimeState('loading');
       setRuntimeLabel(runtime.label);
-      controllerRef.current = localPicographicsBoardController;
-      marqueeStateRef.current =
-        localPicographicsBoardController.createMarqueeState(
-          frameInputRef.current,
-        );
       lastTimestampRef.current = 0;
       pendingDeltaSecondsRef.current = 0;
-      lastAdvancedFrameInputRef.current = frameInputRef.current;
-
-      // Repaint immediately so a previous runtime frame does not linger while
-      // an async runtime bootstraps.
-      localPicographicsBoardController.drawBoard(
-        createCanvasPicographics(context),
-        frameInputRef.current,
-        marqueeStateRef.current,
-      );
 
       try {
         const initializedRuntime = runtime.initialize(context);
@@ -416,38 +312,6 @@ function isPromiseLike<T>(value: T | Promise<T>): value is Promise<T> {
   return typeof value === 'object' && value !== null && 'then' in value;
 }
 
-function shouldRenderVisibleFrame(
-  session: PicographicsRuntimeSession,
-  frameInput: DisplayBoardProps,
-  marqueeState: PicographicsBoardMarqueeState,
-  deltaSeconds: number,
-  lastAdvancedFrameInput: DisplayBoardProps,
-) {
-  if (frameInput !== lastAdvancedFrameInput) {
-    return true;
-  }
-
-  const activeText = marqueeState.activeContent.text;
-  const marqueeWidth = Math.max(session.graphics.measure_text(activeText), 1);
-  let nextOffset =
-    marqueeState.marqueeOffset -
-    deltaSeconds * createBoardGeometry().marqueeSpeed;
-
-  if (nextOffset <= -marqueeWidth) {
-    nextOffset = LOGICAL_PANEL_WIDTH;
-  }
-
-  return Math.round(nextOffset) !== Math.round(marqueeState.marqueeOffset);
-}
-
 function logDisplayBoard(event: string, payload: Record<string, unknown>) {
   logPicographicsInfo('[slpanel/picographics-display-board]', event, payload);
-}
-
-function summarizeText(value: string, maxLength = 60) {
-  if (value.length <= maxLength) {
-    return value;
-  }
-
-  return `${value.slice(0, maxLength - 3)}...`;
 }

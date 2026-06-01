@@ -227,13 +227,10 @@ describe('DisplayPage', () => {
     expect(
       screen.getByTestId('picographics-display-board'),
     ).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /local shim/i })).toHaveAttribute(
-      'aria-pressed',
-      'true',
+    expect(screen.getByText(/renderer runtime/i)).toBeInTheDocument();
+    expect(screen.getByTestId('picographics-runtime-status')).toHaveTextContent(
+      /pyscript bootstrap/i,
     );
-    expect(
-      screen.getByRole('button', { name: /pyscript bootstrap/i }),
-    ).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('renders the interstate preview when the renderer query param is set', async () => {
@@ -250,10 +247,6 @@ describe('DisplayPage', () => {
     expect(
       screen.getByRole('button', { name: /interstate 75 w preview/i }),
     ).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: /local shim/i })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
     expect(
       screen.getByTestId('picographics-display-board'),
     ).toBeInTheDocument();

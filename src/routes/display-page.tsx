@@ -5,7 +5,6 @@ import type { DepartureRecord, DisplayRecord } from '@/api/types';
 import { DisplayBoard } from '@/components/display-board';
 import { PicographicsDisplayBoard } from '@/components/picographics-display-board';
 import { ConfigApiError, getDisplay, listDepartures } from '@/lib/config-api';
-import { localPicographicsRuntime } from '@/lib/picographics-runtime';
 import { pyScriptPicographicsRuntime } from '@/lib/pyscript-picographics-runtime';
 
 const DEPARTURES_FORECAST_MINUTES = 240;
@@ -73,16 +72,12 @@ const DEMO_DEPARTURES: DepartureRecord[] = [
 
 type BoardTone = 'live' | 'loading' | 'empty' | 'error';
 type DisplayRenderer = 'classic' | 'interstate75';
-type PicographicsRuntimeMode = 'local' | 'pyscript';
 
 export function DisplayPage() {
   const { displayId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const isDemoBoard = displayId === 'demo-board';
   const activeRenderer = parseDisplayRenderer(searchParams.get('renderer'));
-  const activePicographicsRuntime = parsePicographicsRuntime(
-    searchParams.get('runtime'),
-  );
   const [display, setDisplay] = useState<DisplayRecord | null>(null);
   const [departures, setDepartures] = useState<DepartureRecord[]>([]);
   const [isLoadingDisplay, setIsLoadingDisplay] = useState(!isDemoBoard);
@@ -242,10 +237,7 @@ export function DisplayPage() {
     activeDisplay?.name || activeDisplay?.display_id || 'Unknown board';
   const stopName =
     activeDisplay?.site_name || activeDisplay?.site_id || 'No stop configured';
-  const picographicsRuntime =
-    activePicographicsRuntime === 'pyscript'
-      ? pyScriptPicographicsRuntime
-      : localPicographicsRuntime;
+  const picographicsRuntime = pyScriptPicographicsRuntime;
 
   function handleRendererChange(renderer: DisplayRenderer) {
     const nextSearchParams = new URLSearchParams(searchParams);
@@ -254,19 +246,6 @@ export function DisplayPage() {
       nextSearchParams.delete('renderer');
     } else {
       nextSearchParams.set('renderer', renderer);
-    }
-
-    setSearchParams(nextSearchParams, { replace: true });
-  }
-
-  function handlePicographicsRuntimeChange(runtime: PicographicsRuntimeMode) {
-    const nextSearchParams = new URLSearchParams(searchParams);
-
-    if (runtime === 'local') {
-      nextSearchParams.delete('runtime');
-    } else {
-      nextSearchParams.set('runtime', runtime);
-      nextSearchParams.set('renderer', 'interstate75');
     }
 
     setSearchParams(nextSearchParams, { replace: true });
@@ -343,27 +322,6 @@ export function DisplayPage() {
                 </button>
               ))}
             </div>
-            {activeRenderer === 'interstate75' ? (
-              <div className="inline-flex rounded-full border border-[var(--panel-border)] bg-black/24 p-1">
-                {PICOGRAPHICS_RUNTIME_OPTIONS.map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    aria-pressed={activePicographicsRuntime === option.value}
-                    onClick={() =>
-                      handlePicographicsRuntimeChange(option.value)
-                    }
-                    className={`rounded-full px-3 py-2 text-[0.65rem] font-medium uppercase tracking-[0.24em] transition ${
-                      activePicographicsRuntime === option.value
-                        ? 'bg-[var(--panel-text)] text-black'
-                        : 'text-[var(--muted-text)] hover:bg-[var(--panel-text)]/10 hover:text-[var(--panel-text)]'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-            ) : null}
           </div>
         </div>
       </div>
@@ -456,7 +414,7 @@ export function DisplayPage() {
             {activeRenderer === 'interstate75' ? (
               <DetailRow
                 label="Renderer runtime"
-                value={getPicographicsRuntimeLabel(activePicographicsRuntime)}
+                value="PyScript bootstrap"
               />
             ) : null}
             <DetailRow label="Board message" value={boardState.detail} />
@@ -617,20 +575,10 @@ function parseDisplayRenderer(value: string | null): DisplayRenderer {
   return value === 'interstate75' ? value : 'classic';
 }
 
-function parsePicographicsRuntime(
-  value: string | null,
-): PicographicsRuntimeMode {
-  return value === 'pyscript' ? value : 'local';
-}
-
 function getRendererLabel(renderer: DisplayRenderer) {
   return renderer === 'interstate75'
     ? 'Interstate 75 W preview'
     : 'Classic board';
-}
-
-function getPicographicsRuntimeLabel(runtime: PicographicsRuntimeMode) {
-  return runtime === 'pyscript' ? 'PyScript bootstrap' : 'Local shim';
 }
 
 const DISPLAY_RENDERER_OPTIONS: Array<{
@@ -644,20 +592,6 @@ const DISPLAY_RENDERER_OPTIONS: Array<{
   {
     value: 'interstate75',
     label: 'Interstate 75 W preview',
-  },
-];
-
-const PICOGRAPHICS_RUNTIME_OPTIONS: Array<{
-  value: PicographicsRuntimeMode;
-  label: string;
-}> = [
-  {
-    value: 'local',
-    label: 'Local shim',
-  },
-  {
-    value: 'pyscript',
-    label: 'PyScript bootstrap',
   },
 ];
 

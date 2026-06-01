@@ -1,9 +1,31 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { localPicographicsBoardController } from '@/lib/picographics-board-controller';
 import type { PicographicsRuntime } from '@/lib/picographics-runtime';
 import { PicographicsDisplayBoard } from '@/components/picographics-display-board';
+
+const readyRuntime: PicographicsRuntime = {
+  id: 'pyscript',
+  label: 'PyScript bootstrap',
+  initialize() {
+    return {
+      graphics: {
+        create_pen: vi.fn(),
+        set_pen: vi.fn(),
+        clear: vi.fn(),
+        pixel: vi.fn(),
+        rectangle: vi.fn(),
+        text: vi.fn(),
+        measure_text: vi.fn(() => 10),
+        update: vi.fn(),
+      },
+      controller: {
+        drawFrame: vi.fn(),
+        advanceFrame: vi.fn(),
+      },
+    };
+  },
+};
 
 describe('PicographicsDisplayBoard', () => {
   let context: CanvasRenderingContext2D & {
@@ -53,7 +75,7 @@ describe('PicographicsDisplayBoard', () => {
     vi.unstubAllGlobals();
   });
 
-  it('shows the default local runtime once initialization succeeds', async () => {
+  it('shows runtime status once initialization succeeds', async () => {
     render(
       <PicographicsDisplayBoard
         displayName="Demo board preview"
@@ -62,13 +84,14 @@ describe('PicographicsDisplayBoard', () => {
         tone="loading"
         headline="Loading departures"
         detail="Board is starting"
+        runtime={readyRuntime}
       />,
     );
 
     await waitFor(() => {
       expect(
         screen.getByTestId('picographics-runtime-status'),
-      ).toHaveTextContent(/local picographics shim/i);
+      ).toHaveTextContent(/pyscript bootstrap/i);
     });
 
     expect(
@@ -105,7 +128,7 @@ describe('PicographicsDisplayBoard', () => {
   });
 
   it('accepts a runtime-provided controller session', async () => {
-    const drawBoardMock = vi.fn();
+    const drawFrameMock = vi.fn();
     const runtime: PicographicsRuntime = {
       id: 'pyscript',
       label: 'PyScript',
@@ -122,8 +145,8 @@ describe('PicographicsDisplayBoard', () => {
             update: vi.fn(),
           },
           controller: {
-            ...localPicographicsBoardController,
-            drawBoard: drawBoardMock,
+            drawFrame: drawFrameMock,
+            advanceFrame: vi.fn(),
           },
         };
       },
@@ -142,7 +165,7 @@ describe('PicographicsDisplayBoard', () => {
     );
 
     await waitFor(() => {
-      expect(drawBoardMock).toHaveBeenCalled();
+      expect(drawFrameMock).toHaveBeenCalled();
     });
 
     expect(screen.getByTestId('picographics-runtime-status')).toHaveTextContent(
@@ -150,7 +173,7 @@ describe('PicographicsDisplayBoard', () => {
     );
   });
 
-  it('repaints immediately when switching to a runtime that is still loading', async () => {
+  it('keeps loading state when switching to a runtime that is still loading', async () => {
     const pendingRuntime: PicographicsRuntime = {
       id: 'pyscript',
       label: 'PyScript bootstrap',
@@ -167,13 +190,14 @@ describe('PicographicsDisplayBoard', () => {
         tone="loading"
         headline="Loading departures"
         detail="Board is starting"
+        runtime={readyRuntime}
       />,
     );
 
     await waitFor(() => {
       expect(
         screen.getByTestId('picographics-runtime-status'),
-      ).toHaveTextContent(/local picographics shim/i);
+      ).toHaveTextContent(/pyscript bootstrap/i);
     });
 
     const initialDrawCount = context.fillRect.mock.calls.length;
@@ -194,14 +218,13 @@ describe('PicographicsDisplayBoard', () => {
       expect(
         screen.getByTestId('picographics-runtime-status'),
       ).toHaveTextContent(/pyscript bootstrap/i);
-      expect(context.fillRect.mock.calls.length).toBeGreaterThan(
-        initialDrawCount,
-      );
+      expect(context.fillRect.mock.calls.length).toBe(initialDrawCount);
     });
   });
 
   it('continues advancing frames with an async runtime controller', async () => {
     const observedOffsets: number[] = [];
+    let marqueeOffset = 128;
     const runtime: PicographicsRuntime = {
       id: 'pyscript',
       label: 'PyScript bootstrap',
@@ -218,32 +241,12 @@ describe('PicographicsDisplayBoard', () => {
             update: vi.fn(),
           },
           controller: {
-            createMarqueeState() {
-              return {
-                activeContent: {
-                  text: 'No later departures',
-                  interruptible: false,
-                },
-                pendingContent: {
-                  text: 'No later departures',
-                  interruptible: false,
-                },
-                marqueeOffset: 128,
-              };
+            async drawFrame() {
+              observedOffsets.push(marqueeOffset);
             },
-            async advanceMarqueeState(
-              _graphics,
-              marqueeState,
-              _frameInput,
-              deltaSeconds,
-            ) {
-              return {
-                ...marqueeState,
-                marqueeOffset: marqueeState.marqueeOffset - deltaSeconds * 18,
-              };
-            },
-            async drawBoard(_graphics, _frameInput, marqueeState) {
-              observedOffsets.push(marqueeState.marqueeOffset);
+            async advanceFrame(_graphics, _frameInput, deltaSeconds) {
+              marqueeOffset -= deltaSeconds * 18;
+              observedOffsets.push(marqueeOffset);
             },
           },
         };
@@ -283,16 +286,9 @@ describe('PicographicsDisplayBoard', () => {
     });
   });
 
-  it('skips async controller work when a frame cannot change the visible marquee position', async () => {
-    const advanceMarqueeStateMock = vi
-      .fn()
-      .mockImplementation(
-        async (_graphics, marqueeState, _frameInput, deltaSeconds) => ({
-          ...marqueeState,
-          marqueeOffset: marqueeState.marqueeOffset - deltaSeconds * 18,
-        }),
-      );
-    const drawBoardMock = vi.fn();
+  it('advances on every animation frame tick', async () => {
+    const advanceFrameMock = vi.fn().mockResolvedValue(undefined);
+    const drawFrameMock = vi.fn().mockResolvedValue(undefined);
     const runtime: PicographicsRuntime = {
       id: 'pyscript',
       label: 'PyScript bootstrap',
@@ -309,21 +305,8 @@ describe('PicographicsDisplayBoard', () => {
             update: vi.fn(),
           },
           controller: {
-            createMarqueeState() {
-              return {
-                activeContent: {
-                  text: 'No later departures',
-                  interruptible: false,
-                },
-                pendingContent: {
-                  text: 'No later departures',
-                  interruptible: false,
-                },
-                marqueeOffset: 128,
-              };
-            },
-            advanceMarqueeState: advanceMarqueeStateMock,
-            drawBoard: drawBoardMock,
+            drawFrame: drawFrameMock,
+            advanceFrame: advanceFrameMock,
           },
         };
       },
@@ -342,31 +325,28 @@ describe('PicographicsDisplayBoard', () => {
     );
 
     await waitFor(() => {
-      expect(drawBoardMock).toHaveBeenCalledTimes(1);
+      expect(drawFrameMock).toHaveBeenCalledTimes(1);
       expect(animationFrameCallbacks).toHaveLength(1);
     });
 
     animationFrameCallbacks.shift()?.(1000);
 
     await waitFor(() => {
-      expect(advanceMarqueeStateMock).toHaveBeenCalledTimes(1);
-      expect(drawBoardMock).toHaveBeenCalledTimes(2);
+      expect(advanceFrameMock).toHaveBeenCalledTimes(1);
       expect(animationFrameCallbacks).toHaveLength(1);
     });
 
     animationFrameCallbacks.shift()?.(1010);
 
     await waitFor(() => {
-      expect(advanceMarqueeStateMock).toHaveBeenCalledTimes(1);
-      expect(drawBoardMock).toHaveBeenCalledTimes(2);
+      expect(advanceFrameMock).toHaveBeenCalledTimes(2);
       expect(animationFrameCallbacks).toHaveLength(1);
     });
 
     animationFrameCallbacks.shift()?.(1060);
 
     await waitFor(() => {
-      expect(advanceMarqueeStateMock).toHaveBeenCalledTimes(2);
-      expect(drawBoardMock).toHaveBeenCalledTimes(3);
+      expect(advanceFrameMock).toHaveBeenCalledTimes(3);
     });
   });
 });

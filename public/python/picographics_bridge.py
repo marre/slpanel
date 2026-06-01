@@ -147,7 +147,7 @@ def advance_and_draw_frame_json(
         },
     )
 
-    return result_json
+    return json.dumps(result.get("commands", []))
 
 
 def advance_and_draw_current_frame_json(delta_seconds):
@@ -183,7 +183,7 @@ def advance_and_draw_current_frame_json(delta_seconds):
     )
 
     serialize_started_at = profile_now_ms()
-    result_json = json.dumps(result)
+    commands_json = json.dumps(result.get("commands", []))
     profile_record_ms(
         "python.advance_current_frame.json_dumps",
         profile_now_ms() - serialize_started_at,
@@ -193,6 +193,6 @@ def advance_and_draw_current_frame_json(delta_seconds):
         profile_now_ms() - total_started_at,
     )
 
-    return result_json
+    return commands_json
 
 

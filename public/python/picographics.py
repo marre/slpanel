@@ -55,7 +55,13 @@ class PicoGraphics:
         self.commands.append(command)
 
     def measure_text(self, value, scale=1, spacing=0, fixed_width=False):
-        measured = int(self.measurements.get(value, 0))
+        if value in self.measurements:
+            measured = int(self.measurements.get(value, 0))
+        else:
+            # Approximate glyph width when explicit measurement was not synced
+            # from the host canvas. This keeps marquee wrap behavior stable
+            # without requiring per-frame marquee state on the JS side.
+            measured = max(0, len(str(value))) * 4
         safe_scale = max(1, int(round(scale)))
 
         return measured * safe_scale

@@ -171,7 +171,7 @@ describe('createPyScriptPicographicsRuntime', () => {
     );
     expect(script?.textContent).not.toContain('types.ModuleType("picographics")');
     expect(window.__slpanelPicographicsBridgeSource).toContain('draw_board');
-    await session.controller.drawBoard(
+    await session.controller.drawFrame(
       session.graphics,
       {
         departures: [],
@@ -179,12 +179,6 @@ describe('createPyScriptPicographicsRuntime', () => {
         headline: 'Loading departures',
         detail: 'Board is starting',
       },
-      session.controller.createMarqueeState({
-        departures: [],
-        tone: 'loading',
-        headline: 'Loading departures',
-        detail: 'Board is starting',
-      }),
     );
 
     expect(drawBoardCommandsJson).toHaveBeenCalled();
