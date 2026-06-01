@@ -10,6 +10,7 @@ import {
   renderText,
   renderTextLine,
 } from '@/font/sl-font-renderer';
+import { SL_FONT } from '@/font/sl-font';
 import {
   recordPicographicsCount,
   startPicographicsProfile,
@@ -220,9 +221,18 @@ function createTextSprite(
     ),
   );
   const width = Math.max(1, Math.ceil(logicalWidth * DIODE_SCALE));
+  const logicalHeight = Math.max(
+    textOptions.font?.cellHeight ?? 10,
+    estimateLogicalTextHeight(
+      value,
+      measurementOptions.font,
+      measurementOptions.gap,
+      maxWidth,
+    ),
+  );
   const height = Math.max(
     1,
-    (textOptions.font?.cellHeight ?? 10) * DIODE_SCALE,
+    logicalHeight * DIODE_SCALE,
   );
 
   spriteCanvas.width = width;
@@ -245,6 +255,36 @@ function createTextSprite(
     width,
     height,
   } satisfies CachedTextSprite;
+}
+
+function estimateLogicalTextHeight(
+  text: string,
+  font: BoardFontOptions['font'],
+  gap: number | undefined,
+  maxWidth?: number,
+) {
+  const resolvedFont = font ?? SL_FONT;
+  const resolvedGap = gap ?? 1;
+
+  let maxRows = resolvedFont.cellHeight;
+  let usedWidth = 0;
+
+  for (const char of text) {
+    const glyph = resolvedFont.getGlyph(char);
+    const glyphWidth = glyph ? glyph.width : 3;
+    const glyphRows = glyph?.rows.length ?? resolvedFont.cellHeight;
+    const nextWidth =
+      usedWidth === 0 ? glyphWidth : usedWidth + resolvedGap + glyphWidth;
+
+    if (maxWidth !== undefined && nextWidth > maxWidth) {
+      break;
+    }
+
+    usedWidth = nextWidth;
+    maxRows = Math.max(maxRows, glyphRows);
+  }
+
+  return maxRows;
 }
 
 function drawLedRectangle(

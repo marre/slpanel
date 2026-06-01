@@ -5,6 +5,7 @@ import {
   PANEL_HEIGHT,
   PANEL_WIDTH,
 } from '@/components/display-board-shared';
+import { SL_FONT } from '@/font/sl-font';
 import { createCanvasPicographics } from '@/lib/picographics-canvas';
 
 const { measureTextMock, renderTextMock, renderTextLineMock } = vi.hoisted(
@@ -127,6 +128,19 @@ describe('createCanvasPicographics', () => {
 
     expect(renderTextMock).toHaveBeenCalledTimes(1);
     expect(context.drawImage).toHaveBeenCalledTimes(2);
+  });
+
+  it('allocates sprite height for descenders to avoid clipping', () => {
+    const context = createContext();
+    const graphics = createCanvasPicographics(context);
+
+    graphics.set_pen('#ffb347');
+    graphics.text('y', 2, 3);
+
+    const drawImageCall = context.drawImage.mock.calls[0];
+    const glyphRows = SL_FONT.getGlyph('y')?.rows.length ?? SL_FONT.cellHeight;
+
+    expect(drawImageCall[4]).toBe(glyphRows * DIODE_SCALE);
   });
 });
 
