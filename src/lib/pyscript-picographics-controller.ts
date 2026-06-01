@@ -3,7 +3,10 @@ import {
   type PicographicsBoardFrameInput,
   type PicographicsBoardMarqueeState,
 } from '@/lib/picographics-board-controller';
-import { type MarqueeContent } from '@/components/display-board-shared';
+import {
+  buildMarqueeContent,
+  LOGICAL_PANEL_WIDTH,
+} from '@/components/display-board-shared';
 import type { PicographicsCanvas } from '@/lib/picographics-canvas';
 import { logPicographicsInfo } from '@/lib/picographics-debug';
 import {
@@ -21,7 +24,6 @@ type DrawCommand =
   | ['update'];
 
 export interface PyScriptPicographicsBridge {
-  createMarqueeStateJson: (frameInputJson: string) => string;
   setFrameInputJson?: (frameInputJson: string) => void | Promise<void>;
   setMeasurementsJson?: (measurementsJson: string) => void | Promise<void>;
   advanceAndDrawCurrentFrameJson?: (
@@ -29,19 +31,11 @@ export interface PyScriptPicographicsBridge {
   ) => string | Promise<string>;
   advanceAndDrawFrameJson: (
     frameInputJson: string,
-    marqueeStateJson: string,
-    deltaSeconds: number,
-    measurementsJson: string,
-  ) => string | Promise<string>;
-  advanceMarqueeStateJson: (
-    frameInputJson: string,
-    marqueeStateJson: string,
     deltaSeconds: number,
     measurementsJson: string,
   ) => string | Promise<string>;
   drawBoardCommandsJson: (
     frameInputJson: string,
-    marqueeStateJson: string,
     measurementsJson: string,
   ) => string | Promise<string>;
 }
@@ -85,12 +79,12 @@ export function createPyScriptPicographicsController(
         headline: summarizeText(frameInput.headline),
         detail: summarizeText(frameInput.detail),
       });
-
-      const nextState = normalizeMarqueeState(
-        JSON.parse(
-          bridge.createMarqueeStateJson(JSON.stringify(frameInput)),
-        ) as PythonMarqueeState,
-      );
+      const content = buildMarqueeContent(frameInput);
+      const nextState: PicographicsBoardMarqueeState = {
+        activeContent: content,
+        pendingContent: content,
+        marqueeOffset: LOGICAL_PANEL_WIDTH,
+      };
 
       logController('createMarqueeState:response', {
         activeText: summarizeText(nextState.activeContent.text),
@@ -122,9 +116,6 @@ export function createPyScriptPicographicsController(
         stopMeasurementProfile();
         const frameInputJson = syncFrameInput(frameInput);
         const measurementsJson = syncMeasurements(measurements);
-        const marqueeStateJson = JSON.stringify(
-          serializeMarqueeState(marqueeState),
-        );
         logController('advanceMarqueeState:request', {
           deltaSeconds,
           activeText: summarizeText(marqueeState.activeContent.text),
@@ -135,7 +126,6 @@ export function createPyScriptPicographicsController(
           ? await bridge.advanceAndDrawCurrentFrameJson(deltaSeconds)
           : await bridge.advanceAndDrawFrameJson(
               frameInputJson,
-              marqueeStateJson,
               deltaSeconds,
               measurementsJson,
             );
@@ -198,7 +188,6 @@ export function createPyScriptPicographicsController(
         });
         const response = await bridge.drawBoardCommandsJson(
           frameInputJson,
-          JSON.stringify(serializeMarqueeState(marqueeState)),
           measurementsJson,
         );
         const stopParseProfile = startPicographicsProfile(
@@ -361,25 +350,6 @@ function replayDrawCommands(
   }
 
   stopReplayProfile();
-}
-
-function serializeMarqueeState(
-  marqueeState: PicographicsBoardMarqueeState,
-): PythonMarqueeState {
-  return {
-    active_content: serializeMarqueeContent(marqueeState.activeContent),
-    pending_content: serializeMarqueeContent(marqueeState.pendingContent),
-    marquee_offset: marqueeState.marqueeOffset,
-  };
-}
-
-function serializeMarqueeContent(
-  content: MarqueeContent,
-): PythonMarqueeContent {
-  return {
-    text: content.text,
-    interruptible: content.interruptible,
-  };
 }
 
 function normalizeMarqueeState(

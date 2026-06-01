@@ -72,22 +72,6 @@ describe('createPyScriptPicographicsRuntime', () => {
 
     expect(apiProperty).toBeTruthy();
 
-    const createMarqueeStateJson = vi.fn().mockImplementation(function (this: {
-      result?: unknown;
-    }) {
-      this.result = JSON.stringify({
-        active_content: {
-          text: 'Loading departures',
-          interruptible: true,
-        },
-        pending_content: {
-          text: 'Loading departures',
-          interruptible: true,
-        },
-        marquee_offset: 128,
-      });
-      return asThenableJson('ignored');
-    });
     const drawBoardCommandsJson = vi.fn().mockImplementation(function (this: {
       result?: unknown;
     }) {
@@ -139,25 +123,8 @@ describe('createPyScriptPicographicsRuntime', () => {
           });
           return asThenableJson('ignored');
         }),
-        createMarqueeStateJson,
         setFrameInputJson: vi.fn(),
         setMeasurementsJson: vi.fn(),
-        advanceMarqueeStateJson: vi.fn().mockImplementation(function (this: {
-          result?: unknown;
-        }) {
-          this.result = JSON.stringify({
-            active_content: {
-              text: 'Loading departures',
-              interruptible: true,
-            },
-            pending_content: {
-              text: 'Loading departures',
-              interruptible: true,
-            },
-            marquee_offset: 120,
-          });
-          return asThenableJson('ignored');
-        }),
         drawBoardCommandsJson,
       },
     });
@@ -297,32 +264,6 @@ describe('createPyScriptPicographicsRuntime', () => {
               marquee_offset: 120,
             },
             commands: [['set_pen', '#020202'], ['clear'], ['update']],
-          });
-        }),
-        createMarqueeStateJson: vi.fn(function (this: { result?: unknown }) {
-          this.result = JSON.stringify({
-            active_content: {
-              text: 'Loading departures',
-              interruptible: true,
-            },
-            pending_content: {
-              text: 'Loading departures',
-              interruptible: true,
-            },
-            marquee_offset: 128,
-          });
-        }),
-        advanceMarqueeStateJson: vi.fn(function (this: { result?: unknown }) {
-          this.result = JSON.stringify({
-            active_content: {
-              text: 'Loading departures',
-              interruptible: true,
-            },
-            pending_content: {
-              text: 'Loading departures',
-              interruptible: true,
-            },
-            marquee_offset: 120,
           });
         }),
         drawBoardCommandsJson: vi.fn(function (this: { result?: unknown }) {

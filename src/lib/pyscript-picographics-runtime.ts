@@ -30,25 +30,16 @@ declare global {
 
 interface MainThreadPicographicsApi {
   result?: unknown;
-  createMarqueeStateJson: (frameInputJson: string) => void;
   setFrameInputJson: (frameInputJson: string) => void;
   setMeasurementsJson: (measurementsJson: string) => void;
   advanceAndDrawCurrentFrameJson: (deltaSeconds: number) => void;
   advanceAndDrawFrameJson: (
     frameInputJson: string,
-    marqueeStateJson: string,
-    deltaSeconds: number,
-    measurementsJson: string,
-  ) => void;
-  advanceMarqueeStateJson: (
-    frameInputJson: string,
-    marqueeStateJson: string,
     deltaSeconds: number,
     measurementsJson: string,
   ) => void;
   drawBoardCommandsJson: (
     frameInputJson: string,
-    marqueeStateJson: string,
     measurementsJson: string,
   ) => void;
 }
@@ -174,11 +165,6 @@ function createMainThreadPyScriptBridge(
   api: MainThreadPicographicsApi,
 ): PyScriptPicographicsBridge {
   return {
-    createMarqueeStateJson(frameInputJson) {
-      return readBridgeJsonResult(api, 'createMarqueeStateJson', () => {
-        api.createMarqueeStateJson(frameInputJson);
-      });
-    },
     setFrameInputJson(frameInputJson) {
       invokeBridgeVoid(api, 'setFrameInputJson', () => {
         api.setFrameInputJson(frameInputJson);
@@ -196,41 +182,20 @@ function createMainThreadPyScriptBridge(
     },
     advanceAndDrawFrameJson(
       frameInputJson,
-      marqueeStateJson,
       deltaSeconds,
       measurementsJson,
     ) {
       return readBridgeJsonResult(api, 'advanceAndDrawFrameJson', () => {
         api.advanceAndDrawFrameJson(
           frameInputJson,
-          marqueeStateJson,
           deltaSeconds,
           measurementsJson,
         );
       });
     },
-    advanceMarqueeStateJson(
-      frameInputJson,
-      marqueeStateJson,
-      deltaSeconds,
-      measurementsJson,
-    ) {
-      return readBridgeJsonResult(api, 'advanceMarqueeStateJson', () => {
-        api.advanceMarqueeStateJson(
-          frameInputJson,
-          marqueeStateJson,
-          deltaSeconds,
-          measurementsJson,
-        );
-      });
-    },
-    drawBoardCommandsJson(frameInputJson, marqueeStateJson, measurementsJson) {
+    drawBoardCommandsJson(frameInputJson, measurementsJson) {
       return readBridgeJsonResult(api, 'drawBoardCommandsJson', () => {
-        api.drawBoardCommandsJson(
-          frameInputJson,
-          marqueeStateJson,
-          measurementsJson,
-        );
+        api.drawBoardCommandsJson(frameInputJson, measurementsJson);
       });
     },
   };
@@ -447,9 +412,6 @@ function buildPythonBootstrapSource(options: {
     '_slpanel_api = Object.new()',
     '_slpanel_api.result = None',
     '',
-    'def _slpanel_create_marquee_state_json(frame_input_json):',
-    '    _slpanel_api.result = create_marquee_state_json(frame_input_json)',
-    '',
     'def _slpanel_set_frame_input_json(frame_input_json):',
     '    set_frame_input_json(frame_input_json)',
     '',
@@ -459,49 +421,30 @@ function buildPythonBootstrapSource(options: {
     'def _slpanel_advance_and_draw_current_frame_json(delta_seconds):',
     '    _slpanel_api.result = advance_and_draw_current_frame_json(delta_seconds)',
     '',
-    'def _slpanel_advance_marquee_state_json(',
-    '    frame_input_json,',
-    '    marquee_state_json,',
-    '    delta_seconds,',
-    '    measurements_json="{}",',
-    '):',
-    '    _slpanel_api.result = advance_marquee_state_json(',
-    '        frame_input_json,',
-    '        marquee_state_json,',
-    '        delta_seconds,',
-    '        measurements_json,',
-    '    )',
-    '',
     'def _slpanel_advance_and_draw_frame_json(',
     '    frame_input_json,',
-    '    marquee_state_json,',
     '    delta_seconds,',
     '    measurements_json="{}",',
     '):',
     '    _slpanel_api.result = advance_and_draw_frame_json(',
     '        frame_input_json,',
-    '        marquee_state_json,',
     '        delta_seconds,',
     '        measurements_json,',
     '    )',
     '',
     'def _slpanel_draw_board_commands_json(',
     '    frame_input_json,',
-    '    marquee_state_json,',
     '    measurements_json="{}",',
     '):',
     '    _slpanel_api.result = draw_board_commands_json(',
     '        frame_input_json,',
-    '        marquee_state_json,',
     '        measurements_json,',
     '    )',
     '',
-    '_slpanel_api.createMarqueeStateJson = create_proxy(_slpanel_create_marquee_state_json)',
     '_slpanel_api.setFrameInputJson = create_proxy(_slpanel_set_frame_input_json)',
     '_slpanel_api.setMeasurementsJson = create_proxy(_slpanel_set_measurements_json)',
     '_slpanel_api.advanceAndDrawCurrentFrameJson = create_proxy(_slpanel_advance_and_draw_current_frame_json)',
     '_slpanel_api.advanceAndDrawFrameJson = create_proxy(_slpanel_advance_and_draw_frame_json)',
-    '_slpanel_api.advanceMarqueeStateJson = create_proxy(_slpanel_advance_marquee_state_json)',
     '_slpanel_api.drawBoardCommandsJson = create_proxy(_slpanel_draw_board_commands_json)',
     `window.${apiProperty} = _slpanel_api`,
     '',

@@ -4,17 +4,12 @@ from picographics import PicoGraphics
 from board_engine import (
     BoardEngine,
     FrameTimer,
-    advance_marquee_state,
-    clone_marquee_state,
-    create_marquee_state,
-    draw_board,
 )
 from runtime_instrumentation import (
     debug_log,
     profile_now_ms,
     profile_record_count,
     profile_record_ms,
-    summarize_text,
 )
 
 
@@ -53,87 +48,39 @@ def parse_json_cached(cache_name, value):
     return parsed
 
 
-def create_marquee_state_json(frame_input_json):
-    frame_input = json.loads(frame_input_json)
-    _ENGINE.set_frame_input(frame_input)
-    _FRAME_TIMER.reset()
-    state = _ENGINE.create_marquee_state()
-    state_json = json.dumps(state)
-
-    debug_log(
-        "create_marquee_state_json",
-        {
-            "headline": summarize_text(frame_input.get("headline", "")),
-            "result": summarize_text(state_json, 80),
-        },
-    )
-
-    return state_json
-
-
 def set_frame_input_json(frame_input_json):
     _ENGINE.set_frame_input(parse_json_cached("frame_input", frame_input_json))
+    _FRAME_TIMER.reset()
 
 
 def set_measurements_json(measurements_json="{}"):
     _ENGINE.set_measurements(parse_json_cached("measurements", measurements_json))
 
 
-def advance_marquee_state_json(
-    frame_input_json,
-    marquee_state_json,
-    delta_seconds,
-    measurements_json="{}",
-):
-    frame_input = parse_json_cached("frame_input", frame_input_json)
-    marquee_state = json.loads(marquee_state_json)
-    measurements = parse_json_cached("measurements", measurements_json)
-    graphics = RecordingGraphics(measurements=measurements)
-
-    next_state = advance_marquee_state(
-        graphics,
-        marquee_state,
-        frame_input,
-        delta_seconds,
-    )
-
-    debug_log(
-        "advance_marquee_state_json",
-        {
-            "delta_seconds": round(delta_seconds, 4),
-            "result_offset": round(next_state.get("marquee_offset", 0), 4),
-        },
-    )
-
-    return json.dumps(next_state)
-
-
 def draw_board_commands_json(
     frame_input_json,
-    marquee_state_json,
     measurements_json="{}",
 ):
     frame_input = parse_json_cached("frame_input", frame_input_json)
-    marquee_state = json.loads(marquee_state_json)
+    _ENGINE.set_frame_input(frame_input)
     measurements = parse_json_cached("measurements", measurements_json)
+    _ENGINE.set_measurements(measurements)
     graphics = RecordingGraphics(measurements=measurements)
-
-    draw_board(graphics, frame_input, marquee_state)
+    result = _ENGINE.draw_current_frame(graphics)
 
     debug_log(
         "draw_board_commands_json",
         {
-            "command_count": len(graphics.commands),
+            "command_count": len(result.get("commands", [])),
             "commands_preview": graphics.commands[:4],
         },
     )
 
-    return json.dumps(graphics.commands)
+    return json.dumps(result.get("commands", []))
 
 
 def advance_and_draw_frame_json(
     frame_input_json,
-    marquee_state_json,
     delta_seconds,
     measurements_json="{}",
 ):
@@ -144,13 +91,6 @@ def advance_and_draw_frame_json(
     profile_record_ms(
         "python.advance_frame.frame_input_load",
         profile_now_ms() - frame_input_started_at,
-    )
-
-    marquee_state_started_at = profile_now_ms()
-    marquee_state = json.loads(marquee_state_json)
-    profile_record_ms(
-        "python.advance_frame.marquee_state_load",
-        profile_now_ms() - marquee_state_started_at,
     )
 
     measurements_started_at = profile_now_ms()
@@ -164,35 +104,24 @@ def advance_and_draw_frame_json(
         profile_now_ms() - total_started_at,
     )
 
+    _ENGINE.set_frame_input(frame_input)
+    _ENGINE.set_measurements(measurements)
+
     graphics = RecordingGraphics(measurements=measurements)
 
     advance_started_at = profile_now_ms()
-    next_state = advance_marquee_state(
-        graphics,
-        marquee_state,
-        frame_input,
-        delta_seconds,
-    )
+    step_delta_seconds = max(0.0, float(delta_seconds))
+    _FRAME_TIMER.reset()
+
+    result = _ENGINE.advance_and_draw_current_frame(graphics, step_delta_seconds)
     profile_record_ms(
         "python.advance_frame.advance_marquee_state",
         profile_now_ms() - advance_started_at,
     )
 
-    draw_started_at = profile_now_ms()
-    draw_board(graphics, frame_input, next_state)
-    profile_record_ms(
-        "python.advance_frame.draw_board",
-        profile_now_ms() - draw_started_at,
-    )
-
-    result = {
-        "marquee_state": next_state,
-        "commands": graphics.commands,
-    }
-
     profile_record_count(
         "python.advance_frame.command_count",
-        len(graphics.commands),
+        len(result.get("commands", [])),
     )
 
     serialize_started_at = profile_now_ms()
@@ -210,8 +139,11 @@ def advance_and_draw_frame_json(
         "advance_and_draw_frame_json",
         {
             "delta_seconds": round(delta_seconds, 4),
-            "result_offset": round(next_state.get("marquee_offset", 0), 4),
-            "command_count": len(graphics.commands),
+            "result_offset": round(
+                result.get("marquee_state", {}).get("marquee_offset", 0),
+                4,
+            ),
+            "command_count": len(result.get("commands", [])),
         },
     )
 
@@ -264,9 +196,3 @@ def advance_and_draw_current_frame_json(delta_seconds):
     return result_json
 
 
-def clone_marquee_state_json(marquee_state_json):
-    return json.dumps(clone_marquee_state(json.loads(marquee_state_json)))
-
-
-def create_marquee_state_native(frame_input):
-    return create_marquee_state(frame_input)

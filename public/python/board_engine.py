@@ -96,41 +96,43 @@ class BoardEngine:
     def set_frame_input(self, frame_input):
         self.frame_input = frame_input or {}
 
+    def reset(self):
+        self.marquee_state = None
+
     def set_measurements(self, measurements):
         self.measurements = measurements or {}
 
     def apply_backend_input(self, provider):
         self.set_frame_input(provider.get_frame_input())
 
-    def create_marquee_state(self, frame_input=None):
-        if frame_input is not None:
-            self.set_frame_input(frame_input)
-
-        self.marquee_state = create_marquee_state(self.frame_input)
-
-        return self.marquee_state
-
-    def ensure_marquee_state(self):
+    def _ensure_marquee_state(self):
         if self.marquee_state is None:
-            self.marquee_state = create_marquee_state(self.frame_input)
+            self.marquee_state = _create_marquee_state(self.frame_input)
 
         return self.marquee_state
+
+    def draw_current_frame(self, graphics):
+        marquee_state = self._ensure_marquee_state()
+        _draw_board(graphics, self.frame_input, marquee_state)
+
+        return _build_frame_result(marquee_state, graphics)
 
     def advance_and_draw_current_frame(self, graphics, delta_seconds):
-        marquee_state = self.ensure_marquee_state()
-        next_state = advance_marquee_state(
+        safe_delta_seconds = max(0.0, float(delta_seconds))
+        marquee_state = self._ensure_marquee_state()
+        next_state = _advance_marquee_state(
             graphics,
             marquee_state,
             self.frame_input,
-            delta_seconds,
+            safe_delta_seconds,
         )
-        draw_board(graphics, self.frame_input, next_state)
+        _draw_board(graphics, self.frame_input, next_state)
         self.marquee_state = next_state
 
         return _build_frame_result(next_state, graphics)
 
 
-def create_marquee_state(frame_input):
+def _create_marquee_state(frame_input):
     """Create initial marquee state from backend input."""
 
     content = build_marquee_content(
@@ -159,7 +161,7 @@ def create_marquee_state(frame_input):
     return state
 
 
-def advance_marquee_state(graphics, marquee_state, frame_input, delta_seconds):
+def _advance_marquee_state(graphics, marquee_state, frame_input, delta_seconds):
     """Advance marquee position and content selection by delta seconds."""
 
     previous_offset = marquee_state.get("marquee_offset", LOGICAL_PANEL_WIDTH)
@@ -174,7 +176,7 @@ def advance_marquee_state(graphics, marquee_state, frame_input, delta_seconds):
     if not active_content.get("text"):
         active_content = pending_content
 
-    if should_swap_marquee_immediately(active_content, pending_content):
+    if _should_swap_marquee_immediately(active_content, pending_content):
         active_content = pending_content
         marquee_state["marquee_offset"] = LOGICAL_PANEL_WIDTH
 
@@ -202,10 +204,10 @@ def advance_marquee_state(graphics, marquee_state, frame_input, delta_seconds):
     return marquee_state
 
 
-def draw_board(graphics, frame_input, marquee_state):
+def _draw_board(graphics, frame_input, marquee_state):
     """Render one frame using the provided graphics implementation."""
 
-    tone_rgb = get_tone_rgb(frame_input.get("tone", "loading"))
+    tone_rgb = _get_tone_rgb(frame_input.get("tone", "loading"))
     departures = frame_input.get("departures", [])
     background_pen = graphics.create_pen(*BACKGROUND_RGB)
     primary_pen = graphics.create_pen(*tone_rgb["primary"])
@@ -214,7 +216,7 @@ def draw_board(graphics, frame_input, marquee_state):
     graphics.clear()
 
     if frame_input.get("tone") == "live" and departures:
-        draw_lead_departure(graphics, departures[0], primary_pen)
+        _draw_lead_departure(graphics, departures[0], primary_pen)
     else:
         graphics.set_pen(primary_pen)
         graphics.text(
@@ -248,7 +250,7 @@ def draw_board(graphics, frame_input, marquee_state):
     )
 
 
-def draw_lead_departure(graphics, departure, pen):
+def _draw_lead_departure(graphics, departure, pen):
     line_number = departure.get("line_number") or "--"
     destination = departure.get("destination") or "Unknown"
     display_time = departure.get("display_time") or "Now"
@@ -267,7 +269,7 @@ def draw_lead_departure(graphics, departure, pen):
 def build_marquee_content(departures, tone, headline, detail):
     if tone == "live" and departures:
         following_departures = [
-            format_compact_departure(departure) for departure in departures[1:4]
+            _format_compact_departure(departure) for departure in departures[1:4]
         ]
         return {
             "text": "     ".join(following_departures) or "No later departures",
@@ -283,13 +285,13 @@ def build_marquee_content(departures, tone, headline, detail):
     }
 
 
-def should_swap_marquee_immediately(active_content, pending_content):
+def _should_swap_marquee_immediately(active_content, pending_content):
     return active_content.get("interruptible") and active_content.get(
         "text"
     ) != pending_content.get("text")
 
 
-def format_compact_departure(departure):
+def _format_compact_departure(departure):
     return (
         f"{departure.get('line_number', '')} "
         f"{departure.get('destination', '')} "
@@ -297,16 +299,8 @@ def format_compact_departure(departure):
     ).strip()
 
 
-def get_tone_rgb(tone):
+def _get_tone_rgb(tone):
     return TONE_RGB.get(tone, TONE_RGB["live"])
-
-
-def clone_marquee_state(marquee_state):
-    return {
-        "active_content": dict(marquee_state.get("active_content") or {}),
-        "pending_content": dict(marquee_state.get("pending_content") or {}),
-        "marquee_offset": marquee_state.get("marquee_offset", LOGICAL_PANEL_WIDTH),
-    }
 
 
 def _build_frame_result(marquee_state, graphics):
