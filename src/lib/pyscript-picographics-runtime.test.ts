@@ -77,6 +77,50 @@ describe('createPyScriptPicographicsRuntime', () => {
 
     Object.assign(window, {
       [apiProperty ?? '']: {
+        advanceAndDrawCurrentFrameBatchJson: vi.fn().mockImplementation(function (this: { result?: unknown }) {
+          this.result = JSON.stringify([
+            {
+              marquee_state: {
+                active_content: {
+                  text: 'Loading departures',
+                  interruptible: true,
+                },
+                pending_content: {
+                  text: 'Loading departures',
+                  interruptible: true,
+                },
+                marquee_offset: 120,
+              },
+              commands: [
+                ['set_pen', '#020202'],
+                ['clear'],
+                ['update'],
+              ],
+            },
+          ]);
+          return asThenableJson('ignored');
+        }),
+        advanceAndDrawCurrentFrameJson: vi.fn().mockImplementation(function (this: { result?: unknown }) {
+          this.result = JSON.stringify({
+            marquee_state: {
+              active_content: {
+                text: 'Loading departures',
+                interruptible: true,
+              },
+              pending_content: {
+                text: 'Loading departures',
+                interruptible: true,
+              },
+              marquee_offset: 120,
+            },
+            commands: [
+              ['set_pen', '#020202'],
+              ['clear'],
+              ['update'],
+            ],
+          });
+          return asThenableJson('ignored');
+        }),
         advanceAndDrawFrameJson: vi.fn().mockImplementation(function (this: { result?: unknown }) {
           this.result = JSON.stringify({
             marquee_state: {
@@ -99,6 +143,8 @@ describe('createPyScriptPicographicsRuntime', () => {
           return asThenableJson('ignored');
         }),
         createMarqueeStateJson,
+        setFrameInputJson: vi.fn(),
+        setMeasurementsJson: vi.fn(),
         advanceMarqueeStateJson: vi.fn().mockImplementation(function (this: { result?: unknown }) {
           this.result = JSON.stringify({
             active_content: {
@@ -186,6 +232,50 @@ describe('createPyScriptPicographicsRuntime', () => {
             interruptible: true,
           },
           marquee_offset: 128,
+        }),
+        setFrameInputJson: vi.fn(),
+        setMeasurementsJson: vi.fn(),
+        advanceAndDrawCurrentFrameBatchJson: vi.fn(function (this: { result?: unknown }) {
+          this.result = JSON.stringify([
+            {
+              marquee_state: {
+                active_content: {
+                  text: 'Loading departures',
+                  interruptible: true,
+                },
+                pending_content: {
+                  text: 'Loading departures',
+                  interruptible: true,
+                },
+                marquee_offset: 120,
+              },
+              commands: [
+                ['set_pen', '#020202'],
+                ['clear'],
+                ['update'],
+              ],
+            },
+          ]);
+        }),
+        advanceAndDrawCurrentFrameJson: vi.fn(function (this: { result?: unknown }) {
+          this.result = JSON.stringify({
+            marquee_state: {
+              active_content: {
+                text: 'Loading departures',
+                interruptible: true,
+              },
+              pending_content: {
+                text: 'Loading departures',
+                interruptible: true,
+              },
+              marquee_offset: 120,
+            },
+            commands: [
+              ['set_pen', '#020202'],
+              ['clear'],
+              ['update'],
+            ],
+          });
         }),
         advanceAndDrawFrameJson: vi.fn(function (this: { result?: unknown }) {
           this.result = JSON.stringify({

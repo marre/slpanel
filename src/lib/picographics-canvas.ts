@@ -10,6 +10,10 @@ import {
   renderText,
   renderTextLine,
 } from '@/font/sl-font-renderer';
+import {
+  recordPicographicsCount,
+  startPicographicsProfile,
+} from '@/lib/picographics-profiler';
 
 export interface PicographicsCanvas {
   set_pen: (redOrColor: string | number, green?: number, blue?: number) => void;
@@ -86,6 +90,7 @@ export function createCanvasPicographics(
       const sprite = getOrCreateTextSprite(value, maxWidth);
 
       if (sprite && typeof context.drawImage === 'function') {
+        const stopBlitProfile = startPicographicsProfile('canvas.text.blit');
         context.drawImage(
           sprite.canvas,
           Math.round(x * DIODE_SCALE),
@@ -93,8 +98,11 @@ export function createCanvasPicographics(
           sprite.width,
           sprite.height,
         );
+        stopBlitProfile();
         return;
       }
+
+      recordPicographicsCount('canvas.text.fallback');
 
       if (maxWidth === undefined) {
         renderText(
@@ -137,11 +145,14 @@ export function createCanvasPicographics(
     const cachedSprite = textSpriteCache.get(cacheKey);
 
     if (cachedSprite) {
+      recordPicographicsCount('canvas.text.sprite.cacheHit');
       textSpriteCache.delete(cacheKey);
       textSpriteCache.set(cacheKey, cachedSprite);
       return cachedSprite;
     }
 
+    recordPicographicsCount('canvas.text.sprite.cacheMiss');
+    const stopBuildProfile = startPicographicsProfile('canvas.text.sprite.build');
     const sprite = createTextSprite(
       context,
       value,
@@ -150,6 +161,7 @@ export function createCanvasPicographics(
       textOptions,
       measurementOptions,
     );
+    stopBuildProfile();
 
     if (!sprite) {
       return null;

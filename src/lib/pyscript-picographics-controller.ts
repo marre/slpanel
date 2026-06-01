@@ -3,9 +3,16 @@ import {
   type PicographicsBoardFrameInput,
   type PicographicsBoardMarqueeState,
 } from '@/lib/picographics-board-controller';
-import type { MarqueeContent } from '@/components/display-board-shared';
+import {
+  createBoardGeometry,
+  type MarqueeContent,
+} from '@/components/display-board-shared';
 import type { PicographicsCanvas } from '@/lib/picographics-canvas';
 import { logPicographicsInfo } from '@/lib/picographics-debug';
+import {
+  recordPicographicsCount,
+  startPicographicsProfile,
+} from '@/lib/picographics-profiler';
 
 type DrawCommand =
   | ['set_pen', string]
@@ -18,6 +25,16 @@ type DrawCommand =
 
 export interface PyScriptPicographicsBridge {
   createMarqueeStateJson: (frameInputJson: string) => string;
+  setFrameInputJson?: (frameInputJson: string) => void | Promise<void>;
+  setMeasurementsJson?: (measurementsJson: string) => void | Promise<void>;
+  advanceAndDrawCurrentFrameBatchJson?: (
+    firstDeltaSeconds: number,
+    nextDeltaSeconds: number,
+    frameCount: number,
+  ) => string | Promise<string>;
+  advanceAndDrawCurrentFrameJson?: (
+    deltaSeconds: number,
+  ) => string | Promise<string>;
   advanceAndDrawFrameJson: (
     frameInputJson: string,
     marqueeStateJson: string,
@@ -63,10 +80,14 @@ export function createPyScriptPicographicsController(
   bridge: PyScriptPicographicsBridge,
 ): PicographicsBoardController {
   let cachedRenderedFrame: CachedRenderedFrame | null = null;
+  let cachedFrameInputJson: string | null = null;
+  let cachedMeasurementsJson: string | null = null;
 
   return {
     createMarqueeState(frameInput) {
       cachedRenderedFrame = null;
+      cachedMeasurementsJson = null;
+      cachedFrameInputJson = JSON.stringify(frameInput);
       logController('createMarqueeState:request', {
         tone: frameInput.tone,
         headline: summarizeText(frameInput.headline),
@@ -88,47 +109,65 @@ export function createPyScriptPicographicsController(
     },
 
     async advanceMarqueeState(graphics, marqueeState, frameInput, deltaSeconds) {
-      const measurements = collectMeasurements(graphics, frameInput, marqueeState);
-      const frameInputJson = JSON.stringify(frameInput);
-      const marqueeStateJson = JSON.stringify(serializeMarqueeState(marqueeState));
-      logController('advanceMarqueeState:request', {
-        deltaSeconds,
-        activeText: summarizeText(marqueeState.activeContent.text),
-        marqueeOffset: marqueeState.marqueeOffset,
-        measurements,
-      });
-      const response = await bridge.advanceAndDrawFrameJson(
-        frameInputJson,
-        marqueeStateJson,
-        deltaSeconds,
-        JSON.stringify(measurements),
+      const stopAdvanceProfile = startPicographicsProfile(
+        'controller.advance.total',
       );
 
-      const renderedFrame = JSON.parse(String(response)) as PythonRenderedFrame;
+      try {
+        const stopMeasurementProfile = startPicographicsProfile(
+          'controller.measurements',
+        );
+        const measurements = collectMeasurements(
+          graphics,
+          frameInput,
+          marqueeState,
+        );
+        stopMeasurementProfile();
+        const frameInputJson = syncFrameInput(frameInput);
+        const measurementsJson = syncMeasurements(measurements);
+        const marqueeStateJson = JSON.stringify(serializeMarqueeState(marqueeState));
+        logController('advanceMarqueeState:request', {
+          deltaSeconds,
+          activeText: summarizeText(marqueeState.activeContent.text),
+          marqueeOffset: marqueeState.marqueeOffset,
+          measurements,
+        });
+        const response =
+          bridge.advanceAndDrawCurrentFrameJson
+            ? await bridge.advanceAndDrawCurrentFrameJson(deltaSeconds)
+            : await bridge.advanceAndDrawFrameJson(
+                frameInputJson,
+                marqueeStateJson,
+                deltaSeconds,
+                measurementsJson,
+              );
+        const stopParseProfile = startPicographicsProfile('controller.parseFrame');
+        const renderedFrame = toCachedRenderedFrame(
+          frameInput,
+          JSON.parse(String(response)) as PythonRenderedFrame,
+        );
+        stopParseProfile();
 
-      const nextState = normalizeMarqueeState(
-        renderedFrame.marquee_state,
-      );
+        const nextState = consumeRenderedFrame(renderedFrame);
 
-      cachedRenderedFrame = {
-        frameInput,
-        marqueeState: nextState,
-        commands: renderedFrame.commands ?? [],
-      };
+        logController('advanceMarqueeState:response', {
+          activeText: summarizeText(nextState.activeContent.text),
+          pendingText: summarizeText(nextState.pendingContent.text),
+          marqueeOffset: nextState.marqueeOffset,
+        });
 
-      logController('advanceMarqueeState:response', {
-        activeText: summarizeText(nextState.activeContent.text),
-        pendingText: summarizeText(nextState.pendingContent.text),
-        marqueeOffset: nextState.marqueeOffset,
-      });
-
-      return nextState;
+        return nextState;
+      } finally {
+        stopAdvanceProfile();
+      }
     },
 
     async drawBoard(graphics, frameInput, marqueeState) {
+      const stopDrawProfile = startPicographicsProfile('controller.draw.total');
       const cachedCommands = getCachedCommands(frameInput, marqueeState);
 
       if (cachedCommands) {
+        recordPicographicsCount('controller.draw.cached');
         logController('drawBoard:cached-response', {
           tone: frameInput.tone,
           activeText: summarizeText(marqueeState.activeContent.text),
@@ -136,28 +175,43 @@ export function createPyScriptPicographicsController(
           commandCount: cachedCommands.length,
         });
         replayDrawCommands(graphics, cachedCommands);
+        stopDrawProfile();
         return;
       }
 
-      const measurements = collectMeasurements(graphics, frameInput, marqueeState);
-      logController('drawBoard:request', {
-        tone: frameInput.tone,
-        activeText: summarizeText(marqueeState.activeContent.text),
-        marqueeOffset: marqueeState.marqueeOffset,
-      });
-      const response = await bridge.drawBoardCommandsJson(
-        JSON.stringify(frameInput),
-        JSON.stringify(serializeMarqueeState(marqueeState)),
-        JSON.stringify(measurements),
-      );
-      const commands = JSON.parse(String(response)) as DrawCommand[];
+      try {
+        const stopMeasurementProfile = startPicographicsProfile(
+          'controller.measurements',
+        );
+        const measurements = collectMeasurements(graphics, frameInput, marqueeState);
+        stopMeasurementProfile();
+        const frameInputJson = syncFrameInput(frameInput);
+        const measurementsJson = syncMeasurements(measurements);
+        logController('drawBoard:request', {
+          tone: frameInput.tone,
+          activeText: summarizeText(marqueeState.activeContent.text),
+          marqueeOffset: marqueeState.marqueeOffset,
+        });
+        const response = await bridge.drawBoardCommandsJson(
+          frameInputJson,
+          JSON.stringify(serializeMarqueeState(marqueeState)),
+          measurementsJson,
+        );
+        const stopParseProfile = startPicographicsProfile(
+          'controller.parseCommands',
+        );
+        const commands = JSON.parse(String(response)) as DrawCommand[];
+        stopParseProfile();
 
-      logController('drawBoard:response', {
-        commandCount: commands.length,
-        commandPreview: commands.slice(0, 5),
-      });
+        logController('drawBoard:response', {
+          commandCount: commands.length,
+          commandPreview: commands.slice(0, 5),
+        });
 
-      replayDrawCommands(graphics, commands);
+        replayDrawCommands(graphics, commands);
+      } finally {
+        stopDrawProfile();
+      }
     },
   };
 
@@ -178,6 +232,49 @@ export function createPyScriptPicographicsController(
     cachedRenderedFrame = null;
 
     return commands;
+  }
+
+  function syncFrameInput(frameInput: PicographicsBoardFrameInput) {
+    const frameInputJson = JSON.stringify(frameInput);
+
+    if (frameInputJson !== cachedFrameInputJson) {
+      cachedFrameInputJson = frameInputJson;
+      bridge.setFrameInputJson?.(frameInputJson);
+    }
+
+    return frameInputJson;
+  }
+
+  function syncMeasurements(measurements: Record<string, number>) {
+    const measurementsJson = JSON.stringify(measurements);
+
+    if (measurementsJson !== cachedMeasurementsJson) {
+      cachedMeasurementsJson = measurementsJson;
+      bridge.setMeasurementsJson?.(measurementsJson);
+    }
+
+    return measurementsJson;
+  }
+
+  function consumeRenderedFrame(renderedFrame: CachedRenderedFrame) {
+    cachedRenderedFrame = renderedFrame;
+    recordPicographicsCount(
+      'controller.commands.prepared',
+      cachedRenderedFrame.commands.length,
+    );
+
+    return cachedRenderedFrame.marqueeState;
+  }
+
+  function toCachedRenderedFrame(
+    frameInput: PicographicsBoardFrameInput,
+    renderedFrame: PythonRenderedFrame,
+  ): CachedRenderedFrame {
+    return {
+      frameInput,
+      marqueeState: normalizeMarqueeState(renderedFrame.marquee_state),
+      commands: renderedFrame.commands ?? [],
+    };
   }
 }
 
@@ -221,6 +318,9 @@ function replayDrawCommands(
   graphics: PicographicsCanvas,
   commands: DrawCommand[],
 ) {
+  const stopReplayProfile = startPicographicsProfile('controller.replay');
+  recordPicographicsCount('controller.commands.replayed', commands.length);
+
   for (const command of commands) {
     const [operation, ...args] = command;
 
@@ -255,6 +355,8 @@ function replayDrawCommands(
         break;
     }
   }
+
+  stopReplayProfile();
 }
 
 function serializeMarqueeState(

@@ -10,6 +10,7 @@ import {
   logPicographicsError,
   logPicographicsInfo,
 } from '@/lib/picographics-debug';
+import { startPicographicsProfile } from '@/lib/picographics-profiler';
 import type { PicographicsRuntime } from '@/lib/picographics-runtime';
 import { loadPyScriptCoreModule } from '@/lib/pyscript-loader';
 
@@ -27,6 +28,14 @@ declare global {
 interface MainThreadPicographicsApi {
   result?: unknown;
   createMarqueeStateJson: (frameInputJson: string) => void;
+  setFrameInputJson: (frameInputJson: string) => void;
+  setMeasurementsJson: (measurementsJson: string) => void;
+  advanceAndDrawCurrentFrameBatchJson: (
+    firstDeltaSeconds: number,
+    nextDeltaSeconds: number,
+    frameCount: number,
+  ) => void;
+  advanceAndDrawCurrentFrameJson: (deltaSeconds: number) => void;
   advanceAndDrawFrameJson: (
     frameInputJson: string,
     marqueeStateJson: string,
@@ -150,6 +159,38 @@ function createMainThreadPyScriptBridge(
         api.createMarqueeStateJson(frameInputJson);
       });
     },
+    setFrameInputJson(frameInputJson) {
+      invokeBridgeVoid(api, 'setFrameInputJson', () => {
+        api.setFrameInputJson(frameInputJson);
+      });
+    },
+    setMeasurementsJson(measurementsJson) {
+      invokeBridgeVoid(api, 'setMeasurementsJson', () => {
+        api.setMeasurementsJson(measurementsJson);
+      });
+    },
+    advanceAndDrawCurrentFrameBatchJson(
+      firstDeltaSeconds,
+      nextDeltaSeconds,
+      frameCount,
+    ) {
+      return readBridgeJsonResult(
+        api,
+        'advanceAndDrawCurrentFrameBatchJson',
+        () => {
+          api.advanceAndDrawCurrentFrameBatchJson(
+            firstDeltaSeconds,
+            nextDeltaSeconds,
+            frameCount,
+          );
+        },
+      );
+    },
+    advanceAndDrawCurrentFrameJson(deltaSeconds) {
+      return readBridgeJsonResult(api, 'advanceAndDrawCurrentFrameJson', () => {
+        api.advanceAndDrawCurrentFrameJson(deltaSeconds);
+      });
+    },
     advanceAndDrawFrameJson(
       frameInputJson,
       marqueeStateJson,
@@ -201,19 +242,43 @@ function readBridgeJsonResult(
   operation: string,
   invoke: () => void,
 ) {
+  const stopBridgeProfile = startPicographicsProfile(
+    `runtime.bridge.${operation}`,
+  );
   logRuntime(`bridge:${operation}:request`, {});
   api.result = null;
-  invoke();
 
-  if (typeof api.result !== 'string') {
-    throw new Error('PyScript bridge did not produce a JSON string result.');
+  try {
+    invoke();
+
+    if (typeof api.result !== 'string') {
+      throw new Error('PyScript bridge did not produce a JSON string result.');
+    }
+
+    logRuntime(`bridge:${operation}:response`, {
+      resultPreview: summarizeText(api.result, 120),
+    });
+
+    return api.result;
+  } finally {
+    stopBridgeProfile();
   }
+}
 
-  logRuntime(`bridge:${operation}:response`, {
-    resultPreview: summarizeText(api.result, 120),
-  });
+function invokeBridgeVoid(
+  api: MainThreadPicographicsApi,
+  operation: string,
+  invoke: () => void,
+) {
+  const stopBridgeProfile = startPicographicsProfile(
+    `runtime.bridge.${operation}`,
+  );
 
-  return api.result;
+  try {
+    invoke();
+  } finally {
+    stopBridgeProfile();
+  }
 }
 
 function createMainThreadMicroPythonScript(
@@ -341,6 +406,26 @@ function buildPythonBootstrapSource(source: string, apiProperty: string) {
     'def _slpanel_create_marquee_state_json(frame_input_json):',
     '    _slpanel_api.result = create_marquee_state_json(frame_input_json)',
     '',
+    'def _slpanel_set_frame_input_json(frame_input_json):',
+    '    set_frame_input_json(frame_input_json)',
+    '',
+    'def _slpanel_set_measurements_json(measurements_json="{}"):',
+    '    set_measurements_json(measurements_json)',
+    '',
+    'def _slpanel_advance_and_draw_current_frame_batch_json(',
+    '    first_delta_seconds,',
+    '    next_delta_seconds,',
+    '    frame_count,',
+    '):',
+    '    _slpanel_api.result = advance_and_draw_current_frame_batch_json(',
+    '        first_delta_seconds,',
+    '        next_delta_seconds,',
+    '        frame_count,',
+    '    )',
+    '',
+    'def _slpanel_advance_and_draw_current_frame_json(delta_seconds):',
+    '    _slpanel_api.result = advance_and_draw_current_frame_json(delta_seconds)',
+    '',
     'def _slpanel_advance_marquee_state_json(',
     '    frame_input_json,',
     '    marquee_state_json,',
@@ -379,6 +464,10 @@ function buildPythonBootstrapSource(source: string, apiProperty: string) {
     '    )',
     '',
     '_slpanel_api.createMarqueeStateJson = create_proxy(_slpanel_create_marquee_state_json)',
+    '_slpanel_api.setFrameInputJson = create_proxy(_slpanel_set_frame_input_json)',
+    '_slpanel_api.setMeasurementsJson = create_proxy(_slpanel_set_measurements_json)',
+    '_slpanel_api.advanceAndDrawCurrentFrameBatchJson = create_proxy(_slpanel_advance_and_draw_current_frame_batch_json)',
+    '_slpanel_api.advanceAndDrawCurrentFrameJson = create_proxy(_slpanel_advance_and_draw_current_frame_json)',
     '_slpanel_api.advanceAndDrawFrameJson = create_proxy(_slpanel_advance_and_draw_frame_json)',
     '_slpanel_api.advanceMarqueeStateJson = create_proxy(_slpanel_advance_marquee_state_json)',
     '_slpanel_api.drawBoardCommandsJson = create_proxy(_slpanel_draw_board_commands_json)',

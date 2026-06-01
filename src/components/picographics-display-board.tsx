@@ -22,6 +22,10 @@ import {
   type PicographicsRuntimeSession,
 } from '@/lib/picographics-runtime';
 import { logPicographicsInfo } from '@/lib/picographics-debug';
+import {
+  recordPicographicsCount,
+  startPicographicsProfile,
+} from '@/lib/picographics-profiler';
 
 interface PicographicsDisplayBoardProps extends DisplayBoardProps {
   runtime?: PicographicsRuntime;
@@ -142,6 +146,7 @@ export function PicographicsDisplayBoard({
       session: PicographicsRuntimeSession,
       timestamp: number,
     ) => {
+      const stopFrameProfile = startPicographicsProfile('display.frame.handler');
       const isFirstFrame = lastTimestampRef.current === 0;
       const deltaSeconds =
         isFirstFrame
@@ -161,10 +166,13 @@ export function PicographicsDisplayBoard({
           lastAdvancedFrameInputRef.current,
         )
       ) {
+        recordPicographicsCount('display.frame.skipped');
         scheduleNextFrame(session);
+        stopFrameProfile();
         return;
       }
 
+      recordPicographicsCount('display.frame.rendered');
       const effectiveDeltaSeconds = pendingDeltaSecondsRef.current;
 
       pendingDeltaSecondsRef.current = 0;
@@ -207,10 +215,12 @@ export function PicographicsDisplayBoard({
           .catch(() => {
             void handleError();
           });
+        stopFrameProfile();
         return;
       }
 
       handleResolvedState(nextState);
+      stopFrameProfile();
     };
 
     const handleError = async () => {

@@ -37,8 +37,32 @@ describe('createPyScriptPicographicsController', () => {
         ],
       }),
     );
+    const setMeasurementsJson = vi.fn();
+    const advanceAndDrawCurrentFrameJson = vi.fn().mockResolvedValue(
+      JSON.stringify({
+        marquee_state: {
+          active_content: {
+            text: '18 Farsta strand 4 min',
+            interruptible: false,
+          },
+          pending_content: {
+            text: '18 Farsta strand 4 min',
+            interruptible: false,
+          },
+          marquee_offset: 96,
+        },
+        commands: [
+          ['set_pen', '#020202'],
+          ['clear'],
+          ['update'],
+        ],
+      }),
+    );
     const controller = createPyScriptPicographicsController({
       createMarqueeStateJson,
+      setMeasurementsJson,
+      advanceAndDrawCurrentFrameBatchJson: vi.fn(),
+      advanceAndDrawCurrentFrameJson,
       advanceAndDrawFrameJson,
       advanceMarqueeStateJson: vi.fn(),
       drawBoardCommandsJson: vi.fn(),
@@ -65,12 +89,9 @@ describe('createPyScriptPicographicsController', () => {
     expect(createMarqueeStateJson).toHaveBeenCalledWith(
       expect.stringContaining('"tone":"live"'),
     );
-    expect(advanceAndDrawFrameJson).toHaveBeenCalledWith(
-      expect.stringContaining('"tone":"live"'),
-      expect.stringContaining('"marquee_offset":128'),
-      1,
-      expect.any(String),
-    );
+    expect(setMeasurementsJson).toHaveBeenCalledWith(expect.any(String));
+    expect(advanceAndDrawCurrentFrameJson).toHaveBeenCalledWith(1);
+    expect(advanceAndDrawFrameJson).not.toHaveBeenCalled();
     expect(nextState.marqueeOffset).toBe(96);
   });
 
@@ -102,7 +123,10 @@ describe('createPyScriptPicographicsController', () => {
         }),
       ),
       advanceMarqueeStateJson: vi.fn(),
+      advanceAndDrawCurrentFrameBatchJson: vi.fn(),
       advanceAndDrawFrameJson: vi.fn(),
+      setMeasurementsJson: vi.fn(),
+      advanceAndDrawCurrentFrameJson: vi.fn(),
       drawBoardCommandsJson,
     });
 
@@ -154,6 +178,28 @@ describe('createPyScriptPicographicsController', () => {
           marquee_offset: 128,
         }),
       ),
+      setMeasurementsJson: vi.fn(),
+      advanceAndDrawCurrentFrameBatchJson: vi.fn(),
+      advanceAndDrawCurrentFrameJson: vi.fn().mockResolvedValue(
+        JSON.stringify({
+          marquee_state: {
+            active_content: {
+              text: 'Loading departures',
+              interruptible: true,
+            },
+            pending_content: {
+              text: 'Loading departures',
+              interruptible: true,
+            },
+            marquee_offset: 110,
+          },
+          commands: [
+            ['set_pen', '#020202'],
+            ['clear'],
+            ['update'],
+          ],
+        }),
+      ),
       advanceAndDrawFrameJson: vi.fn().mockResolvedValue(
         JSON.stringify({
           marquee_state: {
@@ -195,6 +241,126 @@ describe('createPyScriptPicographicsController', () => {
 
     expect(graphics.clear).toHaveBeenCalledTimes(1);
     expect(graphics.update).toHaveBeenCalledTimes(1);
+  });
+
+  it('prefers the smoother single-frame bridge even when the batch API exists', async () => {
+    const graphics = createGraphics(18);
+    const advanceAndDrawCurrentFrameBatchJson = vi.fn();
+    const advanceAndDrawCurrentFrameJson = vi.fn().mockResolvedValue(
+      JSON.stringify({
+        marquee_state: {
+          active_content: {
+            text: 'Loading departures',
+            interruptible: true,
+          },
+          pending_content: {
+            text: 'Loading departures',
+            interruptible: true,
+          },
+          marquee_offset: 110,
+        },
+        commands: [['set_pen', '#020202'], ['clear'], ['update']],
+      }),
+    );
+    const controller = createPyScriptPicographicsController({
+      createMarqueeStateJson: vi.fn().mockReturnValue(
+        JSON.stringify({
+          active_content: {
+            text: 'Loading departures',
+            interruptible: true,
+          },
+          pending_content: {
+            text: 'Loading departures',
+            interruptible: true,
+          },
+          marquee_offset: 128,
+        }),
+      ),
+      setMeasurementsJson: vi.fn(),
+      advanceAndDrawCurrentFrameBatchJson,
+      advanceAndDrawCurrentFrameJson,
+      advanceAndDrawFrameJson: vi.fn(),
+      advanceMarqueeStateJson: vi.fn(),
+      drawBoardCommandsJson: vi.fn(),
+    });
+    const frameInput = {
+      departures: [],
+      tone: 'loading' as const,
+      headline: 'Loading departures',
+      detail: 'Board is starting',
+    };
+    const initialState = controller.createMarqueeState(frameInput);
+    await controller.advanceMarqueeState(
+      graphics,
+      initialState,
+      frameInput,
+      1,
+    );
+
+    expect(advanceAndDrawCurrentFrameJson).toHaveBeenCalledTimes(1);
+    expect(advanceAndDrawCurrentFrameBatchJson).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the stateless bridge when the stateful frame API is unavailable', async () => {
+    const advanceAndDrawFrameJson = vi.fn().mockResolvedValue(
+      JSON.stringify({
+        marquee_state: {
+          active_content: {
+            text: 'Loading departures',
+            interruptible: true,
+          },
+          pending_content: {
+            text: 'Loading departures',
+            interruptible: true,
+          },
+          marquee_offset: 110,
+        },
+        commands: [
+          ['set_pen', '#020202'],
+          ['clear'],
+          ['update'],
+        ],
+      }),
+    );
+    const controller = createPyScriptPicographicsController({
+      createMarqueeStateJson: vi.fn().mockReturnValue(
+        JSON.stringify({
+          active_content: {
+            text: 'Loading departures',
+            interruptible: true,
+          },
+          pending_content: {
+            text: 'Loading departures',
+            interruptible: true,
+          },
+          marquee_offset: 128,
+        }),
+      ),
+      advanceAndDrawFrameJson,
+      advanceMarqueeStateJson: vi.fn(),
+      drawBoardCommandsJson: vi.fn(),
+    });
+    const frameInput = {
+      departures: [],
+      tone: 'loading' as const,
+      headline: 'Loading departures',
+      detail: 'Board is starting',
+    };
+    const initialState = controller.createMarqueeState(frameInput);
+
+    await controller.advanceMarqueeState(
+      createGraphics(18),
+      initialState,
+      frameInput,
+      1,
+    );
+
+    expect(advanceAndDrawFrameJson).toHaveBeenCalledWith(
+      expect.stringContaining('"tone":"loading"'),
+      expect.stringContaining('"marquee_offset":128'),
+      1,
+      expect.any(String),
+    );
   });
 });
 
