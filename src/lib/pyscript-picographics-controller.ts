@@ -3,10 +3,7 @@ import {
   type PicographicsBoardFrameInput,
   type PicographicsBoardMarqueeState,
 } from '@/lib/picographics-board-controller';
-import {
-  createBoardGeometry,
-  type MarqueeContent,
-} from '@/components/display-board-shared';
+import { type MarqueeContent } from '@/components/display-board-shared';
 import type { PicographicsCanvas } from '@/lib/picographics-canvas';
 import { logPicographicsInfo } from '@/lib/picographics-debug';
 import {
@@ -108,7 +105,12 @@ export function createPyScriptPicographicsController(
       return nextState;
     },
 
-    async advanceMarqueeState(graphics, marqueeState, frameInput, deltaSeconds) {
+    async advanceMarqueeState(
+      graphics,
+      marqueeState,
+      frameInput,
+      deltaSeconds,
+    ) {
       const stopAdvanceProfile = startPicographicsProfile(
         'controller.advance.total',
       );
@@ -125,23 +127,26 @@ export function createPyScriptPicographicsController(
         stopMeasurementProfile();
         const frameInputJson = syncFrameInput(frameInput);
         const measurementsJson = syncMeasurements(measurements);
-        const marqueeStateJson = JSON.stringify(serializeMarqueeState(marqueeState));
+        const marqueeStateJson = JSON.stringify(
+          serializeMarqueeState(marqueeState),
+        );
         logController('advanceMarqueeState:request', {
           deltaSeconds,
           activeText: summarizeText(marqueeState.activeContent.text),
           marqueeOffset: marqueeState.marqueeOffset,
           measurements,
         });
-        const response =
-          bridge.advanceAndDrawCurrentFrameJson
-            ? await bridge.advanceAndDrawCurrentFrameJson(deltaSeconds)
-            : await bridge.advanceAndDrawFrameJson(
-                frameInputJson,
-                marqueeStateJson,
-                deltaSeconds,
-                measurementsJson,
-              );
-        const stopParseProfile = startPicographicsProfile('controller.parseFrame');
+        const response = bridge.advanceAndDrawCurrentFrameJson
+          ? await bridge.advanceAndDrawCurrentFrameJson(deltaSeconds)
+          : await bridge.advanceAndDrawFrameJson(
+              frameInputJson,
+              marqueeStateJson,
+              deltaSeconds,
+              measurementsJson,
+            );
+        const stopParseProfile = startPicographicsProfile(
+          'controller.parseFrame',
+        );
         const renderedFrame = toCachedRenderedFrame(
           frameInput,
           JSON.parse(String(response)) as PythonRenderedFrame,
@@ -183,7 +188,11 @@ export function createPyScriptPicographicsController(
         const stopMeasurementProfile = startPicographicsProfile(
           'controller.measurements',
         );
-        const measurements = collectMeasurements(graphics, frameInput, marqueeState);
+        const measurements = collectMeasurements(
+          graphics,
+          frameInput,
+          marqueeState,
+        );
         stopMeasurementProfile();
         const frameInputJson = syncFrameInput(frameInput);
         const measurementsJson = syncMeasurements(measurements);
@@ -369,7 +378,9 @@ function serializeMarqueeState(
   };
 }
 
-function serializeMarqueeContent(content: MarqueeContent): PythonMarqueeContent {
+function serializeMarqueeContent(
+  content: MarqueeContent,
+): PythonMarqueeContent {
   return {
     text: content.text,
     interruptible: content.interruptible,

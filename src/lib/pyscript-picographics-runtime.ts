@@ -1,7 +1,5 @@
 import { createCanvasPicographics } from '@/lib/picographics-canvas';
-import {
-  loadPicographicsPythonSource,
-} from '@/lib/picographics-python-source';
+import { loadPicographicsPythonSource } from '@/lib/picographics-python-source';
 import {
   createPyScriptPicographicsController,
   type PyScriptPicographicsBridge,
@@ -70,10 +68,14 @@ export function createPyScriptPicographicsRuntime(options?: {
       });
 
       const doc =
-        options?.document ?? context.canvas.ownerDocument ?? globalThis.document;
+        options?.document ??
+        context.canvas.ownerDocument ??
+        globalThis.document;
 
       if (!doc) {
-        throw new Error('Could not resolve a document for the PyScript runtime.');
+        throw new Error(
+          'Could not resolve a document for the PyScript runtime.',
+        );
       }
 
       const coreModule = await loadPyScriptCoreModule(doc);
@@ -104,7 +106,7 @@ export function createPyScriptPicographicsRuntime(options?: {
         runtimeTarget.id,
         buildPythonBootstrapSource(source, apiProperty),
       );
-      let api: MainThreadPicographicsApi | null = null;
+      let api: MainThreadPicographicsApi;
 
       try {
         logRuntime('initialize:bootstrap-script-created', {
@@ -221,11 +223,7 @@ function createMainThreadPyScriptBridge(
         );
       });
     },
-    drawBoardCommandsJson(
-      frameInputJson,
-      marqueeStateJson,
-      measurementsJson,
-    ) {
+    drawBoardCommandsJson(frameInputJson, marqueeStateJson, measurementsJson) {
       return readBridgeJsonResult(api, 'drawBoardCommandsJson', () => {
         api.drawBoardCommandsJson(
           frameInputJson,
@@ -342,7 +340,9 @@ async function runMainThreadMicroPythonScript(
     const handleError = () => {
       logRuntime('bootstrap:error-event', { apiProperty });
       finish(() => {
-        reject(new Error('Could not execute the PyScript MicroPython bootstrap.'));
+        reject(
+          new Error('Could not execute the PyScript MicroPython bootstrap.'),
+        );
       });
     };
 

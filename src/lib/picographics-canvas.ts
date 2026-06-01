@@ -152,7 +152,9 @@ export function createCanvasPicographics(
     }
 
     recordPicographicsCount('canvas.text.sprite.cacheMiss');
-    const stopBuildProfile = startPicographicsProfile('canvas.text.sprite.build');
+    const stopBuildProfile = startPicographicsProfile(
+      'canvas.text.sprite.build',
+    );
     const sprite = createTextSprite(
       context,
       value,
@@ -214,7 +216,10 @@ function createTextSprite(
     ),
   );
   const width = Math.max(1, Math.ceil(logicalWidth * DIODE_SCALE));
-  const height = Math.max(1, (textOptions.font?.cellHeight ?? 10) * DIODE_SCALE);
+  const height = Math.max(
+    1,
+    (textOptions.font?.cellHeight ?? 10) * DIODE_SCALE,
+  );
 
   spriteCanvas.width = width;
   spriteCanvas.height = height;

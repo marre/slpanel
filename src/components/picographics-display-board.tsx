@@ -40,22 +40,23 @@ export function PicographicsDisplayBoard({
   detail,
   runtime = localPicographicsRuntime,
 }: PicographicsDisplayBoardProps) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const [runtimeState, setRuntimeState] = useState<'loading' | 'ready' | 'error'>(
-    'loading',
-  );
-  const [runtimeLabel, setRuntimeLabel] = useState(runtime.label);
-  const controllerRef = useRef<PicographicsBoardController>(
-    localPicographicsBoardController,
-  );
-  const frameInputRef = useRef<DisplayBoardProps>({
+  const initialFrameInput: DisplayBoardProps = {
     displayName,
     siteName,
     departures,
     tone,
     headline,
     detail,
-  });
+  };
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [runtimeState, setRuntimeState] = useState<
+    'loading' | 'ready' | 'error'
+  >('loading');
+  const [runtimeLabel, setRuntimeLabel] = useState(runtime.label);
+  const controllerRef = useRef<PicographicsBoardController>(
+    localPicographicsBoardController,
+  );
+  const frameInputRef = useRef<DisplayBoardProps>(initialFrameInput);
   const marqueeStateRef = useRef<PicographicsBoardMarqueeState>(
     localPicographicsBoardController.createMarqueeState({
       departures,
@@ -66,7 +67,8 @@ export function PicographicsDisplayBoard({
   );
   const lastTimestampRef = useRef(0);
   const pendingDeltaSecondsRef = useRef(0);
-  const lastAdvancedFrameInputRef = useRef(frameInputRef.current);
+  const lastAdvancedFrameInputRef =
+    useRef<DisplayBoardProps>(initialFrameInput);
   const boardKeyRef = useRef(buildBoardKey(displayName, siteName));
 
   useEffect(() => {
@@ -87,9 +89,8 @@ export function PicographicsDisplayBoard({
       lastTimestampRef.current = 0;
       pendingDeltaSecondsRef.current = 0;
       lastAdvancedFrameInputRef.current = nextFrameInput;
-      marqueeStateRef.current = controllerRef.current.createMarqueeState(
-        nextFrameInput,
-      );
+      marqueeStateRef.current =
+        controllerRef.current.createMarqueeState(nextFrameInput);
     }
   }, [departures, detail, displayName, headline, siteName, tone]);
 
@@ -146,12 +147,13 @@ export function PicographicsDisplayBoard({
       session: PicographicsRuntimeSession,
       timestamp: number,
     ) => {
-      const stopFrameProfile = startPicographicsProfile('display.frame.handler');
+      const stopFrameProfile = startPicographicsProfile(
+        'display.frame.handler',
+      );
       const isFirstFrame = lastTimestampRef.current === 0;
-      const deltaSeconds =
-        isFirstFrame
-          ? 0
-          : (timestamp - lastTimestampRef.current) / 1000;
+      const deltaSeconds = isFirstFrame
+        ? 0
+        : (timestamp - lastTimestampRef.current) / 1000;
 
       lastTimestampRef.current = timestamp;
       pendingDeltaSecondsRef.current += deltaSeconds;
@@ -210,11 +212,9 @@ export function PicographicsDisplayBoard({
       };
 
       if (isPromiseLike(nextState)) {
-        nextState
-          .then(handleResolvedState)
-          .catch(() => {
-            void handleError();
-          });
+        nextState.then(handleResolvedState).catch(() => {
+          void handleError();
+        });
         stopFrameProfile();
         return;
       }
@@ -309,9 +309,10 @@ export function PicographicsDisplayBoard({
       setRuntimeState('loading');
       setRuntimeLabel(runtime.label);
       controllerRef.current = localPicographicsBoardController;
-      marqueeStateRef.current = localPicographicsBoardController.createMarqueeState(
-        frameInputRef.current,
-      );
+      marqueeStateRef.current =
+        localPicographicsBoardController.createMarqueeState(
+          frameInputRef.current,
+        );
       lastTimestampRef.current = 0;
       pendingDeltaSecondsRef.current = 0;
       lastAdvancedFrameInputRef.current = frameInputRef.current;
@@ -429,7 +430,8 @@ function shouldRenderVisibleFrame(
   const activeText = marqueeState.activeContent.text;
   const marqueeWidth = Math.max(session.graphics.measure_text(activeText), 1);
   let nextOffset =
-    marqueeState.marqueeOffset - deltaSeconds * createBoardGeometry().marqueeSpeed;
+    marqueeState.marqueeOffset -
+    deltaSeconds * createBoardGeometry().marqueeSpeed;
 
   if (nextOffset <= -marqueeWidth) {
     nextOffset = LOGICAL_PANEL_WIDTH;

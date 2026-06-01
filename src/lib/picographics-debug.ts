@@ -20,7 +20,11 @@ export function logPicographicsInfo(
   console.info(scope, event, payload);
 }
 
-export function logPicographicsError(scope: string, event: string, error: unknown) {
+export function logPicographicsError(
+  scope: string,
+  event: string,
+  error: unknown,
+) {
   if (!isPicographicsDebugEnabled()) {
     return;
   }

@@ -30,11 +30,7 @@ describe('createPyScriptPicographicsController', () => {
           },
           marquee_offset: 96,
         },
-        commands: [
-          ['set_pen', '#020202'],
-          ['clear'],
-          ['update'],
-        ],
+        commands: [['set_pen', '#020202'], ['clear'], ['update']],
       }),
     );
     const setMeasurementsJson = vi.fn();
@@ -51,11 +47,7 @@ describe('createPyScriptPicographicsController', () => {
           },
           marquee_offset: 96,
         },
-        commands: [
-          ['set_pen', '#020202'],
-          ['clear'],
-          ['update'],
-        ],
+        commands: [['set_pen', '#020202'], ['clear'], ['update']],
       }),
     );
     const controller = createPyScriptPicographicsController({
@@ -193,11 +185,7 @@ describe('createPyScriptPicographicsController', () => {
             },
             marquee_offset: 110,
           },
-          commands: [
-            ['set_pen', '#020202'],
-            ['clear'],
-            ['update'],
-          ],
+          commands: [['set_pen', '#020202'], ['clear'], ['update']],
         }),
       ),
       advanceAndDrawFrameJson: vi.fn().mockResolvedValue(
@@ -213,11 +201,7 @@ describe('createPyScriptPicographicsController', () => {
             },
             marquee_offset: 110,
           },
-          commands: [
-            ['set_pen', '#020202'],
-            ['clear'],
-            ['update'],
-          ],
+          commands: [['set_pen', '#020202'], ['clear'], ['update']],
         }),
       ),
       advanceMarqueeStateJson: vi.fn(),
@@ -290,12 +274,7 @@ describe('createPyScriptPicographicsController', () => {
       detail: 'Board is starting',
     };
     const initialState = controller.createMarqueeState(frameInput);
-    await controller.advanceMarqueeState(
-      graphics,
-      initialState,
-      frameInput,
-      1,
-    );
+    await controller.advanceMarqueeState(graphics, initialState, frameInput, 1);
 
     expect(advanceAndDrawCurrentFrameJson).toHaveBeenCalledTimes(1);
     expect(advanceAndDrawCurrentFrameBatchJson).not.toHaveBeenCalled();
@@ -315,11 +294,7 @@ describe('createPyScriptPicographicsController', () => {
           },
           marquee_offset: 110,
         },
-        commands: [
-          ['set_pen', '#020202'],
-          ['clear'],
-          ['update'],
-        ],
+        commands: [['set_pen', '#020202'], ['clear'], ['update']],
       }),
     );
     const controller = createPyScriptPicographicsController({

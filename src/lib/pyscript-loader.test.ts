@@ -20,7 +20,9 @@ describe('loadPyScriptAssets', () => {
 
     expect(secondPromise).toBe(firstPromise);
 
-    const stylesheet = document.querySelector('link[data-slpanel-pyscript-core]');
+    const stylesheet = document.querySelector(
+      'link[data-slpanel-pyscript-core]',
+    );
     const script = document.querySelector('script[data-slpanel-pyscript-core]');
 
     expect(stylesheet).toHaveAttribute('href', PYSCRIPT_CORE_CSS_URL);
@@ -43,20 +45,21 @@ describe('loadPyScriptAssets', () => {
 
     script?.dispatchEvent(new Event('error'));
 
-    await expect(promise).rejects.toThrow(/could not load the pyscript runtime/i);
+    await expect(promise).rejects.toThrow(
+      /could not load the pyscript runtime/i,
+    );
   });
 
   it('loads the PyScript core module once after the assets are ready', async () => {
     const importer = vi
       .fn<
-        () =>
-          Promise<{
-            whenDefined: () => Promise<object>;
-            donkey: () => Promise<{
-              execute: () => Promise<void>;
-              evaluate: () => Promise<void>;
-            }>;
-          }>
+        () => Promise<{
+          whenDefined: () => Promise<object>;
+          donkey: () => Promise<{
+            execute: () => Promise<void>;
+            evaluate: () => Promise<void>;
+          }>;
+        }>
       >()
       .mockResolvedValue({
         whenDefined: async () => ({}),

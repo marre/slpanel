@@ -222,7 +222,9 @@ describe('DisplayBoard', () => {
     const headlineCall = renderTextLineMock.mock.calls.find(
       (call) => call[3] === ROW_ONE_Y,
     );
-    const marqueeCall = renderTextMock.mock.calls.find((call) => call[3] === ROW_TWO_Y);
+    const marqueeCall = renderTextMock.mock.calls.find(
+      (call) => call[3] === ROW_TWO_Y,
+    );
 
     expect(headlineCall?.[5]).toMatchObject({ color: '#ffbe64' });
     expect(marqueeCall?.[4]).toMatchObject({ color: '#ffbe64' });
@@ -244,12 +246,12 @@ describe('DisplayBoard', () => {
     renderTextLineMock.mockClear();
     animationFrameCallback?.(1_000);
 
-    expect(renderTextLineMock.mock.calls.some((call) => call[3] === ROW_ONE_Y)).toBe(
-      true,
-    );
-    expect(renderTextMock.mock.calls.some((call) => call[3] === ROW_TWO_Y)).toBe(
-      true,
-    );
+    expect(
+      renderTextLineMock.mock.calls.some((call) => call[3] === ROW_ONE_Y),
+    ).toBe(true);
+    expect(
+      renderTextMock.mock.calls.some((call) => call[3] === ROW_TWO_Y),
+    ).toBe(true);
   });
 });
 

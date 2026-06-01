@@ -7,9 +7,13 @@ import {
 
 describe('loadPicographicsPythonSource', () => {
   it('loads the shared Python board module from the public asset path', async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response('def draw_board(graphics, frame_input, marquee_state):\n    pass\n'),
-    );
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        new Response(
+          'def draw_board(graphics, frame_input, marquee_state):\n    pass\n',
+        ),
+      );
 
     await expect(loadPicographicsPythonSource(fetchMock)).resolves.toContain(
       'draw_board',
@@ -23,9 +27,9 @@ describe('loadPicographicsPythonSource', () => {
   });
 
   it('throws when the Python board module cannot be loaded', async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response('missing', { status: 404 }),
-    );
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response('missing', { status: 404 }));
 
     await expect(loadPicographicsPythonSource(fetchMock)).rejects.toThrow(
       /could not load the picographics python source/i,

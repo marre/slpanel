@@ -350,7 +350,9 @@ export function DisplayPage() {
                     key={option.value}
                     type="button"
                     aria-pressed={activePicographicsRuntime === option.value}
-                    onClick={() => handlePicographicsRuntimeChange(option.value)}
+                    onClick={() =>
+                      handlePicographicsRuntimeChange(option.value)
+                    }
                     className={`rounded-full px-3 py-2 text-[0.65rem] font-medium uppercase tracking-[0.24em] transition ${
                       activePicographicsRuntime === option.value
                         ? 'bg-[var(--panel-text)] text-black'
@@ -615,7 +617,9 @@ function parseDisplayRenderer(value: string | null): DisplayRenderer {
   return value === 'interstate75' ? value : 'classic';
 }
 
-function parsePicographicsRuntime(value: string | null): PicographicsRuntimeMode {
+function parsePicographicsRuntime(
+  value: string | null,
+): PicographicsRuntimeMode {
   return value === 'pyscript' ? value : 'local';
 }
 

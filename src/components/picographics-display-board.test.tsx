@@ -33,7 +33,9 @@ describe('PicographicsDisplayBoard', () => {
       fillRect: ReturnType<typeof vi.fn>;
     };
 
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(context);
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      context,
+    );
 
     animationFrameCallbacks = [];
     vi.stubGlobal(
@@ -64,12 +66,14 @@ describe('PicographicsDisplayBoard', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('picographics-runtime-status')).toHaveTextContent(
-        /local picographics shim/i,
-      );
+      expect(
+        screen.getByTestId('picographics-runtime-status'),
+      ).toHaveTextContent(/local picographics shim/i);
     });
 
-    expect(screen.getByTestId('picographics-display-board')).toBeInTheDocument();
+    expect(
+      screen.getByTestId('picographics-display-board'),
+    ).toBeInTheDocument();
   });
 
   it('shows an unavailable status when runtime initialization fails', async () => {
@@ -94,9 +98,9 @@ describe('PicographicsDisplayBoard', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('picographics-runtime-status')).toHaveTextContent(
-        /micropython unicorn unavailable/i,
-      );
+      expect(
+        screen.getByTestId('picographics-runtime-status'),
+      ).toHaveTextContent(/micropython unicorn unavailable/i);
     });
   });
 
@@ -166,9 +170,9 @@ describe('PicographicsDisplayBoard', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('picographics-runtime-status')).toHaveTextContent(
-        /local picographics shim/i,
-      );
+      expect(
+        screen.getByTestId('picographics-runtime-status'),
+      ).toHaveTextContent(/local picographics shim/i);
     });
 
     const initialDrawCount = context.fillRect.mock.calls.length;
@@ -186,10 +190,12 @@ describe('PicographicsDisplayBoard', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('picographics-runtime-status')).toHaveTextContent(
-        /pyscript bootstrap/i,
+      expect(
+        screen.getByTestId('picographics-runtime-status'),
+      ).toHaveTextContent(/pyscript bootstrap/i);
+      expect(context.fillRect.mock.calls.length).toBeGreaterThan(
+        initialDrawCount,
       );
-      expect(context.fillRect.mock.calls.length).toBeGreaterThan(initialDrawCount);
     });
   });
 
@@ -223,7 +229,12 @@ describe('PicographicsDisplayBoard', () => {
                 marqueeOffset: 128,
               };
             },
-            async advanceMarqueeState(_graphics, marqueeState, _frameInput, deltaSeconds) {
+            async advanceMarqueeState(
+              _graphics,
+              marqueeState,
+              _frameInput,
+              deltaSeconds,
+            ) {
               return {
                 ...marqueeState,
                 marqueeOffset: marqueeState.marqueeOffset - deltaSeconds * 18,
@@ -271,12 +282,14 @@ describe('PicographicsDisplayBoard', () => {
   });
 
   it('skips async controller work when a frame cannot change the visible marquee position', async () => {
-    const advanceMarqueeStateMock = vi.fn().mockImplementation(
-      async (_graphics, marqueeState, _frameInput, deltaSeconds) => ({
-        ...marqueeState,
-        marqueeOffset: marqueeState.marqueeOffset - deltaSeconds * 18,
-      }),
-    );
+    const advanceMarqueeStateMock = vi
+      .fn()
+      .mockImplementation(
+        async (_graphics, marqueeState, _frameInput, deltaSeconds) => ({
+          ...marqueeState,
+          marqueeOffset: marqueeState.marqueeOffset - deltaSeconds * 18,
+        }),
+      );
     const drawBoardMock = vi.fn();
     const runtime: PicographicsRuntime = {
       id: 'pyscript',

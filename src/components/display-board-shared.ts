@@ -43,7 +43,10 @@ export const CLASSIC_BOARD_FONT_OPTIONS: BoardFontOptions = {
 
 export function createBoardGeometry(unitScale = 1): BoardGeometry {
   return {
-    rowYs: [scaleBoardUnit(4, unitScale), scaleBoardUnit(18, unitScale)] as const,
+    rowYs: [
+      scaleBoardUnit(4, unitScale),
+      scaleBoardUnit(18, unitScale),
+    ] as const,
     panelPadding: scaleBoardUnit(2, unitScale),
     leadDepartureGap: scaleBoardUnit(5, unitScale),
     marqueeSpeed: scaleBoardUnit(18, unitScale),
@@ -145,10 +148,7 @@ export function slugify(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 }
 
-export function buildBoardKey(
-  displayName: string,
-  siteName: string | null,
-) {
+export function buildBoardKey(displayName: string, siteName: string | null) {
   return `${displayName}::${siteName ?? ''}`;
 }
 

@@ -33,17 +33,18 @@ describe('localPicographicsBoardController', () => {
       marqueeOffset: 5,
     };
 
-    const nextState = await localPicographicsBoardController.advanceMarqueeState(
-      graphics,
-      initialState,
-      {
-        departures: [createDeparture('17', 'Hagsatra', '1 min')],
-        tone: 'live',
-        headline: 'Live departures',
-        detail: 'Board is running',
-      },
-      10,
-    );
+    const nextState =
+      await localPicographicsBoardController.advanceMarqueeState(
+        graphics,
+        initialState,
+        {
+          departures: [createDeparture('17', 'Hagsatra', '1 min')],
+          tone: 'live',
+          headline: 'Live departures',
+          detail: 'Board is running',
+        },
+        10,
+      );
 
     expect(nextState.marqueeOffset).toBe(128);
     expect(nextState.activeContent.text).toBe('No later departures');

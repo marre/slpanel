@@ -8,7 +8,7 @@
  *   const w = measureText('17', { scale: 2 });
  */
 
-import { CELL_HEIGHT, SL_FONT, type BitmapFont } from './sl-font';
+import { SL_FONT, type BitmapFont } from './sl-font';
 
 export type PixelShape = 'square' | 'circle';
 
@@ -221,7 +221,13 @@ function drawLitPixel(
 ) {
   if (pixelShape === 'circle') {
     ctx.beginPath();
-    ctx.arc(x + scale / 2, y + scale / 2, Math.max(0.5, scale * 0.42), 0, Math.PI * 2);
+    ctx.arc(
+      x + scale / 2,
+      y + scale / 2,
+      Math.max(0.5, scale * 0.42),
+      0,
+      Math.PI * 2,
+    );
     ctx.fill();
     return;
   }
