@@ -4,7 +4,6 @@ import {
   type PicographicsBoardMarqueeState,
 } from '@/lib/picographics-board-controller';
 import {
-  createBoardGeometry,
   type MarqueeContent,
 } from '@/components/display-board-shared';
 import type { PicographicsCanvas } from '@/lib/picographics-canvas';

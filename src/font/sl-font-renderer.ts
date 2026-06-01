@@ -8,7 +8,7 @@
  *   const w = measureText('17', { scale: 2 });
  */
 
-import { CELL_HEIGHT, SL_FONT, type BitmapFont } from './sl-font';
+import { SL_FONT, type BitmapFont } from './sl-font';
 
 export type PixelShape = 'square' | 'circle';
 

@@ -104,7 +104,7 @@ export function createPyScriptPicographicsRuntime(options?: {
         runtimeTarget.id,
         buildPythonBootstrapSource(source, apiProperty),
       );
-      let api: MainThreadPicographicsApi | null = null;
+      let api: MainThreadPicographicsApi;
 
       try {
         logRuntime('initialize:bootstrap-script-created', {

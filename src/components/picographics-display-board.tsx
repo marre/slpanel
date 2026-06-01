@@ -40,6 +40,14 @@ export function PicographicsDisplayBoard({
   detail,
   runtime = localPicographicsRuntime,
 }: PicographicsDisplayBoardProps) {
+  const initialFrameInput: DisplayBoardProps = {
+    displayName,
+    siteName,
+    departures,
+    tone,
+    headline,
+    detail,
+  };
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [runtimeState, setRuntimeState] = useState<'loading' | 'ready' | 'error'>(
     'loading',
@@ -48,14 +56,7 @@ export function PicographicsDisplayBoard({
   const controllerRef = useRef<PicographicsBoardController>(
     localPicographicsBoardController,
   );
-  const frameInputRef = useRef<DisplayBoardProps>({
-    displayName,
-    siteName,
-    departures,
-    tone,
-    headline,
-    detail,
-  });
+  const frameInputRef = useRef<DisplayBoardProps>(initialFrameInput);
   const marqueeStateRef = useRef<PicographicsBoardMarqueeState>(
     localPicographicsBoardController.createMarqueeState({
       departures,
@@ -66,7 +67,7 @@ export function PicographicsDisplayBoard({
   );
   const lastTimestampRef = useRef(0);
   const pendingDeltaSecondsRef = useRef(0);
-  const lastAdvancedFrameInputRef = useRef(frameInputRef.current);
+  const lastAdvancedFrameInputRef = useRef<DisplayBoardProps>(initialFrameInput);
   const boardKeyRef = useRef(buildBoardKey(displayName, siteName));
 
   useEffect(() => {
