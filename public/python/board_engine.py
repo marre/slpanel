@@ -92,12 +92,32 @@ class BoardEngine:
         self.frame_input = {}
         self.measurements = {}
         self.marquee_state = None
+        self.board_key = None
 
     def set_frame_input(self, frame_input):
-        self.frame_input = frame_input or {}
+        next_frame_input = frame_input or {}
+        next_board_key = _build_board_key(next_frame_input)
+
+        self.frame_input = next_frame_input
+
+        if self.board_key != next_board_key:
+            self.board_key = next_board_key
+            self.marquee_state = None
+            return
+
+        self.board_key = next_board_key
+
+        if self.marquee_state is not None:
+            self.marquee_state["pending_content"] = build_marquee_content(
+                next_frame_input.get("departures", []),
+                next_frame_input.get("tone", "loading"),
+                next_frame_input.get("headline", ""),
+                next_frame_input.get("detail", ""),
+            )
 
     def reset(self):
         self.marquee_state = None
+        self.board_key = None
 
     def set_measurements(self, measurements):
         self.measurements = measurements or {}
@@ -161,6 +181,10 @@ def _create_marquee_state(frame_input):
     return state
 
 
+def _build_board_key(frame_input):
+    return f"{frame_input.get('display_name', '')}::{frame_input.get('site_name', '')}"
+
+
 def _advance_marquee_state(graphics, marquee_state, frame_input, delta_seconds):
     """Advance marquee position and content selection by delta seconds."""
 
@@ -183,7 +207,9 @@ def _advance_marquee_state(graphics, marquee_state, frame_input, delta_seconds):
     marquee_width = max(graphics.measure_text(active_content.get("text", "")), 1)
     marquee_state["marquee_offset"] -= delta_seconds * MARQUEE_SPEED
 
-    if marquee_state["marquee_offset"] <= -marquee_width:
+    reset_threshold = -(marquee_width + LOGICAL_PANEL_WIDTH)
+
+    if marquee_state["marquee_offset"] <= reset_threshold:
         marquee_state["marquee_offset"] = LOGICAL_PANEL_WIDTH
         active_content = pending_content
 
