@@ -818,10 +818,7 @@ function deriveLineOptionsFiltered(
   const seen = new Map<string, string>();
 
   for (const d of departures) {
-    if (
-      selectedModes.length > 0 &&
-      !selectedModes.includes(d.transport_mode)
-    ) {
+    if (selectedModes.length > 0 && !selectedModes.includes(d.transport_mode)) {
       continue;
     }
 
@@ -846,16 +843,10 @@ function deriveDirectionOptions(
   selectedLineNumbers: string[],
   selectedModes: string[],
 ): DirectionOption[] {
-  const seen = new Map<
-    string,
-    { lineNumber: string; transportMode: string }
-  >();
+  const seen = new Map<string, { lineNumber: string; transportMode: string }>();
 
   for (const d of departures) {
-    if (
-      selectedModes.length > 0 &&
-      !selectedModes.includes(d.transport_mode)
-    ) {
+    if (selectedModes.length > 0 && !selectedModes.includes(d.transport_mode)) {
       continue;
     }
 
@@ -934,13 +925,11 @@ const selectClassNames = {
   valueContainer: () => 'flex flex-wrap gap-1',
   multiValue: () =>
     'rounded-full border border-[var(--panel-border)] bg-[var(--panel-text)]/10',
-  multiValueLabel: () =>
-    'text-xs text-[var(--panel-text)] px-2 py-0.5',
+  multiValueLabel: () => 'text-xs text-[var(--panel-text)] px-2 py-0.5',
   multiValueRemove: () =>
     'text-[var(--muted-text)] hover:text-red-400 hover:bg-red-400/10 rounded-r-full px-1 transition',
   input: () => 'text-sm text-[var(--app-text)]',
-  placeholder: () =>
-    'text-sm text-[var(--muted-text)]/60',
+  placeholder: () => 'text-sm text-[var(--muted-text)]/60',
   menu: () =>
     'mt-2 rounded-[1.25rem] border border-[var(--panel-border)] bg-black/95 backdrop-blur-md shadow-xl shadow-black/40 overflow-hidden z-50',
   menuList: () => 'p-2 max-h-64 overflow-auto',
@@ -953,10 +942,8 @@ const selectClassNames = {
           ? 'bg-[var(--panel-text)]/8 text-[var(--panel-text)]'
           : 'text-[var(--app-text)]',
     ].join(' '),
-  noOptionsMessage: () =>
-    'text-xs text-[var(--muted-text)] px-3 py-4',
-  loadingMessage: () =>
-    'text-xs text-[var(--muted-text)] px-3 py-4',
+  noOptionsMessage: () => 'text-xs text-[var(--muted-text)] px-3 py-4',
+  loadingMessage: () => 'text-xs text-[var(--muted-text)] px-3 py-4',
   indicatorsContainer: () => '',
   indicatorSeparator: () => 'hidden',
   dropdownIndicator: () =>
@@ -1028,9 +1015,7 @@ async function loadStopOptions(inputValue: string): Promise<StopOption[]> {
   }
 }
 
-function StopOptionComponent(
-  props: OptionProps<StopOption, false>,
-) {
+function StopOptionComponent(props: OptionProps<StopOption, false>) {
   const typeLabel = mapStopType(props.data.type);
 
   return (
