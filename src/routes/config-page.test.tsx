@@ -108,13 +108,17 @@ describe('ConfigPage', () => {
     fireEvent.change(screen.getByLabelText(/display name/i), {
       target: { value: 'Southbound platform' },
     });
-    fireEvent.change(screen.getByLabelText(/stop search/i), {
-      target: { value: 'Slussen' },
+
+    // Type "Slussen" into the AsyncSelect stop search
+    const stopInput = screen.getByLabelText(/stop search/i);
+    fireEvent.focus(stopInput);
+    fireEvent.change(stopInput, { target: { value: 'Slussen' } });
+
+    // Wait for the "Slussen" option to appear and click it
+    const slussenOption = await screen.findByRole('option', {
+      name: /Slussen/,
     });
-
-    await screen.findByRole('button', { name: /slussen/i });
-
-    fireEvent.click(screen.getByRole('button', { name: /slussen/i }));
+    fireEvent.click(slussenOption);
 
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -126,8 +130,23 @@ describe('ConfigPage', () => {
     });
 
     fireEvent.click(screen.getByText('METRO'));
-    fireEvent.click(await screen.findByRole('button', { name: '17' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Hagsätra' }));
+
+    // Select line "17" from the CreatableSelect dropdown
+    const lineSelectInput = screen.getByLabelText('Line numbers');
+    fireEvent.mouseDown(lineSelectInput);
+
+    const lineOption17 = await screen.findByRole('option', { name: /17/ });
+    fireEvent.click(lineOption17);
+
+    // Select direction "Hagsätra" from the directions CreatableSelect
+    const dirSelectInput = screen.getByLabelText('Direction filters');
+    fireEvent.mouseDown(dirSelectInput);
+
+    const dirOption = await screen.findByRole('option', {
+      name: /Hagsätra/,
+    });
+    fireEvent.click(dirOption);
+
     fireEvent.click(screen.getByRole('button', { name: /create display/i }));
 
     await waitFor(() => {
@@ -153,8 +172,6 @@ describe('ConfigPage', () => {
     expect(screen.getAllByText(/southbound platform/i).length).toBeGreaterThan(
       0,
     );
-    expect(screen.getByText(/selected stop:/i)).toBeInTheDocument();
-    expect(screen.getByText(/line hints/i)).toBeInTheDocument();
   });
 
   it('keeps line hints visible when the selected transport mode has no live matches', async () => {
@@ -211,14 +228,23 @@ describe('ConfigPage', () => {
     fireEvent.click(trainCheckbox);
 
     expect(trainCheckbox).toBeChecked();
-    fireEvent.change(screen.getByLabelText(/stop search/i), {
-      target: { value: 'Vallentuna' },
-    });
 
-    fireEvent.click(await screen.findByRole('button', { name: /vallentuna/i }));
+    // Type "Vallentuna" into the AsyncSelect stop search
+    const stopInput = screen.getByLabelText(/stop search/i);
+    fireEvent.focus(stopInput);
+    fireEvent.change(stopInput, { target: { value: 'Vallentuna' } });
+
+    // Wait for option and click it
+    const vallentunaOption = await screen.findByRole('option', {
+      name: /Vallentuna/,
+    });
+    fireEvent.click(vallentunaOption);
+
+    // Open the line numbers dropdown to reveal the "27" option (fallback shows all lines)
+    fireEvent.mouseDown(screen.getByLabelText('Line numbers'));
 
     expect(
-      await screen.findByRole('button', { name: '27' }),
+      await screen.findByRole('option', { name: /27/ }),
     ).toBeInTheDocument();
   });
 });

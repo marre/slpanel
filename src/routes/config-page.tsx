@@ -1,5 +1,8 @@
-import { startTransition, useDeferredValue, useEffect, useState } from 'react';
+import { startTransition, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import CreatableSelect from 'react-select/creatable';
+import AsyncSelect from 'react-select/async';
+import type { MultiValue, SingleValue } from 'react-select';
 
 import type {
   CreateDisplayInput,
@@ -26,8 +29,8 @@ type DisplayDraft = {
   site_id: string | null;
   site_name: string | null;
   refresh_interval: number;
-  line_numbers_text: string;
-  directions_text: string;
+  line_numbers: string[];
+  directions: string[];
   modes: string[];
 };
 
@@ -38,19 +41,8 @@ export function ConfigPage() {
   const [displays, setDisplays] = useState<DisplayRecord[]>([]);
   const [selectedDisplayId, setSelectedDisplayId] = useState<string>('new');
   const [draft, setDraft] = useState<DisplayDraft>(createEmptyDraft());
-  const [stopQuery, setStopQuery] = useState('');
-  const deferredStopQuery = useDeferredValue(stopQuery);
-  const [stopResults, setStopResults] = useState<
-    Array<{
-      site_id: string;
-      name: string;
-      stop_area_name: string;
-      type: string;
-    }>
-  >([]);
   const [departureHints, setDepartureHints] = useState<DepartureRecord[]>([]);
   const [loadingDisplays, setLoadingDisplays] = useState(false);
-  const [searchingStops, setSearchingStops] = useState(false);
   const [loadingDepartureHints, setLoadingDepartureHints] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -88,8 +80,6 @@ export function ConfigPage() {
         setDisplays([]);
         setSelectedDisplayId('new');
         setDraft(createEmptyDraft());
-        setStopQuery('');
-        setStopResults([]);
         setDepartureHints([]);
         setLoadingDisplays(false);
       });
@@ -118,14 +108,12 @@ export function ConfigPage() {
           if (!firstDisplay) {
             setSelectedDisplayId('new');
             setDraft(createEmptyDraft());
-            setStopQuery('');
             setDepartureHints([]);
             return;
           }
 
           setSelectedDisplayId(firstDisplay.id);
           setDraft(createDraftFromDisplay(firstDisplay));
-          setStopQuery(firstDisplay.site_name ?? '');
         });
       })
       .catch((error: unknown) => {
@@ -136,7 +124,6 @@ export function ConfigPage() {
         setDisplays([]);
         setSelectedDisplayId('new');
         setDraft(createEmptyDraft());
-        setStopQuery('');
         setDepartureHints([]);
         setErrorMessage(readErrorMessage(error));
       })
@@ -150,52 +137,6 @@ export function ConfigPage() {
       controller.abort();
     };
   }, [activeOwnerId]);
-
-  useEffect(() => {
-    const normalizedQuery = deferredStopQuery.trim();
-
-    if (
-      normalizedQuery.length < 2 ||
-      normalizeValue(normalizedQuery) === normalizeValue(draft.site_name ?? '')
-    ) {
-      startTransition(() => {
-        setStopResults([]);
-        setSearchingStops(false);
-      });
-
-      return;
-    }
-
-    const controller = new AbortController();
-
-    startTransition(() => {
-      setSearchingStops(true);
-    });
-
-    searchStops(normalizedQuery, controller.signal)
-      .then((results) => {
-        if (!controller.signal.aborted) {
-          setStopResults(results);
-        }
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) {
-          return;
-        }
-
-        setErrorMessage(readErrorMessage(error));
-        setStopResults([]);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) {
-          setSearchingStops(false);
-        }
-      });
-
-    return () => {
-      controller.abort();
-    };
-  }, [deferredStopQuery, draft.site_name]);
 
   useEffect(() => {
     if (!draft.site_id) {
@@ -244,24 +185,27 @@ export function ConfigPage() {
   const selectedDisplay =
     displays.find((display) => display.id === selectedDisplayId) ?? null;
   const isCreating = selectedDisplayId === 'new';
-  const selectedLineNumbers = splitList(draft.line_numbers_text);
-  const unfilteredLineHints = deriveLineHints(departureHints, []);
-  const filteredLineHints = deriveLineHints(departureHints, draft.modes);
-  const usingLineHintFallback =
-    draft.modes.length > 0 &&
-    filteredLineHints.length === 0 &&
-    unfilteredLineHints.length > 0;
-  const lineHints = usingLineHintFallback
-    ? unfilteredLineHints
-    : filteredLineHints;
-  const directionHints = deriveDirectionHints(
+  const selectedLineNumbers = draft.line_numbers;
+  const lineOptions = deriveLineOptions(departureHints, draft.modes);
+  const directionOptions = deriveDirectionOptions(
     departureHints,
     selectedLineNumbers,
     draft.modes,
   );
-  const lineHintDescription = usingLineHintFallback
-    ? 'No live lines match the current transport-mode filter, so all lines for the selected stop are shown.'
-    : 'Live departures for the selected stop.';
+  const selectedLineValues = lineOptions.filter((opt) =>
+    draft.line_numbers.includes(opt.value),
+  );
+  const selectedDirectionValues = directionOptions.filter((opt) =>
+    draft.directions.includes(opt.value),
+  );
+  const selectedStopValue: StopOption | null = draft.site_id
+    ? {
+        value: draft.site_id,
+        label: draft.site_name ?? draft.site_id,
+        stopAreaName: '',
+        type: '',
+      }
+    : null;
   const lineHintEmptyMessage = draft.site_id
     ? 'No live line hints for this stop yet.'
     : 'Choose a stop to load line hints.';
@@ -287,8 +231,6 @@ export function ConfigPage() {
     startTransition(() => {
       setSelectedDisplayId('new');
       setDraft(createEmptyDraft());
-      setStopQuery('');
-      setStopResults([]);
       setStatusMessage(null);
       setErrorMessage(null);
     });
@@ -298,8 +240,6 @@ export function ConfigPage() {
     startTransition(() => {
       setSelectedDisplayId(display.id);
       setDraft(createDraftFromDisplay(display));
-      setStopQuery(display.site_name ?? '');
-      setStopResults([]);
       setStatusMessage(null);
       setErrorMessage(null);
     });
@@ -314,47 +254,36 @@ export function ConfigPage() {
     }));
   }
 
-  function handleLineHintToggle(lineNumber: string) {
+  function handleLineChange(newValue: MultiValue<LineOption>) {
     setDraft((current) => ({
       ...current,
-      line_numbers_text: toggleDelimitedValue(
-        current.line_numbers_text,
-        lineNumber,
-      ),
+      line_numbers: newValue.map((opt) => opt.value),
     }));
   }
 
-  function handleDirectionHintToggle(direction: string) {
+  function handleDirectionChange(newValue: MultiValue<DirectionOption>) {
     setDraft((current) => ({
       ...current,
-      directions_text: toggleDelimitedValue(current.directions_text, direction),
+      directions: newValue.map((opt) => opt.value),
     }));
   }
 
-  function handleStopSelection(site: {
-    site_id: string;
-    name: string;
-    stop_area_name: string;
-  }) {
-    setDraft((current) => ({
-      ...current,
-      site_id: site.site_id,
-      site_name: site.name,
-    }));
-    setStopQuery(site.name);
-    setStopResults([]);
-    setDepartureHints([]);
-  }
-
-  function handleClearStop() {
-    setDraft((current) => ({
-      ...current,
-      site_id: null,
-      site_name: null,
-    }));
-    setStopQuery('');
-    setStopResults([]);
-    setDepartureHints([]);
+  function handleStopChange(newValue: SingleValue<StopOption>) {
+    if (newValue) {
+      setDraft((current) => ({
+        ...current,
+        site_id: newValue.value,
+        site_name: newValue.label,
+      }));
+      setDepartureHints([]);
+    } else {
+      setDraft((current) => ({
+        ...current,
+        site_id: null,
+        site_name: null,
+      }));
+      setDepartureHints([]);
+    }
   }
 
   async function handleSaveDisplay(event: React.FormEvent<HTMLFormElement>) {
@@ -398,8 +327,6 @@ export function ConfigPage() {
       });
       setSelectedDisplayId(savedDisplay.id);
       setDraft(createDraftFromDisplay(savedDisplay));
-      setStopQuery(savedDisplay.site_name ?? '');
-      setStopResults([]);
       setStatusMessage(isCreating ? 'Display created.' : 'Display updated.');
     } catch (error) {
       setErrorMessage(readErrorMessage(error));
@@ -430,13 +357,11 @@ export function ConfigPage() {
           if (!nextSelectedDisplay) {
             setSelectedDisplayId('new');
             setDraft(createEmptyDraft());
-            setStopQuery('');
             return;
           }
 
           setSelectedDisplayId(nextSelectedDisplay.id);
           setDraft(createDraftFromDisplay(nextSelectedDisplay));
-          setStopQuery(nextSelectedDisplay.site_name ?? '');
         });
 
         return nextDisplays;
@@ -693,69 +618,26 @@ export function ConfigPage() {
                 >
                   Stop search
                 </label>
-                <div className="flex flex-col gap-3">
-                  <div className="flex flex-col gap-3 md:flex-row">
-                    <input
-                      id="stop-search"
-                      value={stopQuery}
-                      onChange={(event) => setStopQuery(event.target.value)}
-                      placeholder="Search stop name"
-                      className="w-full rounded-[1rem] border border-[var(--panel-border)] bg-black/30 px-4 py-3 text-sm text-[var(--app-text)] outline-none transition placeholder:text-[var(--muted-text)]/60 focus:border-[var(--panel-text)]"
-                    />
-
-                    {draft.site_id ? (
-                      <button
-                        type="button"
-                        onClick={handleClearStop}
-                        className="rounded-full border border-[var(--panel-border)] px-4 py-2 text-sm text-[var(--muted-text)] transition hover:border-[var(--panel-text)]/50 hover:text-[var(--panel-text)]"
-                      >
-                        Clear stop
-                      </button>
-                    ) : null}
-                  </div>
-
-                  <div className="rounded-[1rem] border border-[var(--panel-border)] bg-black/20 px-4 py-3 text-sm text-[var(--muted-text)]">
-                    {draft.site_id ? (
-                      <span>
-                        Selected stop:{' '}
-                        <strong className="text-[var(--app-text)]">
-                          {draft.site_name}
-                        </strong>{' '}
-                        <span className="text-[var(--muted-text)]/80">
-                          ({draft.site_id})
-                        </span>
-                      </span>
-                    ) : (
-                      <span>No stop selected yet.</span>
-                    )}
-                  </div>
-
-                  {searchingStops ? (
-                    <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted-text)]">
-                      Searching stops…
-                    </p>
-                  ) : null}
-
-                  {stopResults.length > 0 ? (
-                    <div className="max-h-64 overflow-auto rounded-[1.25rem] border border-[var(--panel-border)] bg-black/20 p-2">
-                      {stopResults.map((site) => (
-                        <button
-                          key={site.site_id}
-                          type="button"
-                          onClick={() => handleStopSelection(site)}
-                          className="flex w-full flex-col gap-1 rounded-[1rem] px-4 py-3 text-left transition hover:bg-[var(--panel-text)]/10"
-                        >
-                          <span className="font-medium text-[var(--app-text)]">
-                            {site.name}
-                          </span>
-                          <span className="text-xs text-[var(--muted-text)]">
-                            {site.stop_area_name} · {site.type} · {site.site_id}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
+                <AsyncSelect
+                  inputId="stop-search"
+                  loadOptions={loadStopOptions}
+                  value={selectedStopValue}
+                  onChange={handleStopChange}
+                  isClearable
+                  placeholder="Search stop name…"
+                  noOptionsMessage={({ inputValue }) =>
+                    inputValue.trim().length < 2
+                      ? 'Type at least 2 characters to search.'
+                      : 'No stops found.'
+                  }
+                  loadingMessage={() => 'Searching…'}
+                  formatOptionLabel={formatStopOption}
+                  classNames={selectClassNames}
+                  unstyled
+                  styles={selectStyles}
+                  defaultOptions={false}
+                  cacheOptions
+                />
               </div>
 
               <div className="space-y-2">
@@ -791,27 +673,23 @@ export function ConfigPage() {
                 >
                   Line numbers
                 </label>
-                <input
-                  id="line-numbers"
-                  value={draft.line_numbers_text}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      line_numbers_text: event.target.value,
-                    }))
+                <CreatableSelect
+                  isMulti
+                  isClearable
+                  inputId="line-numbers"
+                  options={lineOptions}
+                  value={selectedLineValues}
+                  onChange={handleLineChange}
+                  placeholder="Select or type line numbers…"
+                  noOptionsMessage={() =>
+                    loadingDepartureHints ? 'Loading…' : lineHintEmptyMessage
                   }
-                  placeholder="17, 18"
-                  className="w-full rounded-[1rem] border border-[var(--panel-border)] bg-black/30 px-4 py-3 text-sm text-[var(--app-text)] outline-none transition placeholder:text-[var(--muted-text)]/60 focus:border-[var(--panel-text)]"
-                />
-
-                <HintGroup
-                  title="Line hints"
-                  description={lineHintDescription}
-                  values={lineHints}
-                  selectedValues={selectedLineNumbers}
-                  loading={loadingDepartureHints}
-                  emptyMessage={lineHintEmptyMessage}
-                  onToggle={handleLineHintToggle}
+                  formatCreateLabel={(input) => `Add "${input}"`}
+                  formatOptionLabel={formatLineOption}
+                  classNames={selectClassNames}
+                  unstyled
+                  isDisabled={!draft.site_id}
+                  styles={selectStyles}
                 />
               </div>
 
@@ -822,31 +700,27 @@ export function ConfigPage() {
                 >
                   Direction filters
                 </label>
-                <input
-                  id="directions"
-                  value={draft.directions_text}
-                  onChange={(event) =>
-                    setDraft((current) => ({
-                      ...current,
-                      directions_text: event.target.value,
-                    }))
+                <CreatableSelect
+                  isMulti
+                  isClearable
+                  inputId="directions"
+                  options={directionOptions}
+                  value={selectedDirectionValues}
+                  onChange={handleDirectionChange}
+                  placeholder="Select or type directions…"
+                  noOptionsMessage={() =>
+                    loadingDepartureHints
+                      ? 'Loading…'
+                      : draft.site_id
+                        ? 'No directions match the current stop and line filters.'
+                        : 'Choose a stop to load direction hints.'
                   }
-                  placeholder="Hagsätra, 2"
-                  className="w-full rounded-[1rem] border border-[var(--panel-border)] bg-black/30 px-4 py-3 text-sm text-[var(--app-text)] outline-none transition placeholder:text-[var(--muted-text)]/60 focus:border-[var(--panel-text)]"
-                />
-
-                <HintGroup
-                  title="Direction hints"
-                  description="Derived from upcoming destinations at the selected stop."
-                  values={directionHints}
-                  selectedValues={splitList(draft.directions_text)}
-                  loading={loadingDepartureHints}
-                  emptyMessage={
-                    draft.site_id
-                      ? 'No live direction hints match the current stop and line filters.'
-                      : 'Choose a stop to load direction hints.'
-                  }
-                  onToggle={handleDirectionHintToggle}
+                  formatCreateLabel={(input) => `Add "${input}"`}
+                  formatOptionLabel={formatDirectionOption}
+                  classNames={selectClassNames}
+                  unstyled
+                  isDisabled={!draft.site_id}
+                  styles={selectStyles}
                 />
               </div>
             </div>
@@ -890,8 +764,8 @@ function createEmptyDraft(): DisplayDraft {
     site_id: null,
     site_name: null,
     refresh_interval: 30,
-    line_numbers_text: '',
-    directions_text: '',
+    line_numbers: [],
+    directions: [],
     modes: [],
   };
 }
@@ -902,8 +776,8 @@ function createDraftFromDisplay(display: DisplayRecord): DisplayDraft {
     site_id: display.site_id,
     site_name: display.site_name,
     refresh_interval: display.refresh_interval,
-    line_numbers_text: display.line_numbers.join(', '),
-    directions_text: display.directions.join(', '),
+    line_numbers: [...display.line_numbers],
+    directions: [...display.directions],
     modes: [...display.modes],
   };
 }
@@ -928,73 +802,199 @@ function buildCommonPayload(draft: DisplayDraft) {
     site_id: draft.site_id,
     site_name: draft.site_name,
     refresh_interval: draft.refresh_interval,
-    line_numbers: splitList(draft.line_numbers_text),
-    directions: splitList(draft.directions_text),
+    line_numbers: [...draft.line_numbers],
+    directions: [...draft.directions],
     modes: [...draft.modes],
   };
 }
 
-function splitList(value: string): string[] {
-  return Array.from(
-    new Set(
-      value
-        .split(',')
-        .map((item) => item.trim())
-        .filter(Boolean),
-    ),
-  );
-}
+type LineOption = {
+  value: string;
+  label: string;
+  transportMode: string;
+};
 
-function toggleDelimitedValue(source: string, value: string): string {
-  const values = splitList(source);
+type DirectionOption = {
+  value: string;
+  label: string;
+  lineNumber: string;
+  transportMode: string;
+};
 
-  if (values.includes(value)) {
-    return values.filter((entry) => entry !== value).join(', ');
-  }
-
-  return [...values, value].join(', ');
-}
-
-function deriveLineHints(
+function deriveLineOptions(
   departures: DepartureRecord[],
   selectedModes: string[],
-): string[] {
-  return Array.from(
-    new Set(
-      departures
-        .filter(
-          (departure) =>
-            selectedModes.length === 0 ||
-            selectedModes.includes(departure.transport_mode),
-        )
-        .map((departure) => departure.line_number)
-        .filter(Boolean),
-    ),
-  ).sort((left, right) =>
-    left.localeCompare(right, undefined, { numeric: true }),
-  );
+): LineOption[] {
+  const options = deriveLineOptionsFiltered(departures, selectedModes);
+
+  // Fallback: when mode filter excludes all departures, show all lines
+  if (options.length === 0 && selectedModes.length > 0) {
+    return deriveLineOptionsFiltered(departures, []);
+  }
+
+  return options;
 }
 
-function deriveDirectionHints(
+function deriveLineOptionsFiltered(
+  departures: DepartureRecord[],
+  selectedModes: string[],
+): LineOption[] {
+  const seen = new Map<string, string>();
+
+  for (const d of departures) {
+    if (
+      selectedModes.length > 0 &&
+      !selectedModes.includes(d.transport_mode)
+    ) {
+      continue;
+    }
+
+    if (!seen.has(d.line_number)) {
+      seen.set(d.line_number, d.transport_mode);
+    }
+  }
+
+  return Array.from(seen.entries())
+    .map(([lineNumber, transportMode]) => ({
+      value: lineNumber,
+      label: lineNumber,
+      transportMode,
+    }))
+    .sort((a, b) =>
+      a.value.localeCompare(b.value, undefined, { numeric: true }),
+    );
+}
+
+function deriveDirectionOptions(
   departures: DepartureRecord[],
   selectedLineNumbers: string[],
   selectedModes: string[],
-): string[] {
-  return Array.from(
-    new Set(
-      departures
-        .filter(
-          (departure) =>
-            (selectedModes.length === 0 ||
-              selectedModes.includes(departure.transport_mode)) &&
-            (selectedLineNumbers.length === 0 ||
-              selectedLineNumbers.includes(departure.line_number)),
-        )
-        .map((departure) => departure.destination)
-        .filter(Boolean),
-    ),
-  ).sort((left, right) => left.localeCompare(right, 'sv'));
+): DirectionOption[] {
+  const seen = new Map<
+    string,
+    { lineNumber: string; transportMode: string }
+  >();
+
+  for (const d of departures) {
+    if (
+      selectedModes.length > 0 &&
+      !selectedModes.includes(d.transport_mode)
+    ) {
+      continue;
+    }
+
+    if (
+      selectedLineNumbers.length > 0 &&
+      !selectedLineNumbers.includes(d.line_number)
+    ) {
+      continue;
+    }
+
+    if (!seen.has(d.destination)) {
+      seen.set(d.destination, {
+        lineNumber: d.line_number,
+        transportMode: d.transport_mode,
+      });
+    }
+  }
+
+  return Array.from(seen.entries())
+    .map(([destination, info]) => ({
+      value: destination,
+      label: destination,
+      lineNumber: info.lineNumber,
+      transportMode: info.transportMode,
+    }))
+    .sort((a, b) => a.value.localeCompare(b.value, 'sv'));
 }
+
+function formatLineOption(
+  option: LineOption,
+  meta: { context: 'value' | 'menu' },
+) {
+  if (meta.context === 'value') {
+    return option.label;
+  }
+
+  return (
+    <span className="flex items-center gap-2">
+      <span>{option.label}</span>
+      <span className="rounded-full border border-current/20 px-1.5 py-0.5 text-[11px] uppercase tracking-[0.12em] opacity-70">
+        {option.transportMode}
+      </span>
+    </span>
+  );
+}
+
+function formatDirectionOption(
+  option: DirectionOption,
+  meta: { context: 'value' | 'menu' },
+) {
+  if (meta.context === 'value') {
+    return option.label;
+  }
+
+  return (
+    <span className="flex flex-col gap-0.5">
+      <span>{option.label}</span>
+      <span className="flex items-center gap-1.5 text-xs opacity-65">
+        <span>Line {option.lineNumber}</span>
+        <span className="rounded-full border border-current/20 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.12em]">
+          {option.transportMode}
+        </span>
+      </span>
+    </span>
+  );
+}
+
+const selectClassNames = {
+  control: (state: { isFocused: boolean }) =>
+    [
+      'rounded-[1rem] border bg-black/30 px-2 py-2 text-sm transition min-h-0 cursor-text',
+      state.isFocused
+        ? 'border-[var(--panel-text)]'
+        : 'border-[var(--panel-border)]',
+    ].join(' '),
+  valueContainer: () => 'flex flex-wrap gap-1',
+  multiValue: () =>
+    'rounded-full border border-[var(--panel-border)] bg-[var(--panel-text)]/10',
+  multiValueLabel: () =>
+    'text-xs text-[var(--panel-text)] px-2 py-0.5',
+  multiValueRemove: () =>
+    'text-[var(--muted-text)] hover:text-red-400 hover:bg-red-400/10 rounded-r-full px-1 transition',
+  input: () => 'text-sm text-[var(--app-text)]',
+  placeholder: () =>
+    'text-sm text-[var(--muted-text)]/60',
+  menu: () =>
+    'mt-2 rounded-[1.25rem] border border-[var(--panel-border)] bg-black/95 backdrop-blur-md shadow-xl shadow-black/40 overflow-hidden z-50',
+  menuList: () => 'p-2 max-h-64 overflow-auto',
+  option: (state: { isFocused: boolean; isSelected: boolean }) =>
+    [
+      'rounded-[0.75rem] px-3 py-2.5 text-sm cursor-pointer transition',
+      state.isSelected
+        ? 'bg-[var(--panel-text)]/15 text-[var(--panel-text)]'
+        : state.isFocused
+          ? 'bg-[var(--panel-text)]/8 text-[var(--panel-text)]'
+          : 'text-[var(--app-text)]',
+    ].join(' '),
+  noOptionsMessage: () =>
+    'text-xs text-[var(--muted-text)] px-3 py-4',
+  loadingMessage: () =>
+    'text-xs text-[var(--muted-text)] px-3 py-4',
+  indicatorsContainer: () => '',
+  indicatorSeparator: () => 'hidden',
+  dropdownIndicator: () =>
+    'text-[var(--muted-text)] hover:text-[var(--panel-text)] px-1 transition',
+  clearIndicator: () =>
+    'text-[var(--muted-text)] hover:text-red-400 px-1 transition',
+};
+
+const selectStyles = {
+  multiValueRemove: (base: Record<string, unknown>) => ({
+    ...base,
+    ':hover': {},
+  }),
+};
 
 function describeFilters(display: DisplayRecord): string {
   const parts = [
@@ -1024,72 +1024,71 @@ function readErrorMessage(error: unknown): string {
   return 'Something went wrong.';
 }
 
-function normalizeValue(value: string): string {
-  return value.trim().toLowerCase();
-}
-
-type HintGroupProps = {
-  title: string;
-  description: string;
-  values: string[];
-  selectedValues: string[];
-  loading: boolean;
-  emptyMessage: string;
-  onToggle: (value: string) => void;
+type StopOption = {
+  value: string;
+  label: string;
+  stopAreaName: string;
+  type: string;
 };
 
-function HintGroup({
-  title,
-  description,
-  values,
-  selectedValues,
-  loading,
-  emptyMessage,
-  onToggle,
-}: HintGroupProps) {
+async function loadStopOptions(inputValue: string): Promise<StopOption[]> {
+  const trimmed = inputValue.trim();
+
+  if (trimmed.length < 2) {
+    return [];
+  }
+
+  try {
+    const results = await searchStops(trimmed);
+
+    return results.map((site) => ({
+      value: site.site_id,
+      label: site.name,
+      stopAreaName: site.stop_area_name,
+      type: site.type,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function formatStopOption(
+  option: StopOption,
+  meta: { context: 'value' | 'menu' },
+) {
+  if (meta.context === 'value') {
+    return option.label;
+  }
+
   return (
-    <div className="space-y-2 rounded-[1rem] border border-[var(--panel-border)] bg-black/20 px-4 py-3">
-      <div className="space-y-1">
-        <p className="text-[11px] uppercase tracking-[0.24em] text-[var(--muted-text)]">
-          {title}
-        </p>
-        <p className="text-xs leading-5 text-[var(--muted-text)]/90">
-          {description}
-        </p>
-      </div>
-
-      {loading ? (
-        <p className="text-xs uppercase tracking-[0.22em] text-[var(--muted-text)]">
-          Loading hints…
-        </p>
-      ) : values.length > 0 ? (
-        <div className="flex flex-wrap gap-2">
-          {values.map((value) => {
-            const isSelected = selectedValues.includes(value);
-
-            return (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={isSelected}
-                onClick={() => onToggle(value)}
-                className={[
-                  'rounded-full border px-3 py-2 text-xs font-medium transition',
-                  isSelected
-                    ? 'border-[var(--panel-text)] bg-[var(--panel-text)]/12 text-[var(--panel-text)]'
-                    : 'border-[var(--panel-border)] text-[var(--muted-text)] hover:border-[var(--panel-text)]/60 hover:text-[var(--panel-text)]',
-                ].join(' ')}
-              >
-                {value}
-              </button>
-            );
-          })}
-        </div>
-      ) : (
-        <p className="text-xs leading-5 text-[var(--muted-text)]/85">
-          {emptyMessage}
-        </p>
-      )}
-    </div>
+    <span className="flex flex-col gap-0.5">
+      <span>{option.label}</span>
+      <span className="flex items-center gap-1.5 text-xs opacity-65">
+        <span>{option.stopAreaName}</span>
+        <span className="rounded-full border border-current/20 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.12em]">
+          {mapStopType(option.type)}
+        </span>
+      </span>
+    </span>
   );
+}
+
+function mapStopType(type: string): string {
+  switch (type.toUpperCase()) {
+    case 'METROSTN':
+      return 'Metro';
+    case 'BUSSTERM':
+      return 'Bus';
+    case 'TRAMSTN':
+      return 'Tram';
+    case 'RAILWSTN':
+    case 'RAILSTN':
+      return 'Train';
+    case 'FERRYBER':
+      return 'Ferry';
+    case 'STOP':
+      return 'Stop';
+    default:
+      return type;
+  }
 }
