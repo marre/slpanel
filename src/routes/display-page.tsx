@@ -1,5 +1,5 @@
 import { startTransition, useEffect, useMemo, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 
 import type { DepartureRecord, DisplayRecord } from '@/api/types';
 import { DisplayBoard } from '@/components/display-board';
@@ -8,7 +8,6 @@ import { ConfigApiError, getDisplay, listDepartures } from '@/lib/config-api';
 import { pyScriptPicographicsRuntime } from '@/lib/pyscript-picographics-runtime';
 
 const DEPARTURES_FORECAST_MINUTES = 240;
-const DEMO_LAST_UPDATED_AT = Date.parse('2026-05-29T12:00:00Z');
 
 const DEMO_DISPLAY: DisplayRecord = {
   id: 'demo-board',
@@ -84,7 +83,6 @@ export function DisplayPage() {
   const [isLoadingDepartures, setIsLoadingDepartures] = useState(false);
   const [displayError, setDisplayError] = useState<string | null>(null);
   const [departuresError, setDeparturesError] = useState<string | null>(null);
-  const [lastUpdatedAt, setLastUpdatedAt] = useState<number | null>(null);
 
   useEffect(() => {
     if (isDemoBoard || !displayId) {
@@ -129,9 +127,6 @@ export function DisplayPage() {
   const activeDeparturesError = isDemoBoard ? null : departuresError;
   const activeLoadingDisplay = isDemoBoard ? false : isLoadingDisplay;
   const activeLoadingDepartures = isDemoBoard ? false : isLoadingDepartures;
-  const activeLastUpdatedAt = isDemoBoard
-    ? DEMO_LAST_UPDATED_AT
-    : lastUpdatedAt;
 
   useEffect(() => {
     if (isDemoBoard || !activeDisplay?.site_id) {
@@ -175,7 +170,6 @@ export function DisplayPage() {
         }
 
         setDepartures(nextDepartures);
-        setLastUpdatedAt(Date.now());
       } catch (error: unknown) {
         if (cancelled || controller.signal.aborted) {
           return;
@@ -232,11 +226,8 @@ export function DisplayPage() {
     ],
   );
 
-  const nextDeparture = activeDepartures[0] ?? null;
   const displayName =
     activeDisplay?.name || activeDisplay?.display_id || 'Unknown board';
-  const stopName =
-    activeDisplay?.site_name || activeDisplay?.site_id || 'No stop configured';
   const picographicsRuntime = pyScriptPicographicsRuntime;
 
   function handleRendererChange(renderer: DisplayRenderer) {
@@ -291,19 +282,6 @@ export function DisplayPage() {
           </div>
 
           <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.24em] text-[var(--muted-text)]">
-            <span className="rounded-full border border-[var(--panel-border)] bg-black/20 px-4 py-2">
-              Stop {stopName}
-            </span>
-            <span className="rounded-full border border-[var(--panel-border)] bg-black/20 px-4 py-2">
-              Refreshes every{' '}
-              {activeDisplay?.refresh_interval ?? DEMO_DISPLAY.refresh_interval}{' '}
-              seconds
-            </span>
-            {isDemoBoard ? (
-              <span className="rounded-full border border-[var(--panel-border)] bg-[var(--panel-text)]/10 px-4 py-2 text-[var(--panel-text)]">
-                Demo mode
-              </span>
-            ) : null}
             <div className="inline-flex rounded-full border border-[var(--panel-border)] bg-black/24 p-1">
               {DISPLAY_RENDERER_OPTIONS.map((option) => (
                 <button
@@ -325,106 +303,8 @@ export function DisplayPage() {
         </div>
       </div>
 
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1.35fr)_minmax(18rem,0.65fr)] xl:items-start">
-        <div className="space-y-5">
-          {boardElement}
-
-          <div className="rounded-[1.7rem] border border-[var(--panel-border)] bg-black/16 p-4">
-            <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted-text)]">
-                Display layout
-              </p>
-              <p className="text-sm leading-6 text-[var(--muted-text)]">
-                {describeBoardLayout()}
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <StatCard
-              label="Next train"
-              value={
-                nextDeparture
-                  ? `${nextDeparture.line_number} ${nextDeparture.destination}`
-                  : boardState.headline
-              }
-              detail={
-                nextDeparture ? nextDeparture.display_time : boardState.detail
-              }
-            />
-            <StatCard
-              label="Active filters"
-              value={formatFilterSummary(activeDisplay)}
-              detail={
-                activeDisplay?.modes.length
-                  ? activeDisplay.modes.join(', ')
-                  : 'All transport modes'
-              }
-            />
-            <StatCard
-              label="Board status"
-              value={boardState.statusLabel}
-              detail={
-                activeLastUpdatedAt
-                  ? `Last updated ${formatTimestamp(activeLastUpdatedAt)}`
-                  : 'Waiting for the first live refresh'
-              }
-            />
-          </div>
-        </div>
-
-        <aside className="space-y-4 rounded-[2rem] border border-[var(--panel-border)] bg-black/18 p-5">
-          <div className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted-text)]">
-              Board diagnostics
-            </p>
-            <h3 className="text-xl font-semibold text-[var(--panel-text)]">
-              Live state and filter context
-            </h3>
-            <p className="text-sm leading-6 text-[var(--muted-text)]">
-              The public board fetches one display definition, then refreshes
-              its departure feed on the configured cadence while preserving the
-              board when a single refresh fails.
-            </p>
-          </div>
-
-          <dl className="space-y-3 text-sm text-[var(--app-text)]">
-            <DetailRow
-              label="Display id"
-              value={activeDisplay?.id ?? displayId ?? 'unknown'}
-            />
-            <DetailRow label="Stop" value={stopName} />
-            <DetailRow
-              label="Line filter"
-              value={activeDisplay?.line_numbers.join(', ') || 'All lines'}
-            />
-            <DetailRow
-              label="Direction filter"
-              value={activeDisplay?.directions.join(', ') || 'All directions'}
-            />
-            <DetailRow
-              label="Mode filter"
-              value={activeDisplay?.modes.join(', ') || 'All modes'}
-            />
-            <DetailRow
-              label="Renderer"
-              value={getRendererLabel(activeRenderer)}
-            />
-            {activeRenderer === 'interstate75' ? (
-              <DetailRow label="Renderer runtime" value="PyScript bootstrap" />
-            ) : null}
-            <DetailRow label="Board message" value={boardState.detail} />
-          </dl>
-
-          {!isDemoBoard ? (
-            <Link
-              to="/config"
-              className="inline-flex rounded-full border border-[var(--panel-border)] px-4 py-2 text-sm text-[var(--panel-text)] transition hover:border-[var(--panel-text)]/70 hover:bg-[var(--panel-text)]/8"
-            >
-              Open config workspace
-            </Link>
-          ) : null}
-        </aside>
+      <div className="grid gap-8 xl:items-start">
+        <div className="space-y-5">{boardElement}</div>
       </div>
     </section>
   );
@@ -534,47 +414,8 @@ function readErrorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
-function formatFilterSummary(display: DisplayRecord | null) {
-  if (!display) {
-    return 'Waiting for config';
-  }
-
-  const parts = [];
-
-  parts.push(
-    display.line_numbers.length > 0
-      ? `${display.line_numbers.length} line${display.line_numbers.length === 1 ? '' : 's'}`
-      : 'All lines',
-  );
-  parts.push(
-    display.directions.length > 0
-      ? `${display.directions.length} direction${display.directions.length === 1 ? '' : 's'}`
-      : 'All directions',
-  );
-
-  return parts.join(' / ');
-}
-
-function formatTimestamp(value: number) {
-  return new Intl.DateTimeFormat('sv-SE', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).format(value);
-}
-
-function describeBoardLayout() {
-  return '2-row layout is fixed. The board uses the native font with 4 empty pixels above, between, and below the two rows.';
-}
-
 function parseDisplayRenderer(value: string | null): DisplayRenderer {
   return value === 'interstate75' ? value : 'classic';
-}
-
-function getRendererLabel(renderer: DisplayRenderer) {
-  return renderer === 'interstate75'
-    ? 'Interstate 75 W preview'
-    : 'Classic board';
 }
 
 const DISPLAY_RENDERER_OPTIONS: Array<{
@@ -590,32 +431,3 @@ const DISPLAY_RENDERER_OPTIONS: Array<{
     label: 'Interstate 75 W preview',
   },
 ];
-
-function StatCard(input: { label: string; value: string; detail: string }) {
-  return (
-    <div className="rounded-[1.5rem] border border-[var(--panel-border)] bg-black/18 p-4">
-      <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted-text)]">
-        {input.label}
-      </p>
-      <p className="mt-3 text-lg font-semibold text-[var(--panel-text)]">
-        {input.value}
-      </p>
-      <p className="mt-2 text-sm leading-6 text-[var(--muted-text)]">
-        {input.detail}
-      </p>
-    </div>
-  );
-}
-
-function DetailRow(input: { label: string; value: string }) {
-  return (
-    <div className="rounded-[1.2rem] border border-[var(--panel-border)] bg-black/14 px-4 py-3">
-      <dt className="text-xs uppercase tracking-[0.24em] text-[var(--muted-text)]">
-        {input.label}
-      </dt>
-      <dd className="mt-2 text-sm leading-6 text-[var(--app-text)]">
-        {input.value}
-      </dd>
-    </div>
-  );
-}

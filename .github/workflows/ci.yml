@@ -37,3 +37,5 @@ jobs:
 
       - name: Build application
         run: npm run build
+
+  # Deployments are handled by the Cloudflare GitHub Integration.
