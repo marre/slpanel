@@ -391,16 +391,16 @@ export function ConfigPage() {
     <section className="space-y-8">
       <div className="space-y-3">
         <p className="text-xs uppercase tracking-[0.35em] text-[var(--muted-text)]">
-          Phase 4 config workspace
+          Display config
         </p>
         <div className="space-y-3">
           <h2 className="max-w-3xl text-3xl font-semibold leading-tight text-[var(--panel-text)] md:text-4xl">
-            Manage owners, stops, and display filters from one admin screen.
+            Set up and manage your transit display boards.
           </h2>
           <p className="max-w-3xl text-sm leading-7 text-[var(--muted-text)] md:text-base">
-            This first Phase 4 slice wires the config route to the Worker API:
-            owner lookup, display CRUD, stop search, and line, direction, and
-            mode filters all run against the live backend contract.
+            Choose a stop, pick which lines and directions to show, and control
+            how often the board refreshes. All changes take effect immediately
+            on your display.
           </p>
         </div>
       </div>
@@ -540,15 +540,6 @@ export function ConfigPage() {
                 direction filters before saving.
               </p>
             </div>
-
-            {selectedDisplay ? (
-              <Link
-                to={`/display/${selectedDisplay.id}`}
-                className="inline-flex rounded-full border border-[var(--panel-border)] px-4 py-2 text-sm font-medium text-[var(--panel-text)] transition hover:border-[var(--panel-text)]/60 hover:bg-[var(--panel-text)]/8"
-              >
-                Open display URL
-              </Link>
-            ) : null}
           </div>
 
           {statusMessage ? (
@@ -725,6 +716,15 @@ export function ConfigPage() {
                 >
                   {deleting ? 'Deleting…' : 'Delete display'}
                 </button>
+              ) : null}
+
+              {selectedDisplay ? (
+                <Link
+                  to={`/display/${selectedDisplay.id}`}
+                  className="ml-auto inline-flex rounded-full border border-[#84d8ff]/50 bg-[#84d8ff]/8 px-5 py-3 text-sm font-medium text-[#b9edff] transition hover:border-[#84d8ff]/80 hover:bg-[#84d8ff]/14"
+                >
+                  View display
+                </Link>
               ) : null}
             </div>
           </form>

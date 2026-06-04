@@ -38,17 +38,17 @@ describe('HomePage', () => {
 
     expect(
       screen.getByRole('heading', {
-        name: /display board is live/i,
+        name: /real-time SL transit displays/i,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('link', { name: /open config workspace/i }),
+      screen.getByRole('link', { name: /set up a display/i }),
     ).toHaveAttribute('href', '/config');
     expect(
-      screen.getByRole('link', { name: /open demo board/i }),
+      screen.getByRole('link', { name: /view demo board/i }),
     ).toHaveAttribute('href', '/display/demo-board');
     expect(
-      screen.getByRole('link', { name: /open pyscript preview/i }),
+      screen.getByRole('link', { name: /pyscript preview/i }),
     ).toHaveAttribute(
       'href',
       '/display/demo-board?renderer=interstate75&runtime=pyscript',

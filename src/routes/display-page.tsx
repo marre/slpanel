@@ -277,7 +277,7 @@ export function DisplayPage() {
     <section className="space-y-8">
       <div className="space-y-3">
         <p className="text-xs uppercase tracking-[0.35em] text-[var(--muted-text)]">
-          Phase 5 display UI
+          Live board
         </p>
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div className="space-y-3">
@@ -285,9 +285,8 @@ export function DisplayPage() {
               {displayName}
             </h2>
             <p className="max-w-3xl text-sm leading-7 text-[var(--muted-text)] md:text-base">
-              The public board now renders the custom SL bitmap font on a fixed
-              128x32 panel, keeps the next departure pinned on row one, and
-              scrolls the following departures across row two.
+              Shows the next departure on the top row and scrolls upcoming
+              departures on the second row. The board refreshes automatically.
             </p>
           </div>
 

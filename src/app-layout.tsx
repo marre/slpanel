@@ -21,8 +21,8 @@ export function AppLayout() {
                   SLPanel
                 </h1>
                 <p className="max-w-2xl text-sm leading-6 text-[var(--muted-text)] md:text-base">
-                  Cloudflare Worker API, owner config workspace, and a live
-                  SL-style public board rendered with the custom bitmap font.
+                  Create and share real-time departure boards for Stockholm
+                  public transit.
                 </p>
               </div>
             </div>
