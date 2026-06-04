@@ -2,7 +2,8 @@ import { startTransition, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import CreatableSelect from 'react-select/creatable';
 import AsyncSelect from 'react-select/async';
-import type { MultiValue, SingleValue } from 'react-select';
+import { components } from 'react-select';
+import type { MultiValue, OptionProps, SingleValue } from 'react-select';
 
 import type {
   CreateDisplayInput,
@@ -22,7 +23,6 @@ import {
 
 const OWNER_ID_PATTERN = /^[A-Za-z0-9]{8}$/;
 const OWNER_STORAGE_KEY = 'slpanel.owner-id';
-const TRANSPORT_MODE_OPTIONS = ['METRO', 'BUS', 'TRAM', 'TRAIN', 'FERRY'];
 
 type DisplayDraft = {
   name: string;
@@ -192,11 +192,32 @@ export function ConfigPage() {
     selectedLineNumbers,
     draft.modes,
   );
-  const selectedLineValues = lineOptions.filter((opt) =>
-    draft.line_numbers.includes(opt.value),
+  const selectedLineValues: LineOption[] = draft.line_numbers.map(
+    (lineNumber) => {
+      const existing = lineOptions.find((opt) => opt.value === lineNumber);
+
+      return (
+        existing ?? {
+          value: lineNumber,
+          label: lineNumber,
+          transportMode: '',
+        }
+      );
+    },
   );
-  const selectedDirectionValues = directionOptions.filter((opt) =>
-    draft.directions.includes(opt.value),
+  const selectedDirectionValues: DirectionOption[] = draft.directions.map(
+    (direction) => {
+      const existing = directionOptions.find((opt) => opt.value === direction);
+
+      return (
+        existing ?? {
+          value: direction,
+          label: direction,
+          lineNumber: '',
+          transportMode: '',
+        }
+      );
+    },
   );
   const selectedStopValue: StopOption | null = draft.site_id
     ? {
@@ -243,15 +264,6 @@ export function ConfigPage() {
       setStatusMessage(null);
       setErrorMessage(null);
     });
-  }
-
-  function handleModeToggle(mode: string) {
-    setDraft((current) => ({
-      ...current,
-      modes: current.modes.includes(mode)
-        ? current.modes.filter((value) => value !== mode)
-        : [...current.modes, mode],
-    }));
   }
 
   function handleLineChange(newValue: MultiValue<LineOption>) {
@@ -524,8 +536,8 @@ export function ConfigPage() {
                   : draft.name || selectedDisplay?.display_id || 'Edit display'}
               </h3>
               <p className="max-w-2xl text-sm leading-6 text-[var(--muted-text)]">
-                Use the stop search to bind one stop, then add optional line,
-                direction, and transport-mode filters before saving.
+                Use the stop search to bind one stop, then add optional line and
+                direction filters before saving.
               </p>
             </div>
 
@@ -574,43 +586,6 @@ export function ConfigPage() {
                 />
               </div>
 
-              <div className="space-y-3 md:col-span-2">
-                <div className="space-y-1">
-                  <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted-text)]">
-                    Transport modes
-                  </p>
-                  <p className="text-xs leading-5 text-[var(--muted-text)]/90">
-                    Select modes first if you want the line and direction hints
-                    below to narrow down automatically.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  {TRANSPORT_MODE_OPTIONS.map((mode) => {
-                    const isSelected = draft.modes.includes(mode);
-
-                    return (
-                      <label
-                        key={mode}
-                        className={[
-                          'inline-flex cursor-pointer items-center gap-2 rounded-full border px-4 py-2 text-sm transition',
-                          isSelected
-                            ? 'border-[var(--panel-text)] bg-[var(--panel-text)]/12 text-[var(--panel-text)]'
-                            : 'border-[var(--panel-border)] text-[var(--muted-text)] hover:border-[var(--panel-text)]/55 hover:text-[var(--panel-text)]',
-                        ].join(' ')}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => handleModeToggle(mode)}
-                          className="sr-only"
-                        />
-                        <span>{mode}</span>
-                      </label>
-                    );
-                  })}
-                </div>
-              </div>
-
               <div className="space-y-2 md:col-span-2">
                 <label
                   htmlFor="stop-search"
@@ -632,6 +607,7 @@ export function ConfigPage() {
                   }
                   loadingMessage={() => 'Searching…'}
                   formatOptionLabel={formatStopOption}
+                  components={{ Option: StopOptionComponent }}
                   classNames={selectClassNames}
                   unstyled
                   styles={selectStyles}
@@ -1052,29 +1028,67 @@ async function loadStopOptions(inputValue: string): Promise<StopOption[]> {
   }
 }
 
+function StopOptionComponent(
+  props: OptionProps<StopOption, false>,
+) {
+  const typeLabel = mapStopType(props.data.type);
+
+  return (
+    <components.Option {...props}>
+      <span className="flex items-center justify-between gap-3 w-full">
+        <span className="flex flex-col gap-0.5 min-w-0">
+          <span className="truncate">{props.data.label}</span>
+          <span className="text-xs text-[var(--muted-text)] truncate">
+            {props.data.stopAreaName}
+          </span>
+        </span>
+        {typeLabel ? (
+          <span className="shrink-0 rounded-full border border-[var(--panel-text)]/30 px-1.5 py-0.5 text-[11px] uppercase tracking-[0.1em] text-[var(--panel-text)]/75">
+            {typeLabel}
+          </span>
+        ) : null}
+      </span>
+    </components.Option>
+  );
+}
+
 function formatStopOption(
   option: StopOption,
   meta: { context: 'value' | 'menu' },
 ) {
+  const typeLabel = mapStopType(option.type);
+  const badge = typeLabel ? (
+    <span className="rounded-full border border-current/30 px-1.5 py-0.5 text-[11px] uppercase tracking-[0.1em] text-[var(--panel-text)]/80">
+      {typeLabel}
+    </span>
+  ) : null;
+
   if (meta.context === 'value') {
-    return option.label;
+    return (
+      <span className="flex items-center gap-2">
+        <span>{option.label}</span>
+        {badge}
+      </span>
+    );
   }
 
   return (
-    <span className="flex flex-col gap-0.5">
-      <span>{option.label}</span>
-      <span className="flex items-center gap-1.5 text-xs opacity-65">
-        <span>{option.stopAreaName}</span>
-        <span className="rounded-full border border-current/20 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.12em]">
-          {mapStopType(option.type)}
+    <span className="flex items-center justify-between gap-3 w-full">
+      <span className="flex flex-col gap-0.5 min-w-0">
+        <span className="truncate">{option.label}</span>
+        <span className="text-xs text-[var(--muted-text)] truncate">
+          {option.stopAreaName}
         </span>
       </span>
+      {badge}
     </span>
   );
 }
 
 function mapStopType(type: string): string {
-  switch (type.toUpperCase()) {
+  const upper = (type ?? '').toUpperCase();
+
+  switch (upper) {
     case 'METROSTN':
       return 'Metro';
     case 'BUSSTERM':
@@ -1087,8 +1101,9 @@ function mapStopType(type: string): string {
     case 'FERRYBER':
       return 'Ferry';
     case 'STOP':
-      return 'Stop';
+    case '':
+      return '';
     default:
-      return type;
+      return upper;
   }
 }

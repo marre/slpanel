@@ -129,8 +129,6 @@ describe('ConfigPage', () => {
       );
     });
 
-    fireEvent.click(screen.getByText('METRO'));
-
     // Select line "17" from the CreatableSelect dropdown
     const lineSelectInput = screen.getByLabelText('Line numbers');
     fireEvent.mouseDown(lineSelectInput);
@@ -162,7 +160,7 @@ describe('ConfigPage', () => {
             refresh_interval: 30,
             line_numbers: ['17'],
             directions: ['Hagsätra'],
-            modes: ['METRO'],
+            modes: [],
           }),
         }),
       );
@@ -174,7 +172,7 @@ describe('ConfigPage', () => {
     );
   });
 
-  it('keeps line hints visible when the selected transport mode has no live matches', async () => {
+  it('shows line options from departures after selecting a stop', async () => {
     fetchMock
       .mockResolvedValueOnce(
         new Response(JSON.stringify({ owner_id: 'aB3xZ9kQ', displays: [] })),
@@ -222,12 +220,6 @@ describe('ConfigPage', () => {
         </Routes>
       </MemoryRouter>,
     );
-
-    const trainCheckbox = screen.getByRole('checkbox', { name: /train/i });
-
-    fireEvent.click(trainCheckbox);
-
-    expect(trainCheckbox).toBeChecked();
 
     // Type "Vallentuna" into the AsyncSelect stop search
     const stopInput = screen.getByLabelText(/stop search/i);
