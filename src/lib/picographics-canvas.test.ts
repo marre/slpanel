@@ -5,7 +5,6 @@ import {
   PANEL_HEIGHT,
   PANEL_WIDTH,
 } from '@/components/display-board-shared';
-import { SL_FONT } from '@/font/sl-font';
 import { createCanvasPicographics } from '@/lib/picographics-canvas';
 
 const { measureTextMock, renderTextMock, renderTextLineMock } = vi.hoisted(
@@ -74,8 +73,8 @@ describe('createCanvasPicographics', () => {
     expect(renderTextMock).toHaveBeenCalledWith(
       expect.objectContaining({ canvas: expect.anything() }),
       'Slussen',
-      0,
-      0,
+      Math.round(2 * DIODE_SCALE),
+      Math.round(3 * DIODE_SCALE),
       expect.objectContaining({
         color: '#abcdef',
         gap: 1,
@@ -83,7 +82,6 @@ describe('createCanvasPicographics', () => {
         scale: DIODE_SCALE,
       }),
     );
-    expect(context.drawImage).toHaveBeenCalledTimes(1);
   });
 
   it('delegates clipped text and measurement in logical units', () => {
@@ -107,40 +105,14 @@ describe('createCanvasPicographics', () => {
     expect(renderTextLineMock).toHaveBeenCalledWith(
       expect.objectContaining({ canvas: expect.anything() }),
       '17 Hagsätra',
-      0,
-      0,
-      11 * DIODE_SCALE,
+      Math.round(4 * DIODE_SCALE),
+      Math.round(5 * DIODE_SCALE),
+      Math.max(0, Math.round(20 * DIODE_SCALE)),
       expect.objectContaining({
         color: '#ffb347',
         scale: DIODE_SCALE,
       }),
     );
-    expect(context.drawImage).toHaveBeenCalledTimes(1);
-  });
-
-  it('reuses cached text sprites for repeated text draws', () => {
-    const context = createContext();
-    const graphics = createCanvasPicographics(context);
-
-    graphics.set_pen('#ffb347');
-    graphics.text('Slussen', 2, 3);
-    graphics.text('Slussen', 4, 3);
-
-    expect(renderTextMock).toHaveBeenCalledTimes(1);
-    expect(context.drawImage).toHaveBeenCalledTimes(2);
-  });
-
-  it('allocates sprite height for descenders to avoid clipping', () => {
-    const context = createContext();
-    const graphics = createCanvasPicographics(context);
-
-    graphics.set_pen('#ffb347');
-    graphics.text('y', 2, 3);
-
-    const drawImageCall = context.drawImage.mock.calls[0];
-    const glyphRows = SL_FONT.getGlyph('y')?.rows.length ?? SL_FONT.cellHeight;
-
-    expect(drawImageCall[4]).toBe(glyphRows * DIODE_SCALE);
   });
 });
 
@@ -149,7 +121,6 @@ function createContext(canvas?: HTMLCanvasElement) {
     arc: vi.fn(),
     beginPath: vi.fn(),
     canvas: canvas ?? document.createElement('canvas'),
-    drawImage: vi.fn(),
     fillStyle: '#000000',
     fill: vi.fn(),
     fillRect: vi.fn(),
@@ -157,7 +128,6 @@ function createContext(canvas?: HTMLCanvasElement) {
     arc: ReturnType<typeof vi.fn>;
     beginPath: ReturnType<typeof vi.fn>;
     canvas: HTMLCanvasElement;
-    drawImage: ReturnType<typeof vi.fn>;
     fill: ReturnType<typeof vi.fn>;
     fillRect: ReturnType<typeof vi.fn>;
   };

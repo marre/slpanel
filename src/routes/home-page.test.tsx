@@ -48,10 +48,10 @@ describe('HomePage', () => {
       screen.getByRole('link', { name: /view demo board/i }),
     ).toHaveAttribute('href', '/display/demo-board');
     expect(
-      screen.getByRole('link', { name: /pyscript preview/i }),
+      screen.getByRole('link', { name: /interstate 75 w preview/i }),
     ).toHaveAttribute(
       'href',
-      '/display/demo-board?renderer=interstate75&runtime=pyscript',
+      '/display/demo-board?renderer=interstate75',
     );
   });
 });

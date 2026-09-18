@@ -29,7 +29,7 @@ and a real ``PicoGraphics`` instance.
 """
 
 from picographics import PicoGraphics
-from runtime_instrumentation import debug_log, summarize_text
+
 
 
 LOGICAL_PANEL_WIDTH = 128
@@ -167,17 +167,6 @@ def _create_marquee_state(frame_input):
         "marquee_offset": LOGICAL_PANEL_WIDTH,
     }
 
-    debug_log(
-        "create_marquee_state",
-        {
-            "tone": frame_input.get("tone", "loading"),
-            "headline": summarize_text(frame_input.get("headline", "")),
-            "detail": summarize_text(frame_input.get("detail", "")),
-            "active_text": summarize_text(content.get("text", "")),
-            "offset": state["marquee_offset"],
-        },
-    )
-
     return state
 
 
@@ -216,17 +205,6 @@ def _advance_marquee_state(graphics, marquee_state, frame_input, delta_seconds):
     marquee_state["active_content"] = active_content
     marquee_state["pending_content"] = pending_content
 
-    debug_log(
-        "advance_marquee_state",
-        {
-            "delta_seconds": round(delta_seconds, 4),
-            "previous_offset": round(previous_offset, 4),
-            "next_offset": round(marquee_state["marquee_offset"], 4),
-            "active_text": summarize_text(active_content.get("text", "")),
-            "pending_text": summarize_text(pending_content.get("text", "")),
-        },
-    )
-
     return marquee_state
 
 
@@ -259,21 +237,6 @@ def _draw_board(graphics, frame_input, marquee_state):
         ROW_TWO_Y,
     )
     graphics.update()
-
-    debug_log(
-        "draw_board",
-        {
-            "tone": frame_input.get("tone", "loading"),
-            "row_two_text": summarize_text(
-                marquee_state.get("active_content", {}).get("text", "")
-            ),
-            "row_two_offset": round(
-                marquee_state.get("marquee_offset", LOGICAL_PANEL_WIDTH),
-                4,
-            ),
-            "departures": len(departures),
-        },
-    )
 
 
 def _draw_lead_departure(graphics, departure, pen):

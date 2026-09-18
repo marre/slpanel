@@ -1,352 +1,131 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { PicographicsRuntime } from '@/lib/picographics-runtime';
 import { PicographicsDisplayBoard } from '@/components/picographics-display-board';
 
-const readyRuntime: PicographicsRuntime = {
-  id: 'pyscript',
-  label: 'PyScript bootstrap',
-  initialize() {
-    return {
-      graphics: {
-        create_pen: vi.fn(),
-        set_pen: vi.fn(),
-        clear: vi.fn(),
-        pixel: vi.fn(),
-        rectangle: vi.fn(),
-        text: vi.fn(),
-        measure_text: vi.fn(() => 10),
-        update: vi.fn(),
-      },
-      controller: {
-        drawFrame: vi.fn(),
-        advanceFrame: vi.fn(),
-      },
-    };
-  },
-};
+const { createPicographicsBoardMock } = vi.hoisted(() => ({
+  createPicographicsBoardMock: vi.fn(),
+}));
+
+vi.mock('@/lib/picographics-bridge', () => ({
+  createPicographicsBoard: createPicographicsBoardMock,
+}));
 
 describe('PicographicsDisplayBoard', () => {
-  let context: CanvasRenderingContext2D & {
-    arc: ReturnType<typeof vi.fn>;
-    beginPath: ReturnType<typeof vi.fn>;
-    drawImage: ReturnType<typeof vi.fn>;
-    fill: ReturnType<typeof vi.fn>;
-    fillRect: ReturnType<typeof vi.fn>;
-  };
-  let animationFrameCallbacks: FrameRequestCallback[];
-
   beforeEach(() => {
-    context = {
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
       arc: vi.fn(),
       beginPath: vi.fn(),
       canvas: document.createElement('canvas'),
-      drawImage: vi.fn(),
+      fillStyle: '#000000',
       fill: vi.fn(),
       fillRect: vi.fn(),
-      fillStyle: '#000000',
-    } as unknown as CanvasRenderingContext2D & {
-      arc: ReturnType<typeof vi.fn>;
-      beginPath: ReturnType<typeof vi.fn>;
-      canvas: HTMLCanvasElement;
-      drawImage: ReturnType<typeof vi.fn>;
-      fill: ReturnType<typeof vi.fn>;
-      fillRect: ReturnType<typeof vi.fn>;
-    };
-
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
-      context,
-    );
-
-    animationFrameCallbacks = [];
-    vi.stubGlobal(
-      'requestAnimationFrame',
-      vi.fn((callback: FrameRequestCallback) => {
-        animationFrameCallbacks.push(callback);
-        return animationFrameCallbacks.length;
-      }),
-    );
-    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    } as unknown as CanvasRenderingContext2D);
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
-    vi.unstubAllGlobals();
   });
 
-  it('shows runtime status once initialization succeeds', async () => {
+  it('shows loading state while the board initializes', () => {
+    createPicographicsBoardMock.mockReturnValue(new Promise(() => undefined));
+
     render(
       <PicographicsDisplayBoard
-        displayName="Demo board preview"
+        displayName="Demo board"
+        siteName="Slussen"
+        departures={[]}
+        tone="loading"
+        headline="Loading"
+        detail="Starting"
+      />,
+    );
+
+    expect(screen.getByTestId('picographics-runtime-status')).toHaveTextContent(
+      /initializing/i,
+    );
+  });
+
+  it('shows ready state and calls drawFrame on init', async () => {
+    const drawFrameMock = vi.fn().mockResolvedValue(undefined);
+    const disposeMock = vi.fn();
+
+    createPicographicsBoardMock.mockResolvedValue({
+      drawFrame: drawFrameMock,
+      advanceFrame: vi.fn().mockResolvedValue(undefined),
+      dispose: disposeMock,
+    });
+
+    render(
+      <PicographicsDisplayBoard
+        displayName="Demo board"
         siteName="Slussen"
         departures={[]}
         tone="loading"
         headline="Loading departures"
-        detail="Board is starting"
-        runtime={readyRuntime}
+        detail="Starting"
       />,
     );
 
     await waitFor(() => {
-      expect(
-        screen.getByTestId('picographics-runtime-status'),
-      ).toHaveTextContent(/pyscript bootstrap/i);
+      expect(screen.getByTestId('picographics-runtime-status')).toHaveTextContent(
+        /picographics preview/i,
+      );
     });
 
-    expect(
-      screen.getByTestId('picographics-display-board'),
-    ).toBeInTheDocument();
+    expect(drawFrameMock).toHaveBeenCalled();
+    expect(disposeMock).not.toHaveBeenCalled();
   });
 
-  it('shows an unavailable status when runtime initialization fails', async () => {
-    const failingRuntime: PicographicsRuntime = {
-      id: 'unicorn',
-      label: 'MicroPython Unicorn',
-      async initialize() {
-        throw new Error('runtime bootstrap failed');
-      },
-    };
+  it('shows error state when initialization fails', async () => {
+    createPicographicsBoardMock.mockRejectedValue(new Error('bootstrap failed'));
 
     render(
       <PicographicsDisplayBoard
-        displayName="Demo board preview"
+        displayName="Demo board"
         siteName="Slussen"
         departures={[]}
         tone="error"
-        headline="Runtime failed"
-        detail="Preview unavailable"
-        runtime={failingRuntime}
+        headline="Failed"
+        detail="Unavailable"
       />,
     );
 
     await waitFor(() => {
-      expect(
-        screen.getByTestId('picographics-runtime-status'),
-      ).toHaveTextContent(/micropython unicorn unavailable/i);
+      expect(screen.getByTestId('picographics-runtime-status')).toHaveTextContent(
+        /unavailable/i,
+      );
     });
   });
 
-  it('accepts a runtime-provided controller session', async () => {
-    const drawFrameMock = vi.fn();
-    const runtime: PicographicsRuntime = {
-      id: 'pyscript',
-      label: 'PyScript',
-      initialize() {
-        return {
-          graphics: {
-            create_pen: vi.fn(),
-            set_pen: vi.fn(),
-            clear: vi.fn(),
-            pixel: vi.fn(),
-            rectangle: vi.fn(),
-            text: vi.fn(),
-            measure_text: vi.fn(() => 10),
-            update: vi.fn(),
-          },
-          controller: {
-            drawFrame: drawFrameMock,
-            advanceFrame: vi.fn(),
-          },
-        };
-      },
-    };
+  it('disposes the board on unmount', async () => {
+    const disposeMock = vi.fn();
 
-    render(
+    createPicographicsBoardMock.mockResolvedValue({
+      drawFrame: vi.fn().mockResolvedValue(undefined),
+      advanceFrame: vi.fn().mockResolvedValue(undefined),
+      dispose: disposeMock,
+    });
+
+    const { unmount } = render(
       <PicographicsDisplayBoard
-        displayName="Demo board preview"
+        displayName="Demo board"
         siteName="Slussen"
         departures={[]}
         tone="loading"
-        headline="Loading departures"
-        detail="Board is starting"
-        runtime={runtime}
+        headline="Loading"
+        detail="Starting"
       />,
     );
 
     await waitFor(() => {
-      expect(drawFrameMock).toHaveBeenCalled();
+      expect(screen.getByTestId('picographics-runtime-status')).toHaveTextContent(
+        /picographics preview/i,
+      );
     });
 
-    expect(screen.getByTestId('picographics-runtime-status')).toHaveTextContent(
-      /pyscript/i,
-    );
-  });
+    unmount();
 
-  it('keeps loading state when switching to a runtime that is still loading', async () => {
-    const pendingRuntime: PicographicsRuntime = {
-      id: 'pyscript',
-      label: 'PyScript bootstrap',
-      initialize() {
-        return new Promise(() => undefined);
-      },
-    };
-
-    const { rerender } = render(
-      <PicographicsDisplayBoard
-        displayName="Demo board preview"
-        siteName="Slussen"
-        departures={[]}
-        tone="loading"
-        headline="Loading departures"
-        detail="Board is starting"
-        runtime={readyRuntime}
-      />,
-    );
-
-    await waitFor(() => {
-      expect(
-        screen.getByTestId('picographics-runtime-status'),
-      ).toHaveTextContent(/pyscript bootstrap/i);
-    });
-
-    const initialDrawCount = context.fillRect.mock.calls.length;
-
-    rerender(
-      <PicographicsDisplayBoard
-        displayName="Demo board preview"
-        siteName="Slussen"
-        departures={[]}
-        tone="loading"
-        headline="Booting Python"
-        detail="Waiting for the hosted runtime"
-        runtime={pendingRuntime}
-      />,
-    );
-
-    await waitFor(() => {
-      expect(
-        screen.getByTestId('picographics-runtime-status'),
-      ).toHaveTextContent(/pyscript bootstrap/i);
-      expect(context.fillRect.mock.calls.length).toBe(initialDrawCount);
-    });
-  });
-
-  it('continues advancing frames with an async runtime controller', async () => {
-    const observedOffsets: number[] = [];
-    let marqueeOffset = 128;
-    const runtime: PicographicsRuntime = {
-      id: 'pyscript',
-      label: 'PyScript bootstrap',
-      initialize() {
-        return {
-          graphics: {
-            create_pen: vi.fn(),
-            set_pen: vi.fn(),
-            clear: vi.fn(),
-            pixel: vi.fn(),
-            rectangle: vi.fn(),
-            text: vi.fn(),
-            measure_text: vi.fn(() => 24),
-            update: vi.fn(),
-          },
-          controller: {
-            async drawFrame() {
-              observedOffsets.push(marqueeOffset);
-            },
-            async advanceFrame(_graphics, _frameInput, deltaSeconds) {
-              marqueeOffset -= deltaSeconds * 18;
-              observedOffsets.push(marqueeOffset);
-            },
-          },
-        };
-      },
-    };
-
-    render(
-      <PicographicsDisplayBoard
-        displayName="Demo board preview"
-        siteName="Slussen"
-        departures={[]}
-        tone="live"
-        headline="Live departures"
-        detail="Board is running"
-        runtime={runtime}
-      />,
-    );
-
-    await waitFor(() => {
-      expect(observedOffsets).toHaveLength(1);
-      expect(animationFrameCallbacks).toHaveLength(1);
-    });
-
-    animationFrameCallbacks.shift()?.(1000);
-
-    await waitFor(() => {
-      expect(observedOffsets).toHaveLength(2);
-      expect(observedOffsets[1]).toBe(128);
-      expect(animationFrameCallbacks).toHaveLength(1);
-    });
-
-    animationFrameCallbacks.shift()?.(2000);
-
-    await waitFor(() => {
-      expect(observedOffsets).toHaveLength(3);
-      expect(observedOffsets[2]).toBe(110);
-    });
-  });
-
-  it('advances on every animation frame tick', async () => {
-    const advanceFrameMock = vi.fn().mockResolvedValue(undefined);
-    const drawFrameMock = vi.fn().mockResolvedValue(undefined);
-    const runtime: PicographicsRuntime = {
-      id: 'pyscript',
-      label: 'PyScript bootstrap',
-      initialize() {
-        return {
-          graphics: {
-            create_pen: vi.fn(),
-            set_pen: vi.fn(),
-            clear: vi.fn(),
-            pixel: vi.fn(),
-            rectangle: vi.fn(),
-            text: vi.fn(),
-            measure_text: vi.fn(() => 24),
-            update: vi.fn(),
-          },
-          controller: {
-            drawFrame: drawFrameMock,
-            advanceFrame: advanceFrameMock,
-          },
-        };
-      },
-    };
-
-    render(
-      <PicographicsDisplayBoard
-        displayName="Demo board preview"
-        siteName="Slussen"
-        departures={[]}
-        tone="live"
-        headline="Live departures"
-        detail="Board is running"
-        runtime={runtime}
-      />,
-    );
-
-    await waitFor(() => {
-      expect(drawFrameMock).toHaveBeenCalledTimes(1);
-      expect(animationFrameCallbacks).toHaveLength(1);
-    });
-
-    animationFrameCallbacks.shift()?.(1000);
-
-    await waitFor(() => {
-      expect(advanceFrameMock).toHaveBeenCalledTimes(1);
-      expect(animationFrameCallbacks).toHaveLength(1);
-    });
-
-    animationFrameCallbacks.shift()?.(1010);
-
-    await waitFor(() => {
-      expect(advanceFrameMock).toHaveBeenCalledTimes(2);
-      expect(animationFrameCallbacks).toHaveLength(1);
-    });
-
-    animationFrameCallbacks.shift()?.(1060);
-
-    await waitFor(() => {
-      expect(advanceFrameMock).toHaveBeenCalledTimes(3);
-    });
+    expect(disposeMock).toHaveBeenCalled();
   });
 });

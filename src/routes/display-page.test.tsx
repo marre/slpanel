@@ -227,9 +227,8 @@ describe('DisplayPage', () => {
     expect(
       screen.getByTestId('picographics-display-board'),
     ).toBeInTheDocument();
-    expect(screen.getByText(/renderer runtime/i)).toBeInTheDocument();
     expect(screen.getByTestId('picographics-runtime-status')).toHaveTextContent(
-      /pyscript bootstrap/i,
+      /initializing/i,
     );
   });
 
