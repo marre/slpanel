@@ -5,7 +5,6 @@ import type { DepartureRecord, DisplayRecord } from '@/api/types';
 import { DisplayBoard } from '@/components/display-board';
 import { PicographicsDisplayBoard } from '@/components/picographics-display-board';
 import { ConfigApiError, getDisplay, listDepartures } from '@/lib/config-api';
-import { pyScriptPicographicsRuntime } from '@/lib/pyscript-picographics-runtime';
 
 const DEPARTURES_FORECAST_MINUTES = 240;
 
@@ -228,7 +227,13 @@ export function DisplayPage() {
 
   const displayName =
     activeDisplay?.name || activeDisplay?.display_id || 'Unknown board';
-  const picographicsRuntime = pyScriptPicographicsRuntime;
+
+  const refreshCopy =
+    boardState.tone === 'live' && activeDisplay?.refresh_interval
+      ? `Refreshes every ${activeDisplay.refresh_interval} seconds.`
+      : boardState.tone === 'loading'
+        ? 'Syncing now, the board appears with the first refresh.'
+        : boardState.detail;
 
   function handleRendererChange(renderer: DisplayRenderer) {
     const nextSearchParams = new URLSearchParams(searchParams);
@@ -251,7 +256,6 @@ export function DisplayPage() {
         tone={boardState.tone}
         headline={boardState.headline}
         detail={boardState.detail}
-        runtime={picographicsRuntime}
       />
     ) : (
       <DisplayBoard
@@ -265,46 +269,69 @@ export function DisplayPage() {
     );
 
   return (
-    <section className="space-y-8">
+    <section className="space-y-6">
       <div className="space-y-3">
-        <p className="text-xs uppercase tracking-[0.35em] text-[var(--muted-text)]">
+        <p className="text-[0.7rem] uppercase tracking-[0.22em] text-[var(--muted-text)]">
           Live board
         </p>
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-          <div className="space-y-3">
-            <h2 className="max-w-4xl text-3xl font-semibold leading-tight text-[var(--panel-text)] md:text-5xl">
-              {displayName}
-            </h2>
-            <p className="max-w-3xl text-sm leading-7 text-[var(--muted-text)] md:text-base">
-              Shows the next departure on the top row and scrolls upcoming
-              departures on the second row. The board refreshes automatically.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-3 text-xs uppercase tracking-[0.24em] text-[var(--muted-text)]">
-            <div className="inline-flex rounded-full border border-[var(--panel-border)] bg-black/24 p-1">
-              {DISPLAY_RENDERER_OPTIONS.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  aria-pressed={activeRenderer === option.value}
-                  onClick={() => handleRendererChange(option.value)}
-                  className={`rounded-full px-3 py-2 text-[0.65rem] font-medium uppercase tracking-[0.24em] transition ${
-                    activeRenderer === option.value
-                      ? 'bg-[var(--panel-text)] text-black'
-                      : 'text-[var(--muted-text)] hover:bg-[var(--panel-text)]/10 hover:text-[var(--panel-text)]'
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <h2 className="max-w-4xl text-3xl font-semibold leading-tight text-[var(--panel-text)] md:text-5xl">
+            {displayName}
+          </h2>
+          <p
+            data-testid="board-status"
+            role="status"
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[0.7rem] font-medium uppercase tracking-[0.18em] ${
+              boardState.tone === 'live'
+                ? 'border-emerald-400/40 text-emerald-200'
+                : boardState.tone === 'error'
+                  ? 'border-rose-400/40 text-rose-200'
+                  : 'border-[var(--panel-border)] text-[var(--muted-text)]'
+            }`}
+          >
+            <span
+              aria-hidden="true"
+              className={`inline-block size-1.5 rounded-full ${
+                boardState.tone === 'live'
+                  ? 'bg-emerald-400'
+                  : boardState.tone === 'error'
+                    ? 'bg-rose-400'
+                    : 'bg-[var(--muted-text)]'
+              }`}
+            />
+            {boardState.statusLabel}
+          </p>
         </div>
       </div>
 
-      <div className="grid gap-8 xl:items-start">
-        <div className="space-y-5">{boardElement}</div>
+      <div>{boardElement}</div>
+
+      <div className="flex flex-col gap-4 border-t border-[var(--panel-border)] pt-5 md:flex-row md:items-center md:justify-between">
+        <p className="max-w-3xl text-sm leading-7 text-[var(--muted-text)] md:text-base">
+          Shows the next departure on the top row and scrolls upcoming
+          departures on the second row. {refreshCopy}
+        </p>
+        <div
+          className="inline-flex shrink-0 rounded-full border border-[var(--panel-border)] bg-black/24 p-0.5"
+          role="group"
+          aria-label="Board renderer"
+        >
+          {DISPLAY_RENDERER_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              aria-pressed={activeRenderer === option.value}
+              onClick={() => handleRendererChange(option.value)}
+              className={`rounded-full px-2.5 py-1.5 text-[0.65rem] font-medium uppercase tracking-[0.18em] transition ${
+                activeRenderer === option.value
+                  ? 'bg-[var(--panel-text)]/15 text-[var(--panel-text)]'
+                  : 'text-[var(--muted-text)]/70 hover:text-[var(--muted-text)]'
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
       </div>
     </section>
   );

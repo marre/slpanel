@@ -1,6 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { DepartureRecord } from '@/api/types';
 import { PicographicsDisplayBoard } from '@/components/picographics-display-board';
 
 const { createPicographicsBoardMock } = vi.hoisted(() => ({
@@ -75,6 +76,67 @@ describe('PicographicsDisplayBoard', () => {
 
     expect(drawFrameMock).toHaveBeenCalled();
     expect(disposeMock).not.toHaveBeenCalled();
+  });
+
+  it('syncs real bitmap text widths for the board layout', async () => {
+    const drawFrameMock = vi.fn().mockResolvedValue(undefined);
+    const disposeMock = vi.fn();
+
+    createPicographicsBoardMock.mockResolvedValue({
+      drawFrame: drawFrameMock,
+      advanceFrame: vi.fn().mockResolvedValue(undefined),
+      dispose: disposeMock,
+    });
+
+    const departures: DepartureRecord[] = [
+      {
+        line_number: '17',
+        destination: 'Hagsätra',
+        display_time: '1 min',
+        minutes_until_departure: 1,
+        scheduled_at: '2026-05-29T12:01:00Z',
+        expected_at: '2026-05-29T12:01:00Z',
+        transport_mode: 'METRO',
+        platform: '2',
+        state: 'EXPECTED',
+      },
+      {
+        line_number: '18',
+        destination: 'Farsta strand',
+        display_time: '4 min',
+        minutes_until_departure: 4,
+        scheduled_at: '2026-05-29T12:04:00Z',
+        expected_at: '2026-05-29T12:04:00Z',
+        transport_mode: 'METRO',
+        platform: '2',
+        state: 'EXPECTED',
+      },
+    ];
+
+    render(
+      <PicographicsDisplayBoard
+        displayName="Demo board"
+        siteName="Slussen"
+        departures={departures}
+        tone="live"
+        headline="Live departures"
+        detail="Board is running"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(drawFrameMock).toHaveBeenCalled();
+    });
+
+    const measurementsJson = drawFrameMock.mock.calls[0]?.[2] as string;
+    const measurements = JSON.parse(measurementsJson) as Record<
+      string,
+      number
+    >;
+
+    expect(measurements['17']).toBeGreaterThan(0);
+    expect(measurements['Hagsätra']).toBeGreaterThan(measurements['17']);
+    expect(measurements['1 min']).toBeGreaterThan(0);
   });
 
   it('shows error state when initialization fails', async () => {

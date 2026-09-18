@@ -11,7 +11,10 @@
   --panel-text-soft: #ffd280;
   --app-text: #f6ead0;
   --muted-text: #c9ba98;
-  font-family: 'IBM Plex Mono', 'Azeret Mono', 'Menlo', 'Monaco', monospace;
+  --focus-ring: #ffd280;
+  font-family:
+    ui-monospace, 'Cascadia Mono', 'SF Mono', 'SFMono-Regular', Menlo, Monaco,
+    Consolas, 'Liberation Mono', monospace;
   background:
     radial-gradient(circle at top, rgba(255, 159, 28, 0.16), transparent 32%),
     linear-gradient(180deg, #10171d 0%, #05080c 58%, #030405 100%);
@@ -48,4 +51,29 @@ canvas {
 ::selection {
   background: rgba(255, 184, 77, 0.28);
   color: white;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: 0.25rem;
+}
+
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+    scroll-behavior: auto;
+    transition-duration: 0.01ms;
+  }
 }

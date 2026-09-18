@@ -91,6 +91,11 @@ export function DisplayBoard({
       return;
     }
 
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     let animationFrameId = 0;
 
     const renderFrame = (timestamp: number) => {
@@ -153,6 +158,14 @@ export function DisplayBoard({
     const frameInput = frameInputRef.current;
     const marqueeState = marqueeStateRef.current;
 
+    if (prefersReducedMotion) {
+      marqueeState.activeContent = buildMarqueeContent(frameInput);
+      marqueeState.pendingContent = marqueeState.activeContent;
+      marqueeState.marqueeOffset = layoutCenterOffset(
+        marqueeState.activeContent.text,
+      );
+    }
+
     drawBoard(context, {
       departures: frameInput.departures,
       headline: frameInput.headline,
@@ -160,6 +173,10 @@ export function DisplayBoard({
       marqueeText: marqueeState.activeContent.text,
       marqueeOffset: marqueeState.marqueeOffset,
     });
+
+    if (prefersReducedMotion) {
+      return;
+    }
 
     animationFrameId = requestAnimationFrame(renderFrame);
 
@@ -179,7 +196,7 @@ export function DisplayBoard({
   return (
     <div
       data-testid="classic-display-board"
-      className="inline-flex w-full max-w-[68rem] rounded-[2.4rem] border border-[var(--panel-border)] bg-[linear-gradient(180deg,rgba(18,24,28,0.96),rgba(6,9,12,0.98))] p-4 shadow-[inset_0_0_0_1px_rgba(255,188,85,0.08),0_28px_80px_rgba(0,0,0,0.52)] md:p-5"
+      className="w-full max-w-[68rem] rounded-[2.4rem] border border-[var(--panel-border)] bg-[linear-gradient(180deg,rgba(18,24,28,0.96),rgba(6,9,12,0.98))] p-4 shadow-[inset_0_0_0_1px_rgba(255,188,85,0.08),0_28px_80px_rgba(0,0,0,0.52)] md:p-5"
     >
       <div className="w-full rounded-[1.55rem] border border-black/70 bg-[radial-gradient(circle_at_top,rgba(255,176,84,0.06),transparent_40%),#000] p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] md:p-4">
         <canvas
@@ -251,6 +268,19 @@ function drawBoard(
       color: colors.primary,
     },
   );
+}
+
+function layoutCenterOffset(text: string) {
+  const textWidth = Math.max(
+    measureText(text, CLASSIC_BOARD_FONT_OPTIONS),
+    1,
+  );
+
+  if (textWidth >= PANEL_WIDTH) {
+    return 0;
+  }
+
+  return Math.round((PANEL_WIDTH - textWidth) / 2);
 }
 
 function drawLeadDeparture(

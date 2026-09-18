@@ -46,6 +46,7 @@ export function ConfigPage() {
   const [loadingDepartureHints, setLoadingDepartureHints] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -185,6 +186,7 @@ export function ConfigPage() {
   const selectedDisplay =
     displays.find((display) => display.id === selectedDisplayId) ?? null;
   const isCreating = selectedDisplayId === 'new';
+  const activeDisplayCount = displays.length;
   const selectedLineNumbers = draft.line_numbers;
   const lineOptions = deriveLineOptions(departureHints, draft.modes);
   const directionOptions = deriveDirectionOptions(
@@ -252,6 +254,7 @@ export function ConfigPage() {
     startTransition(() => {
       setSelectedDisplayId('new');
       setDraft(createEmptyDraft());
+      setConfirmingDelete(false);
       setStatusMessage(null);
       setErrorMessage(null);
     });
@@ -261,6 +264,7 @@ export function ConfigPage() {
     startTransition(() => {
       setSelectedDisplayId(display.id);
       setDraft(createDraftFromDisplay(display));
+      setConfirmingDelete(false);
       setStatusMessage(null);
       setErrorMessage(null);
     });
@@ -339,6 +343,7 @@ export function ConfigPage() {
       });
       setSelectedDisplayId(savedDisplay.id);
       setDraft(createDraftFromDisplay(savedDisplay));
+      setConfirmingDelete(false);
       setStatusMessage(isCreating ? 'Display created.' : 'Display updated.');
     } catch (error) {
       setErrorMessage(readErrorMessage(error));
@@ -349,6 +354,11 @@ export function ConfigPage() {
 
   async function handleDeleteDisplay() {
     if (!selectedDisplay) {
+      return;
+    }
+
+    if (!confirmingDelete) {
+      setConfirmingDelete(true);
       return;
     }
 
@@ -380,6 +390,7 @@ export function ConfigPage() {
       });
 
       setStatusMessage('Display deleted.');
+      setConfirmingDelete(false);
     } catch (error) {
       setErrorMessage(readErrorMessage(error));
     } finally {
@@ -387,10 +398,14 @@ export function ConfigPage() {
     }
   }
 
+  function handleCancelDelete() {
+    setConfirmingDelete(false);
+  }
+
   return (
     <section className="space-y-8">
       <div className="space-y-3">
-        <p className="text-xs uppercase tracking-[0.35em] text-[var(--muted-text)]">
+        <p className="text-[0.7rem] uppercase tracking-[0.22em] text-[var(--muted-text)]">
           Display config
         </p>
         <div className="space-y-3">
@@ -407,11 +422,14 @@ export function ConfigPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(21rem,24rem)_minmax(0,1fr)] xl:items-start">
         <aside className="space-y-5 rounded-[2rem] border border-[var(--panel-border)] bg-black/15 p-5">
-          <form className="space-y-4" onSubmit={handleOwnerSubmit}>
+          <form className="space-y-4" onSubmit={handleOwnerSubmit} aria-label="Load displays by owner">
             <div className="space-y-2">
+              <p className="text-[0.7rem] uppercase tracking-[0.22em] text-[var(--muted-text)]">
+                Step 1: Owner
+              </p>
               <label
                 htmlFor="owner-id"
-                className="text-xs uppercase tracking-[0.3em] text-[var(--muted-text)]"
+                className="text-[0.7rem] uppercase tracking-[0.22em] text-[var(--muted-text)]"
               >
                 Owner ID
               </label>
@@ -419,8 +437,8 @@ export function ConfigPage() {
                 id="owner-id"
                 value={ownerInput}
                 onChange={(event) => setOwnerInput(event.target.value)}
-                placeholder="aB3xZ9kQ"
-                className="w-full rounded-[1rem] border border-[var(--panel-border)] bg-black/30 px-4 py-3 text-sm text-[var(--app-text)] outline-none transition placeholder:text-[var(--muted-text)]/60 focus:border-[var(--panel-text)]"
+                placeholder="e.g. aB3xZ9kQ, 8 characters"
+                className="w-full rounded-[1rem] border border-[var(--panel-border)] bg-black/30 px-4 py-3 text-base text-[var(--app-text)] transition placeholder:text-[var(--muted-text)]/60 focus-visible:border-[var(--panel-text)] md:text-sm"
               />
             </div>
 
@@ -451,11 +469,13 @@ export function ConfigPage() {
           <div className="rounded-[1.5rem] border border-[var(--panel-border)] bg-black/20 p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
-                <p className="text-xs uppercase tracking-[0.28em] text-[var(--muted-text)]">
-                  Display inventory
+                <p className="text-[0.7rem] uppercase tracking-[0.22em] text-[var(--muted-text)]">
+                  Step 2: Pick a board
                 </p>
                 <h3 className="text-lg font-semibold text-[var(--panel-text)]">
-                  {activeOwnerId ? `Owner ${activeOwnerId}` : 'Choose an owner'}
+                  {activeDisplayCount > 0
+                    ? `${activeDisplayCount} ${activeDisplayCount === 1 ? 'board' : 'boards'}`
+                    : 'Choose an owner'}
                 </h3>
               </div>
 
@@ -527,8 +547,8 @@ export function ConfigPage() {
         <div className="space-y-5 rounded-[2rem] border border-[var(--panel-border)] bg-black/15 p-5 md:p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.3em] text-[var(--muted-text)]">
-                {isCreating ? 'New display' : 'Edit display'}
+              <p className="text-[0.7rem] uppercase tracking-[0.22em] text-[var(--muted-text)]">
+                Step 3: {isCreating ? 'Configure the board' : 'Edit the board'}
               </p>
               <h3 className="text-2xl font-semibold text-[var(--panel-text)]">
                 {isCreating
@@ -543,13 +563,19 @@ export function ConfigPage() {
           </div>
 
           {statusMessage ? (
-            <div className="rounded-[1.25rem] border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">
+            <div
+              role="status"
+              className="rounded-[1.25rem] border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100"
+            >
               {statusMessage}
             </div>
           ) : null}
 
           {errorMessage ? (
-            <div className="rounded-[1.25rem] border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100">
+            <div
+              role="alert"
+              className="rounded-[1.25rem] border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100"
+            >
               {errorMessage}
             </div>
           ) : null}
@@ -559,7 +585,7 @@ export function ConfigPage() {
               <div className="space-y-2 md:col-span-2">
                 <label
                   htmlFor="display-name"
-                  className="text-xs uppercase tracking-[0.28em] text-[var(--muted-text)]"
+                  className="text-[0.7rem] uppercase tracking-[0.22em] text-[var(--muted-text)]"
                 >
                   Display name
                 </label>
@@ -572,15 +598,15 @@ export function ConfigPage() {
                       name: event.target.value,
                     }))
                   }
-                  placeholder="Southbound platform"
-                  className="w-full rounded-[1rem] border border-[var(--panel-border)] bg-black/30 px-4 py-3 text-sm text-[var(--app-text)] outline-none transition placeholder:text-[var(--muted-text)]/60 focus:border-[var(--panel-text)]"
+                  placeholder="e.g. Southbound platform"
+                  className="w-full rounded-[1rem] border border-[var(--panel-border)] bg-black/30 px-4 py-3 text-base text-[var(--app-text)] transition placeholder:text-[var(--muted-text)]/60 focus-visible:border-[var(--panel-text)] md:text-sm"
                 />
               </div>
 
               <div className="space-y-2 md:col-span-2">
                 <label
                   htmlFor="stop-search"
-                  className="text-xs uppercase tracking-[0.28em] text-[var(--muted-text)]"
+                  className="text-[0.7rem] uppercase tracking-[0.22em] text-[var(--muted-text)]"
                 >
                   Stop search
                 </label>
@@ -590,7 +616,7 @@ export function ConfigPage() {
                   value={selectedStopValue}
                   onChange={handleStopChange}
                   isClearable
-                  placeholder="Search stop name…"
+                  placeholder="e.g. Slussen, Centralen…"
                   noOptionsMessage={({ inputValue }) =>
                     inputValue.trim().length < 2
                       ? 'Type at least 2 characters to search.'
@@ -610,7 +636,7 @@ export function ConfigPage() {
               <div className="space-y-2">
                 <label
                   htmlFor="refresh-interval"
-                  className="text-xs uppercase tracking-[0.28em] text-[var(--muted-text)]"
+                  className="text-[0.7rem] uppercase tracking-[0.22em] text-[var(--muted-text)]"
                 >
                   Refresh interval (seconds)
                 </label>
@@ -629,14 +655,14 @@ export function ConfigPage() {
                       ),
                     }))
                   }
-                  className="w-full rounded-[1rem] border border-[var(--panel-border)] bg-black/30 px-4 py-3 text-sm text-[var(--app-text)] outline-none transition focus:border-[var(--panel-text)]"
+                  className="w-full rounded-[1rem] border border-[var(--panel-border)] bg-black/30 px-4 py-3 text-base text-[var(--app-text)] transition focus-visible:border-[var(--panel-text)] md:text-sm"
                 />
               </div>
 
               <div className="space-y-2">
                 <label
                   htmlFor="line-numbers"
-                  className="text-xs uppercase tracking-[0.28em] text-[var(--muted-text)]"
+                  className="text-[0.7rem] uppercase tracking-[0.22em] text-[var(--muted-text)]"
                 >
                   Line numbers
                 </label>
@@ -647,7 +673,7 @@ export function ConfigPage() {
                   options={lineOptions}
                   value={selectedLineValues}
                   onChange={handleLineChange}
-                  placeholder="Select or type line numbers…"
+                  placeholder="e.g. 17, 18…"
                   noOptionsMessage={() =>
                     loadingDepartureHints ? 'Loading…' : lineHintEmptyMessage
                   }
@@ -663,7 +689,7 @@ export function ConfigPage() {
               <div className="space-y-2 md:col-span-2">
                 <label
                   htmlFor="directions"
-                  className="text-xs uppercase tracking-[0.28em] text-[var(--muted-text)]"
+                  className="text-[0.7rem] uppercase tracking-[0.22em] text-[var(--muted-text)]"
                 >
                   Direction filters
                 </label>
@@ -674,7 +700,7 @@ export function ConfigPage() {
                   options={directionOptions}
                   value={selectedDirectionValues}
                   onChange={handleDirectionChange}
-                  placeholder="Select or type directions…"
+                  placeholder="e.g. Hagsätra…"
                   noOptionsMessage={() =>
                     loadingDepartureHints
                       ? 'Loading…'
@@ -708,14 +734,35 @@ export function ConfigPage() {
               </button>
 
               {!isCreating ? (
-                <button
-                  type="button"
-                  onClick={handleDeleteDisplay}
-                  disabled={deleting}
-                  className="rounded-full border border-rose-400/40 px-5 py-3 text-sm font-medium text-rose-100 transition hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-45"
-                >
-                  {deleting ? 'Deleting…' : 'Delete display'}
-                </button>
+                confirmingDelete ? (
+                  <span className="inline-flex flex-wrap items-center gap-2 rounded-full border border-rose-400/40 bg-rose-500/10 px-2 py-1.5">
+                    <button
+                      type="button"
+                      onClick={handleDeleteDisplay}
+                      disabled={deleting}
+                      className="rounded-full bg-rose-400 px-4 py-1.5 text-sm font-medium text-black transition hover:bg-rose-300 disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      {deleting ? 'Deleting…' : 'Confirm delete'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelDelete}
+                      disabled={deleting}
+                      className="rounded-full border border-rose-400/40 px-4 py-1.5 text-sm font-medium text-rose-100 transition hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      Keep board
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleDeleteDisplay}
+                    disabled={deleting}
+                    className="rounded-full border border-rose-400/40 px-5 py-3 text-sm font-medium text-rose-100 transition hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-45"
+                  >
+                    Delete display
+                  </button>
+                )
               ) : null}
 
               {selectedDisplay ? (
@@ -917,7 +964,7 @@ function formatDirectionOption(
 const selectClassNames = {
   control: (state: { isFocused: boolean }) =>
     [
-      'rounded-[1rem] border bg-black/30 px-2 py-2 text-sm transition min-h-0 cursor-text',
+      'rounded-[1rem] border bg-black/30 px-2 py-2 text-base transition min-h-0 cursor-text md:text-sm',
       state.isFocused
         ? 'border-[var(--panel-text)]'
         : 'border-[var(--panel-border)]',
@@ -928,7 +975,7 @@ const selectClassNames = {
   multiValueLabel: () => 'text-xs text-[var(--panel-text)] px-2 py-0.5',
   multiValueRemove: () =>
     'text-[var(--muted-text)] hover:text-red-400 hover:bg-red-400/10 rounded-r-full px-1 transition',
-  input: () => 'text-sm text-[var(--app-text)]',
+  input: () => 'text-base text-[var(--app-text)] md:text-sm',
   placeholder: () => 'text-sm text-[var(--muted-text)]/60',
   menu: () =>
     'mt-2 rounded-[1.25rem] border border-[var(--panel-border)] bg-black/95 backdrop-blur-md shadow-xl shadow-black/40 overflow-hidden z-50',

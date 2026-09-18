@@ -50,13 +50,15 @@ const previewDepartures: DepartureRecord[] = [
 
 export function PanelPreview() {
   return (
-    <DisplayBoard
-      displayName="Landing page preview"
-      siteName="Slussen"
-      departures={previewDepartures}
-      tone="live"
-      headline="Live departures"
-      detail="The same bitmap board component powers the public display route."
-    />
+    <div className="min-w-0">
+      <DisplayBoard
+        displayName="Landing page preview"
+        siteName="Slussen"
+        departures={previewDepartures}
+        tone="live"
+        headline="Live departures"
+        detail="The same bitmap board component powers the public display route."
+      />
+    </div>
   );
 }

@@ -239,4 +239,53 @@ describe('ConfigPage', () => {
       await screen.findByRole('option', { name: /27/ }),
     ).toBeInTheDocument();
   });
+
+  it('requires confirmation before deleting a display', async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          owner_id: 'aB3xZ9kQ',
+          displays: [
+            {
+              id: 'aB3xZ9kQ-fG7mNpQr2wLt',
+              owner_id: 'aB3xZ9kQ',
+              display_id: 'fG7mNpQr2wLt',
+              name: 'Southbound platform',
+              site_id: '1011',
+              site_name: 'Slussen',
+              refresh_interval: 30,
+              line_numbers: [],
+              directions: [],
+              modes: [],
+            },
+          ],
+        }),
+      ),
+    );
+
+    render(
+      <MemoryRouter initialEntries={['/config?owner=aB3xZ9kQ']}>
+        <Routes>
+          <Route path="/config" element={<ConfigPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    expect(
+      await screen.findByRole('button', { name: /delete display/i }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /delete display/i }));
+
+    expect(
+      screen.getByRole('button', { name: /confirm delete/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /keep board/i }),
+    ).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining('/api/displays/aB3xZ9kQ-fG7mNpQr2wLt'),
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+  });
 });

@@ -10,10 +10,10 @@ export function AppLayout() {
   return (
     <div className="min-h-screen bg-[var(--app-bg)] text-[var(--app-text)]">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col gap-8 px-6 py-8 md:px-8 lg:px-10">
-        <header className="rounded-[2rem] border border-[var(--panel-border)] bg-[var(--card-bg)]/80 px-6 py-5 shadow-[0_0_0_1px_rgba(255,165,0,0.04),0_24px_64px_rgba(0,0,0,0.45)] backdrop-blur">
+        <header className="px-6 py-5 md:px-2">
           <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
             <div className="space-y-2">
-              <p className="text-xs uppercase tracking-[0.35em] text-[var(--muted-text)]">
+              <p className="text-[0.7rem] uppercase tracking-[0.22em] text-[var(--muted-text)]">
                 Stockholm display board
               </p>
               <div>
@@ -27,11 +27,12 @@ export function AppLayout() {
               </div>
             </div>
 
-            <nav className="flex flex-wrap gap-2">
+            <nav className="flex flex-wrap gap-2" aria-label="Primary">
               {navigation.map((item) => (
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  end={item.to === '/'}
                   className={({ isActive }) =>
                     [
                       'rounded-full border px-4 py-2 text-sm transition',
@@ -48,7 +49,7 @@ export function AppLayout() {
           </div>
         </header>
 
-        <main className="flex-1 rounded-[2rem] border border-[var(--panel-border)] bg-[var(--card-bg)]/72 px-6 py-6 shadow-[0_24px_64px_rgba(0,0,0,0.4)] backdrop-blur md:px-8 md:py-8">
+        <main className="flex-1 rounded-[2rem] border border-[var(--panel-border)] bg-[var(--card-bg)]/72 px-6 py-6 shadow-[0_24px_64px_rgba(0,0,0,0.4)] md:px-8 md:py-8">
           <Outlet />
         </main>
       </div>

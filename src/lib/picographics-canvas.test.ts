@@ -37,14 +37,13 @@ describe('createCanvasPicographics', () => {
     vi.restoreAllMocks();
   });
 
-  it('scales pixel and rectangle operations from logical board units using LED dots', () => {
+  it('scales pixel operations from logical board units using LED dots', () => {
     const context = createContext();
     const graphics = createCanvasPicographics(context);
 
     graphics.set_pen(255, 176, 84);
     graphics.clear();
     graphics.pixel(1, 2);
-    graphics.rectangle(2, 3, 4, 5);
 
     expect(context.fillRect).toHaveBeenNthCalledWith(
       1,
@@ -60,7 +59,22 @@ describe('createCanvasPicographics', () => {
       0,
       Math.PI * 2,
     );
-    expect(context.arc).toHaveBeenCalledTimes(21);
+    expect(context.arc).toHaveBeenCalledTimes(1);
+  });
+
+  it('fills rectangles in a single canvas call', () => {
+    const context = createContext();
+    const graphics = createCanvasPicographics(context);
+
+    graphics.set_pen(255, 176, 84);
+    graphics.rectangle(2, 3, 4, 5);
+
+    expect(context.fillRect).toHaveBeenCalledWith(
+      2 * DIODE_SCALE,
+      3 * DIODE_SCALE,
+      4 * DIODE_SCALE,
+      5 * DIODE_SCALE,
+    );
   });
 
   it('delegates text drawing to the bitmap renderer with scaled coordinates', () => {

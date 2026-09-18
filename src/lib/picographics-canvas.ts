@@ -27,7 +27,8 @@ export function createCanvasPicographics(
   options: { fontOptions?: BoardFontOptions } = {},
 ): PicographicsCanvas {
   const fontOptions = options.fontOptions ?? CLASSIC_BOARD_FONT_OPTIONS;
-  const textRenderOptions = { ...fontOptions, scale: DIODE_SCALE };
+  const fontScale = fontOptions.scale ?? DIODE_SCALE;
+  const textRenderOptions = { ...fontOptions };
   const measureOptions = { ...fontOptions, scale: 1 };
   let currentPen = '#ffb347';
 
@@ -52,17 +53,17 @@ export function createCanvasPicographics(
 
     pixel(x, y) {
       applyPen();
-      drawPixel(context, Math.round(x * DIODE_SCALE), Math.round(y * DIODE_SCALE), DIODE_SCALE);
+      drawPixel(context, Math.round(x * fontScale), Math.round(y * fontScale), fontScale);
     },
 
     rectangle(x, y, width, height) {
       applyPen();
       drawRectangle(
         context,
-        Math.round(x),
-        Math.round(y),
-        Math.max(0, Math.round(width)),
-        Math.max(0, Math.round(height)),
+        Math.round(x * fontScale),
+        Math.round(y * fontScale),
+        Math.max(0, Math.round(width * fontScale)),
+        Math.max(0, Math.round(height * fontScale)),
       );
     },
 
@@ -73,13 +74,13 @@ export function createCanvasPicographics(
         renderTextLine(
           context,
           value,
-          Math.round(x * DIODE_SCALE),
-          Math.round(y * DIODE_SCALE),
-          Math.max(0, Math.round(maxWidth * DIODE_SCALE)),
+          Math.round(x * fontScale),
+          Math.round(y * fontScale),
+          Math.max(0, Math.round(maxWidth * fontScale)),
           { ...textRenderOptions, color: currentPen },
         );
       } else {
-        renderText(context, value, Math.round(x * DIODE_SCALE), Math.round(y * DIODE_SCALE), {
+        renderText(context, value, Math.round(x * fontScale), Math.round(y * fontScale), {
           ...textRenderOptions,
           color: currentPen,
         });
@@ -107,16 +108,7 @@ function drawRectangle(
   width: number,
   height: number,
 ) {
-  for (let row = 0; row < height; row += 1) {
-    for (let col = 0; col < width; col += 1) {
-      drawPixel(
-        context,
-        Math.round((x + col) * DIODE_SCALE),
-        Math.round((y + row) * DIODE_SCALE),
-        DIODE_SCALE,
-      );
-    }
-  }
+  context.fillRect(x, y, width, height);
 }
 
 function normalizeColor(redOrColor: string | number, green?: number, blue?: number) {

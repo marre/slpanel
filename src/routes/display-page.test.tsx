@@ -192,12 +192,10 @@ describe('DisplayPage', () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText(/2-row layout is fixed/i)).toBeInTheDocument();
     expect(
-      screen.getByText(
-        /4 empty pixels above, between, and below the two rows/i,
-      ),
+      screen.getByText(/next departure on the top row/i),
     ).toBeInTheDocument();
+    expect(screen.getByTestId('board-status')).toHaveTextContent(/live/i);
   });
 
   it('defaults to the classic renderer and can switch to the interstate preview', async () => {

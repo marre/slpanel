@@ -230,6 +230,29 @@ describe('DisplayBoard', () => {
     expect(marqueeCall?.[4]).toMatchObject({ color: '#ffbe64' });
   });
 
+  it('renders a still frame when reduced motion is preferred', () => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
+
+    render(
+      <DisplayBoard
+        displayName="Southbound platform"
+        siteName="Slussen"
+        departures={[
+          createDeparture('17', 'Hagsätra', '1 min', 1),
+          createDeparture('18', 'Farsta strand', '4 min', 4),
+        ]}
+        tone="live"
+        headline="Live departures"
+        detail="Board is running"
+      />,
+    );
+
+    expect(renderTextMock).toHaveBeenCalled();
+    expect(animationFrameCallback).toBeNull();
+
+    vi.unstubAllGlobals();
+  });
+
   it('uses 4 pixels of spacing above, between, and below the two rows', () => {
     render(
       <DisplayBoard
