@@ -29,8 +29,11 @@ class PicoGraphics:
     def clear(self):
         self.commands.append(["clear"])
 
-    def pixel(self, x, y):
-        self.commands.append(["pixel", x, y])
+    def pixel(self, x, y, width=1):
+        if width == 1:
+            self.commands.append(["pixel", x, y])
+        else:
+            self.commands.append(["rectangle", x, y, width, 1])
 
     def rectangle(self, x, y, width, height):
         self.commands.append(["rectangle", x, y, width, height])

@@ -256,6 +256,8 @@ export async function createPicographicsBoard(
 
   const graphics = createCanvasPicographics(context);
   let cachedFrameInputJson: string | null = null;
+  let lastFrameInputJson: string | null = null;
+  let lastCommandsJson: string | null = null;
 
   const executeCommand = (operation: string, invoke: () => void): string => {
     api.result = null;
@@ -320,12 +322,22 @@ export async function createPicographicsBoard(
     setFrameInput,
 
     drawFrame: async (_canvas, frameInputJson) => {
+      // Skip the Python round-trip when nothing changed: replaying the
+      // previous frame's commands is a no-op visually but keeps the
+      // canvas content (browser clears are explicit).
+      if (frameInputJson === lastFrameInputJson && lastCommandsJson) {
+        replayCommands(lastCommandsJson);
+        return;
+      }
+
       setFrameInput(frameInputJson);
 
       const commandsJson = executeCommand('drawBoardCommandsJson', () => {
         api.drawBoardCommandsJson(frameInputJson);
       });
 
+      lastFrameInputJson = frameInputJson;
+      lastCommandsJson = commandsJson;
       replayCommands(commandsJson);
     },
 
@@ -339,6 +351,8 @@ export async function createPicographicsBoard(
         },
       );
 
+      lastFrameInputJson = frameInputJson;
+      lastCommandsJson = commandsJson;
       replayCommands(commandsJson);
     },
 

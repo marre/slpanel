@@ -1,7 +1,8 @@
 """Measure and blit SL bitmap text with a PicoGraphics-compatible graphics.
 
-Port of src/font/sl-font-renderer.ts measure/render. No graphics.text()
-calls: every lit font pixel becomes graphics.rectangle() horizontal runs.
+Port of src/font/sl-font-renderer.ts measure/render. Lit font pixels are
+emitted as one graphics.pixel() call per horizontal lit run
+(pixel(x0, y, run_length)) so the command count tracks lit runs, not dots.
 """
 
 from sl_font import GAP, UNKNOWN_ADVANCE, get_glyph, glyph_width
@@ -42,6 +43,7 @@ def draw_text(graphics, value, x, y, max_width=None, gap=GAP):
 def _blit_glyph(graphics, glyph, width, x, y):
     rows = glyph[1:]
     mask_base = 0x80
+    pixel = graphics.pixel
 
     for dy in range(len(rows)):
         row = rows[dy]
@@ -52,8 +54,8 @@ def _blit_glyph(graphics, glyph, width, x, y):
                 if run_start < 0:
                     run_start = dx
             elif run_start >= 0:
-                graphics.rectangle(x + run_start, y + dy, dx - run_start, 1)
+                pixel(x + run_start, y + dy, dx - run_start)
                 run_start = -1
 
         if run_start >= 0:
-            graphics.rectangle(x + run_start, y + dy, width - run_start, 1)
+            pixel(x + run_start, y + dy, width - run_start)

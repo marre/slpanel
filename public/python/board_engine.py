@@ -2,9 +2,10 @@
 
 This module renders with the checked-in SL bitmap font
 (``sl_font.py``, generated from ``src/font/sl-font.ts``) blitted through
-``sl_text.py``. No font install needed on the target: text becomes
-``graphics.pixel()``/``graphics.rectangle()`` calls, so any
-PicoGraphics-compatible display works, including the Interstate 75 W.
+``sl_text.py``. No font install needed on the target: text becomes one
+``graphics.pixel(x, y, run_length)`` call per horizontal lit run, so any
+PicoGraphics-compatible display works, including the Interstate 75 W
+(implement the width span as an inline loop on device).
 
 In the browser bridge, ``picographics`` is a compatibility shim; on device,
 it is the real hardware implementation.
@@ -22,7 +23,9 @@ Integration contracts:
     - create_pen(red, green, blue) -> pen
     - set_pen(pen)
     - clear()
-    - pixel(x, y)
+    - pixel(x, y, width=1): one call per horizontal lit run; width=1
+      draws a single dot. (The browser shim records width>1 as a
+      rectangle command; on device, implement the span inline.)
     - rectangle(x, y, width, height)
     - update()
     - optional: commands (list) for recorded-command environments.
