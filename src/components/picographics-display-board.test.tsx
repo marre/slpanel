@@ -78,7 +78,7 @@ describe('PicographicsDisplayBoard', () => {
     expect(disposeMock).not.toHaveBeenCalled();
   });
 
-  it('syncs real bitmap text widths for the board layout', async () => {
+  it('sends only the frame input to the board (no measurements sync)', async () => {
     const drawFrameMock = vi.fn().mockResolvedValue(undefined);
     const disposeMock = vi.fn();
 
@@ -128,15 +128,18 @@ describe('PicographicsDisplayBoard', () => {
       expect(drawFrameMock).toHaveBeenCalled();
     });
 
-    const measurementsJson = drawFrameMock.mock.calls[0]?.[2] as string;
-    const measurements = JSON.parse(measurementsJson) as Record<
-      string,
-      number
-    >;
+    expect(drawFrameMock.mock.calls[0]).toHaveLength(2);
+    const frameInput = JSON.parse(drawFrameMock.mock.calls[0]?.[1] as string) as {
+      departures: DepartureRecord[];
+      tone: string;
+      headline: string;
+      detail: string;
+    };
 
-    expect(measurements['17']).toBeGreaterThan(0);
-    expect(measurements['Hagsätra']).toBeGreaterThan(measurements['17']);
-    expect(measurements['1 min']).toBeGreaterThan(0);
+    expect(frameInput.tone).toBe('live');
+    expect(frameInput.headline).toBe('Live departures');
+    expect(frameInput.detail).toBe('Board is running');
+    expect(frameInput.departures).toHaveLength(2);
   });
 
   it('shows error state when initialization fails', async () => {

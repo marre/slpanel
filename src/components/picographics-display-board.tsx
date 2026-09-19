@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 
-import type { DepartureRecord } from '@/api/types';
 import {
   buildAccessibleSummary,
   type DisplayBoardProps,
@@ -8,7 +7,6 @@ import {
   PANEL_WIDTH,
   slugify,
 } from '@/components/display-board-shared';
-import { measureText } from '@/font/sl-font-renderer';
 import {
   createPicographicsBoard,
   type PicographicsBoard,
@@ -57,33 +55,16 @@ export function PicographicsDisplayBoard({
             detail,
           });
 
-        const buildMeasurements = () => {
-          const m: Record<string, number> = {};
-
-          for (const candidate of collectMeasurableStrings(
-            departures,
-            tone,
-            headline,
-            detail,
-          )) {
-            m[candidate] = measureLogicalWidth(candidate);
-          }
-
-          return JSON.stringify(m);
-        };
-
         const renderLoop = () => {
           if (disposed || !boardRef.current) return;
 
-          board
-            .advanceFrame(canvas, buildFrameJson(), buildMeasurements(), 1 / 60)
-            .catch(() => {});
+          board.advanceFrame(canvas, buildFrameJson(), 1 / 60).catch(() => {});
 
           animationId = requestAnimationFrame(renderLoop);
         };
 
         board
-          .drawFrame(canvas, buildFrameJson(), buildMeasurements())
+          .drawFrame(canvas, buildFrameJson())
           .then(() => {
             if (disposed) {
               return;
@@ -131,20 +112,7 @@ export function PicographicsDisplayBoard({
       detail,
     });
 
-    const measurements: Record<string, number> = {};
-
-    for (const candidate of collectMeasurableStrings(
-      departures,
-      tone,
-      headline,
-      detail,
-    )) {
-      measurements[candidate] = measureLogicalWidth(candidate);
-    }
-
-    boardRef.current
-      .drawFrame(canvasRef.current, frameInputJson, JSON.stringify(measurements))
-      .catch(() => {});
+    boardRef.current.drawFrame(canvasRef.current, frameInputJson).catch(() => {});
   }, [departures, tone, headline, detail, ready]);
 
   const accessibleSummary = buildAccessibleSummary({
@@ -197,59 +165,4 @@ export function PicographicsDisplayBoard({
       </div>
     </div>
   );
-}
-
-function formatCompactDeparture(departure: DepartureRecord) {
-  return (
-    `${departure.line_number} ${departure.destination} ${departure.display_time}`.trim()
-  );
-}
-
-function buildMarqueeText(
-  departures: DepartureRecord[],
-  tone: DisplayBoardProps['tone'],
-  headline: string,
-  detail: string,
-) {
-  if (tone === 'live' && departures.length > 0) {
-    return (
-      departures.slice(1, 4).map(formatCompactDeparture).join('     ') ||
-      'No later departures'
-    );
-  }
-
-  return [headline ?? '', detail].filter(Boolean).join('     ');
-}
-
-function collectMeasurableStrings(
-  departures: DepartureRecord[],
-  tone: DisplayBoardProps['tone'],
-  headline: string,
-  detail: string,
-) {
-  const candidates = new Set<string>();
-
-  if (tone === 'live' && departures.length > 0) {
-    const lead = departures[0];
-
-    candidates.add(lead.line_number || '--');
-    candidates.add(lead.destination || 'Unknown');
-    candidates.add(lead.display_time || 'Now');
-
-    for (const departure of departures.slice(0, 4)) {
-      candidates.add(formatCompactDeparture(departure));
-    }
-  }
-
-  const marquee = buildMarqueeText(departures, tone, headline, detail);
-
-  if (marquee) candidates.add(marquee);
-  if (headline) candidates.add(headline);
-  if (detail) candidates.add(detail);
-
-  return [...candidates].filter(Boolean);
-}
-
-function measureLogicalWidth(value: string) {
-  return measureText(value, { gap: 1, scale: 1 });
 }

@@ -8,28 +8,18 @@ declare global {
     __slpanelPicographicsApi?: {
       result: string | null;
       setFrameInputJson: (json: string) => void;
-      setMeasurementsJson: (json: string) => void;
       advanceAndDrawCurrentFrameJson: (deltaSeconds: number) => void;
-      drawBoardCommandsJson: (
-        frameInputJson: string,
-        measurementsJson: string,
-      ) => void;
+      drawBoardCommandsJson: (frameInputJson: string) => void;
     };
   }
 }
 
 export interface PicographicsBoard {
   setFrameInput(json: string): void;
-  setMeasurements(json: string): void;
-  drawFrame(
-    canvas: HTMLCanvasElement,
-    frameInputJson: string,
-    measurementsJson: string,
-  ): Promise<void>;
+  drawFrame(canvas: HTMLCanvasElement, frameInputJson: string): Promise<void>;
   advanceFrame(
     canvas: HTMLCanvasElement,
     frameInputJson: string,
-    measurementsJson: string,
     deltaSeconds: number,
   ): Promise<void>;
   dispose(): void;
@@ -113,11 +103,14 @@ export async function createPicographicsBoard(
 
   await ensurePyScriptAssets();
 
-  const [picographicsSource, engineSource, bridgeSource] = await Promise.all([
-    loadPythonSource(localFetch, '/python/picographics.py'),
-    loadPythonSource(localFetch, '/python/board_engine.py'),
-    loadPythonSource(localFetch, '/python/picographics_bridge.py'),
-  ]);
+  const [picographicsSource, fontSource, textSource, engineSource, bridgeSource] =
+    await Promise.all([
+      loadPythonSource(localFetch, '/python/picographics.py'),
+      loadPythonSource(localFetch, '/python/sl_font.py'),
+      loadPythonSource(localFetch, '/python/sl_text.py'),
+      loadPythonSource(localFetch, '/python/board_engine.py'),
+      loadPythonSource(localFetch, '/python/picographics_bridge.py'),
+    ]);
 
   // Wait for MicroPython interpreter and mpy-script custom element
   const coreModule = await import(/* @vite-ignore */ PYSCRIPT_JS) as {
@@ -171,6 +164,8 @@ export async function createPicographicsBoard(
     '        setattr(mod, k, v)',
     '    sys.modules[name] = mod',
     '',
+    `_register_module("sl_font", ${JSON.stringify(fontSource)})`,
+    `_register_module("sl_text", ${JSON.stringify(textSource)})`,
     `_register_module("picographics", ${JSON.stringify(picographicsSource)})`,
     `_register_module("board_engine", ${JSON.stringify(engineSource)})`,
     '',
@@ -186,17 +181,13 @@ export async function createPicographicsBoard(
     'def _set_frame_input_json(json):',
     '    set_frame_input_json(json)',
     '',
-    'def _set_measurements_json(json="{}"):',
-    '    set_measurements_json(json)',
-    '',
-    'def _draw_board_commands_json(frame_input_json, measurements_json="{}"):',
-    '    _api.result = draw_board_commands_json(frame_input_json, measurements_json)',
+    'def _draw_board_commands_json(frame_input_json):',
+    '    _api.result = draw_board_commands_json(frame_input_json)',
     '',
     'def _advance_and_draw_current_frame_json(delta_seconds):',
     '    _api.result = advance_and_draw_current_frame_json(delta_seconds)',
     '',
     '_api.setFrameInputJson = create_proxy(_set_frame_input_json)',
-    '_api.setMeasurementsJson = create_proxy(_set_measurements_json)',
     '_api.drawBoardCommandsJson = create_proxy(_draw_board_commands_json)',
     '_api.advanceAndDrawCurrentFrameJson = create_proxy(_advance_and_draw_current_frame_json)',
     `window.${apiProperty} = _api`,
@@ -265,7 +256,6 @@ export async function createPicographicsBoard(
 
   const graphics = createCanvasPicographics(context);
   let cachedFrameInputJson: string | null = null;
-  let cachedMeasurementsJson = '{}';
 
   const executeCommand = (operation: string, invoke: () => void): string => {
     api.result = null;
@@ -326,36 +316,21 @@ export async function createPicographicsBoard(
     }
   };
 
-  const setMeasurements = (json: string) => {
-    if (json !== cachedMeasurementsJson) {
-      cachedMeasurementsJson = json;
-      api.setMeasurementsJson(json);
-    }
-  };
-
   const board: PicographicsBoard = {
     setFrameInput,
-    setMeasurements,
 
-    drawFrame: async (_canvas, frameInputJson, measurementsJson) => {
+    drawFrame: async (_canvas, frameInputJson) => {
       setFrameInput(frameInputJson);
-      setMeasurements(measurementsJson);
 
       const commandsJson = executeCommand('drawBoardCommandsJson', () => {
-        api.drawBoardCommandsJson(frameInputJson, measurementsJson);
+        api.drawBoardCommandsJson(frameInputJson);
       });
 
       replayCommands(commandsJson);
     },
 
-    advanceFrame: async (
-      _canvas,
-      frameInputJson,
-      measurementsJson,
-      deltaSeconds,
-    ) => {
+    advanceFrame: async (_canvas, frameInputJson, deltaSeconds) => {
       setFrameInput(frameInputJson);
-      setMeasurements(measurementsJson);
 
       const commandsJson = executeCommand(
         'advanceAndDrawCurrentFrameJson',

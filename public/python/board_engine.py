@@ -1,8 +1,13 @@
 """Device-agnostic board engine for SL panel rendering.
 
-This module imports ``PicoGraphics`` from the ``picographics`` module. In the
-browser bridge, that module is a compatibility shim; on device, it is the real
-hardware implementation.
+This module renders with the checked-in SL bitmap font
+(``sl_font.py``, generated from ``src/font/sl-font.ts``) blitted through
+``sl_text.py``. No font install needed on the target: text becomes
+``graphics.pixel()``/``graphics.rectangle()`` calls, so any
+PicoGraphics-compatible display works, including the Interstate 75 W.
+
+In the browser bridge, ``picographics`` is a compatibility shim; on device,
+it is the real hardware implementation.
 
 Integration contracts:
 1. Backend input contract (`frame_input` dict):
@@ -17,8 +22,8 @@ Integration contracts:
     - create_pen(red, green, blue) -> pen
     - set_pen(pen)
     - clear()
-    - text(value, x, y, max_width?)
-    - measure_text(value) -> int
+    - pixel(x, y)
+    - rectangle(x, y, width, height)
     - update()
     - optional: commands (list) for recorded-command environments.
 3. Timer contract:
@@ -29,6 +34,8 @@ and a real ``PicoGraphics`` instance.
 """
 
 from picographics import PicoGraphics
+
+from sl_text import draw_text, measure_text
 
 
 
@@ -84,13 +91,12 @@ class FrameTimer:
 class BoardEngine:
     """Stateful board engine independent of transport and runtime.
 
-    The engine owns mutable frame input, text measurements, and marquee state.
-    Rendering targets the PicoGraphics method contract.
+    The engine owns mutable frame input and marquee state. Text measurement
+    is local (``sl_text``); rendering targets the pixel graphics contract.
     """
 
     def __init__(self):
         self.frame_input = {}
-        self.measurements = {}
         self.marquee_state = None
         self.board_key = None
 
@@ -120,7 +126,9 @@ class BoardEngine:
         self.board_key = None
 
     def set_measurements(self, measurements):
-        self.measurements = measurements or {}
+        # Deprecated no-op: text measurement is local (sl_text) since the
+        # pixel-blit switch. Kept so old callers don't crash.
+        pass
 
     def apply_backend_input(self, provider):
         self.set_frame_input(provider.get_frame_input())
@@ -141,7 +149,6 @@ class BoardEngine:
         safe_delta_seconds = max(0.0, float(delta_seconds))
         marquee_state = self._ensure_marquee_state()
         next_state = _advance_marquee_state(
-            graphics,
             marquee_state,
             self.frame_input,
             safe_delta_seconds,
@@ -174,7 +181,7 @@ def _build_board_key(frame_input):
     return f"{frame_input.get('display_name', '')}::{frame_input.get('site_name', '')}"
 
 
-def _advance_marquee_state(graphics, marquee_state, frame_input, delta_seconds):
+def _advance_marquee_state(marquee_state, frame_input, delta_seconds):
     """Advance marquee position and content selection by delta seconds."""
 
     previous_offset = marquee_state.get("marquee_offset", LOGICAL_PANEL_WIDTH)
@@ -193,7 +200,7 @@ def _advance_marquee_state(graphics, marquee_state, frame_input, delta_seconds):
         active_content = pending_content
         marquee_state["marquee_offset"] = LOGICAL_PANEL_WIDTH
 
-    marquee_width = max(graphics.measure_text(active_content.get("text", "")), 1)
+    marquee_width = max(measure_text(active_content.get("text", "")), 1)
     marquee_state["marquee_offset"] -= delta_seconds * MARQUEE_SPEED
 
     reset_threshold = -(marquee_width + LOGICAL_PANEL_WIDTH)
@@ -223,15 +230,17 @@ def _draw_board(graphics, frame_input, marquee_state):
         _draw_lead_departure(graphics, departures[0], primary_pen)
     else:
         graphics.set_pen(primary_pen)
-        graphics.text(
+        draw_text(
+            graphics,
             frame_input.get("headline", ""),
             PANEL_PADDING,
             ROW_ONE_Y,
-            wordwrap=LOGICAL_PANEL_WIDTH - PANEL_PADDING * 2,
+            max_width=LOGICAL_PANEL_WIDTH - PANEL_PADDING * 2,
         )
 
     graphics.set_pen(primary_pen)
-    graphics.text(
+    draw_text(
+        graphics,
         marquee_state.get("active_content", {}).get("text", ""),
         round(marquee_state.get("marquee_offset", LOGICAL_PANEL_WIDTH)),
         ROW_TWO_Y,
@@ -243,16 +252,16 @@ def _draw_lead_departure(graphics, departure, pen):
     line_number = departure.get("line_number") or "--"
     destination = departure.get("destination") or "Unknown"
     display_time = departure.get("display_time") or "Now"
-    line_width = graphics.measure_text(line_number)
-    time_width = graphics.measure_text(display_time)
+    line_width = measure_text(line_number)
+    time_width = measure_text(display_time)
     time_x = LOGICAL_PANEL_WIDTH - time_width - PANEL_PADDING
     destination_x = line_width + LEAD_DEPARTURE_GAP
     destination_width = max(0, time_x - destination_x - PANEL_PADDING)
 
     graphics.set_pen(pen)
-    graphics.text(line_number, PANEL_PADDING, ROW_ONE_Y)
-    graphics.text(destination, destination_x, ROW_ONE_Y, wordwrap=destination_width)
-    graphics.text(display_time, time_x, ROW_ONE_Y)
+    draw_text(graphics, line_number, PANEL_PADDING, ROW_ONE_Y)
+    draw_text(graphics, destination, destination_x, ROW_ONE_Y, max_width=destination_width)
+    draw_text(graphics, display_time, time_x, ROW_ONE_Y)
 
 
 def build_marquee_content(departures, tone, headline, detail):

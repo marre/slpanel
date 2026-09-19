@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: ['coverage', 'dist', 'node_modules', '.wrangler'],
+    ignores: ['coverage', 'dist', 'node_modules', '.wrangler', 'public'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -31,6 +31,16 @@ export default tseslint.config(
         'warn',
         { allowConstantExport: true },
       ],
+    },
+  },
+  {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      ecmaVersion: 2023,
+      sourceType: 'module',
+      globals: {
+        ...globals.node,
+      },
     },
   },
 );

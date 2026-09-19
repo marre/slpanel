@@ -1,23 +1,22 @@
+from sl_text import measure_text as _local_measure_text
+
+
 class PicoGraphics:
     """PicoGraphics-compatible fake for browser bridge/testing.
 
-    Accepts arbitrary constructor args/kwargs so call sites can look like
-    device code while still supporting optional text measurement injection.
+    Text measurement is local (sl_text) so the browser preview matches the
+    device pixel path. Accepts arbitrary constructor args/kwargs so call
+    sites can look like device code.
     """
 
-    def __init__(self, *args, measurements=None, **kwargs):
-        inferred_measurements = measurements
-
-        if inferred_measurements is None and args and isinstance(args[0], dict):
-            inferred_measurements = args[0]
-
-        self.measurements = inferred_measurements or {}
+    def __init__(self, *args, **kwargs):
         self.commands = []
         self._init_args = args
         self._init_kwargs = kwargs
 
     def set_measurements(self, measurements):
-        self.measurements = measurements or {}
+        # Deprecated no-op: measurement is local since the pixel-blit switch.
+        pass
 
     # PicoGraphics-style pen creation. The fake returns CSS hex values so the
     # TypeScript bridge can replay commands on the canvas implementation.
@@ -55,13 +54,7 @@ class PicoGraphics:
         self.commands.append(command)
 
     def measure_text(self, value, scale=1, spacing=0, fixed_width=False):
-        if value in self.measurements:
-            measured = int(self.measurements.get(value, 0))
-        else:
-            # Approximate glyph width when explicit measurement was not synced
-            # from the host canvas. This keeps marquee wrap behavior stable
-            # without requiring per-frame marquee state on the JS side.
-            measured = max(0, len(str(value))) * 4
+        measured = _local_measure_text(str(value))
         safe_scale = max(1, int(round(scale)))
 
         return measured * safe_scale
