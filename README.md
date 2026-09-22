@@ -37,7 +37,8 @@ The Vite dev server proxies `/api/*` requests to the Worker.
 
 ## Available scripts
 
-- `npm run dev` starts the frontend and Worker together
+- `npm run dev` starts the frontend, Worker, and a watcher that copies updated
+  `public/wasm/slpanel_preview.wasm` files into the Worker asset directory
 - `npm run build` typechecks the app and builds both frontend and worker output
 - `npm run test` runs the Vitest suite
 - `npm run lint` runs ESLint
