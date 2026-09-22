@@ -2,17 +2,17 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { DepartureRecord } from '@/api/types';
-import { PicographicsDisplayBoard } from '@/components/picographics-display-board';
+import { Interstate75DisplayBoard } from '@/components/interstate75-display-board';
 
-const { createPicographicsBoardMock } = vi.hoisted(() => ({
-  createPicographicsBoardMock: vi.fn(),
+const { createWasmBoardMock } = vi.hoisted(() => ({
+  createWasmBoardMock: vi.fn(),
 }));
 
-vi.mock('@/lib/picographics-bridge', () => ({
-  createPicographicsBoard: createPicographicsBoardMock,
+vi.mock('@/lib/wasm-renderer', () => ({
+  createWasmBoard: createWasmBoardMock,
 }));
 
-describe('PicographicsDisplayBoard', () => {
+describe('Interstate75DisplayBoard', () => {
   beforeEach(() => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
       arc: vi.fn(),
@@ -29,10 +29,10 @@ describe('PicographicsDisplayBoard', () => {
   });
 
   it('shows loading state while the board initializes', () => {
-    createPicographicsBoardMock.mockReturnValue(new Promise(() => undefined));
+    createWasmBoardMock.mockReturnValue(new Promise(() => undefined));
 
     render(
-      <PicographicsDisplayBoard
+      <Interstate75DisplayBoard
         displayName="Demo board"
         siteName="Slussen"
         departures={[]}
@@ -42,7 +42,7 @@ describe('PicographicsDisplayBoard', () => {
       />,
     );
 
-    expect(screen.getByTestId('picographics-runtime-status')).toHaveTextContent(
+    expect(screen.getByTestId('interstate75-runtime-status')).toHaveTextContent(
       /initializing/i,
     );
   });
@@ -51,14 +51,14 @@ describe('PicographicsDisplayBoard', () => {
     const drawFrameMock = vi.fn().mockResolvedValue(undefined);
     const disposeMock = vi.fn();
 
-    createPicographicsBoardMock.mockResolvedValue({
+    createWasmBoardMock.mockResolvedValue({
       drawFrame: drawFrameMock,
       advanceFrame: vi.fn().mockResolvedValue(undefined),
       dispose: disposeMock,
     });
 
     render(
-      <PicographicsDisplayBoard
+      <Interstate75DisplayBoard
         displayName="Demo board"
         siteName="Slussen"
         departures={[]}
@@ -69,20 +69,20 @@ describe('PicographicsDisplayBoard', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('picographics-runtime-status')).toHaveTextContent(
-        /picographics preview/i,
-      );
+      expect(
+        screen.getByTestId('interstate75-runtime-status'),
+      ).toHaveTextContent(/interstate 75 preview/i);
     });
 
     expect(drawFrameMock).toHaveBeenCalled();
     expect(disposeMock).not.toHaveBeenCalled();
   });
 
-  it('syncs real bitmap text widths for the board layout', async () => {
+  it('passes the complete frame input to the Rust renderer', async () => {
     const drawFrameMock = vi.fn().mockResolvedValue(undefined);
     const disposeMock = vi.fn();
 
-    createPicographicsBoardMock.mockResolvedValue({
+    createWasmBoardMock.mockResolvedValue({
       drawFrame: drawFrameMock,
       advanceFrame: vi.fn().mockResolvedValue(undefined),
       dispose: disposeMock,
@@ -114,7 +114,7 @@ describe('PicographicsDisplayBoard', () => {
     ];
 
     render(
-      <PicographicsDisplayBoard
+      <Interstate75DisplayBoard
         displayName="Demo board"
         siteName="Slussen"
         departures={departures}
@@ -128,22 +128,21 @@ describe('PicographicsDisplayBoard', () => {
       expect(drawFrameMock).toHaveBeenCalled();
     });
 
-    const measurementsJson = drawFrameMock.mock.calls[0]?.[2] as string;
-    const measurements = JSON.parse(measurementsJson) as Record<
-      string,
-      number
-    >;
+    const frameInputJson = drawFrameMock.mock.calls[0]?.[1] as string;
+    const frameInput = JSON.parse(frameInputJson) as {
+      tone: string;
+      departures: DepartureRecord[];
+    };
 
-    expect(measurements['17']).toBeGreaterThan(0);
-    expect(measurements['Hagsätra']).toBeGreaterThan(measurements['17']);
-    expect(measurements['1 min']).toBeGreaterThan(0);
+    expect(frameInput.tone).toBe('live');
+    expect(frameInput.departures).toEqual(departures);
   });
 
   it('shows error state when initialization fails', async () => {
-    createPicographicsBoardMock.mockRejectedValue(new Error('bootstrap failed'));
+    createWasmBoardMock.mockRejectedValue(new Error('bootstrap failed'));
 
     render(
-      <PicographicsDisplayBoard
+      <Interstate75DisplayBoard
         displayName="Demo board"
         siteName="Slussen"
         departures={[]}
@@ -154,23 +153,23 @@ describe('PicographicsDisplayBoard', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('picographics-runtime-status')).toHaveTextContent(
-        /unavailable/i,
-      );
+      expect(
+        screen.getByTestId('interstate75-runtime-status'),
+      ).toHaveTextContent(/unavailable/i);
     });
   });
 
   it('disposes the board on unmount', async () => {
     const disposeMock = vi.fn();
 
-    createPicographicsBoardMock.mockResolvedValue({
+    createWasmBoardMock.mockResolvedValue({
       drawFrame: vi.fn().mockResolvedValue(undefined),
       advanceFrame: vi.fn().mockResolvedValue(undefined),
       dispose: disposeMock,
     });
 
     const { unmount } = render(
-      <PicographicsDisplayBoard
+      <Interstate75DisplayBoard
         displayName="Demo board"
         siteName="Slussen"
         departures={[]}
@@ -181,9 +180,9 @@ describe('PicographicsDisplayBoard', () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId('picographics-runtime-status')).toHaveTextContent(
-        /picographics preview/i,
-      );
+      expect(
+        screen.getByTestId('interstate75-runtime-status'),
+      ).toHaveTextContent(/interstate 75 preview/i);
     });
 
     unmount();

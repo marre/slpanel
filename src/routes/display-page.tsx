@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 
 import type { DepartureRecord, DisplayRecord } from '@/api/types';
 import { DisplayBoard } from '@/components/display-board';
-import { PicographicsDisplayBoard } from '@/components/picographics-display-board';
+import { Interstate75DisplayBoard } from '@/components/interstate75-display-board';
 import { ConfigApiError, getDisplay, listDepartures } from '@/lib/config-api';
 
 const DEPARTURES_FORECAST_MINUTES = 240;
@@ -249,7 +249,7 @@ export function DisplayPage() {
 
   const boardElement =
     activeRenderer === 'interstate75' ? (
-      <PicographicsDisplayBoard
+      <Interstate75DisplayBoard
         displayName={displayName}
         siteName={activeDisplay?.site_name ?? null}
         departures={activeDepartures}

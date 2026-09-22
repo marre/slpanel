@@ -223,9 +223,9 @@ describe('DisplayPage', () => {
     expect(classicButton).toHaveAttribute('aria-pressed', 'false');
     expect(previewButton).toHaveAttribute('aria-pressed', 'true');
     expect(
-      screen.getByTestId('picographics-display-board'),
+      screen.getByTestId('interstate75-display-board'),
     ).toBeInTheDocument();
-    expect(screen.getByTestId('picographics-runtime-status')).toHaveTextContent(
+    expect(screen.getByTestId('interstate75-runtime-status')).toHaveTextContent(
       /initializing/i,
     );
   });
@@ -245,7 +245,7 @@ describe('DisplayPage', () => {
       screen.getByRole('button', { name: /interstate 75 w preview/i }),
     ).toHaveAttribute('aria-pressed', 'true');
     expect(
-      screen.getByTestId('picographics-display-board'),
+      screen.getByTestId('interstate75-display-board'),
     ).toBeInTheDocument();
     expect(
       screen.queryByTestId('classic-display-board'),

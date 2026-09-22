@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 
-import type { DepartureRecord } from '@/api/types';
 import {
   buildAccessibleSummary,
   type DisplayBoardProps,
@@ -8,13 +7,9 @@ import {
   PANEL_WIDTH,
   slugify,
 } from '@/components/display-board-shared';
-import { measureText } from '@/font/sl-font-renderer';
-import {
-  createPicographicsBoard,
-  type PicographicsBoard,
-} from '@/lib/picographics-bridge';
+import { createWasmBoard, type WasmBoard } from '@/lib/wasm-renderer';
 
-export function PicographicsDisplayBoard({
+export function Interstate75DisplayBoard({
   displayName,
   siteName,
   departures,
@@ -23,10 +18,20 @@ export function PicographicsDisplayBoard({
   detail,
 }: DisplayBoardProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const boardRef = useRef<PicographicsBoard | null>(null);
+  const boardRef = useRef<WasmBoard | null>(null);
+  const frameInputJsonRef = useRef('');
   const [statusText, setStatusText] = useState('Initializing…');
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    frameInputJsonRef.current = JSON.stringify({
+      departures,
+      tone,
+      headline,
+      detail,
+    });
+  }, [departures, tone, headline, detail]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -38,7 +43,16 @@ export function PicographicsDisplayBoard({
     let disposed = false;
     let animationId = 0;
 
-    createPicographicsBoard(context)
+    const reportFailure = (phase: string, error: unknown) => {
+      if (disposed) return;
+
+      console.error(`[SLPanel] WASM renderer ${phase} failed`, error);
+      cancelAnimationFrame(animationId);
+      setStatusText(`WASM unavailable: ${describeError(error)}`);
+      setFailed(true);
+    };
+
+    createWasmBoard(context)
       .then((board) => {
         if (disposed) {
           board.dispose();
@@ -46,44 +60,21 @@ export function PicographicsDisplayBoard({
         }
 
         boardRef.current = board;
-        setStatusText('Picographics preview');
+        setStatusText('Interstate 75 preview (Rust WASM)');
         setReady(true);
-
-        const buildFrameJson = () =>
-          JSON.stringify({
-            departures,
-            tone,
-            headline,
-            detail,
-          });
-
-        const buildMeasurements = () => {
-          const m: Record<string, number> = {};
-
-          for (const candidate of collectMeasurableStrings(
-            departures,
-            tone,
-            headline,
-            detail,
-          )) {
-            m[candidate] = measureLogicalWidth(candidate);
-          }
-
-          return JSON.stringify(m);
-        };
 
         const renderLoop = () => {
           if (disposed || !boardRef.current) return;
 
           board
-            .advanceFrame(canvas, buildFrameJson(), buildMeasurements(), 1 / 60)
-            .catch(() => {});
+            .advanceFrame(canvas, frameInputJsonRef.current, 1 / 60)
+            .catch((error: unknown) => reportFailure('animation', error));
 
           animationId = requestAnimationFrame(renderLoop);
         };
 
         board
-          .drawFrame(canvas, buildFrameJson(), buildMeasurements())
+          .drawFrame(canvas, frameInputJsonRef.current)
           .then(() => {
             if (disposed) {
               return;
@@ -98,19 +89,9 @@ export function PicographicsDisplayBoard({
               animationId = requestAnimationFrame(renderLoop);
             }
           })
-          .catch(() => {
-            if (!disposed) {
-              setStatusText('Picographics unavailable');
-              setFailed(true);
-            }
-          });
+          .catch((error: unknown) => reportFailure('initial draw', error));
       })
-      .catch(() => {
-        if (!disposed) {
-          setStatusText('Picographics unavailable');
-          setFailed(true);
-        }
-      });
+      .catch((error: unknown) => reportFailure('initialization', error));
 
     return () => {
       disposed = true;
@@ -124,27 +105,13 @@ export function PicographicsDisplayBoard({
   useEffect(() => {
     if (!ready || !boardRef.current || !canvasRef.current) return;
 
-    const frameInputJson = JSON.stringify({
-      departures,
-      tone,
-      headline,
-      detail,
-    });
-
-    const measurements: Record<string, number> = {};
-
-    for (const candidate of collectMeasurableStrings(
-      departures,
-      tone,
-      headline,
-      detail,
-    )) {
-      measurements[candidate] = measureLogicalWidth(candidate);
-    }
-
     boardRef.current
-      .drawFrame(canvasRef.current, frameInputJson, JSON.stringify(measurements))
-      .catch(() => {});
+      .drawFrame(canvasRef.current, frameInputJsonRef.current)
+      .catch((error: unknown) => {
+        console.error('[SLPanel] WASM renderer prop update failed', error);
+        setStatusText(`WASM unavailable: ${describeError(error)}`);
+        setFailed(true);
+      });
   }, [departures, tone, headline, detail, ready]);
 
   const accessibleSummary = buildAccessibleSummary({
@@ -157,7 +124,7 @@ export function PicographicsDisplayBoard({
 
   return (
     <div
-      data-testid="picographics-display-board"
+      data-testid="interstate75-display-board"
       className="w-full max-w-[68rem] rounded-[2.4rem] border border-[var(--panel-border)] bg-[linear-gradient(180deg,rgba(12,26,36,0.96),rgba(5,10,14,0.98))] p-4 shadow-[inset_0_0_0_1px_rgba(100,200,255,0.08),0_28px_80px_rgba(0,0,0,0.52)] md:p-5"
     >
       <div className="w-full rounded-[1.55rem] border border-black/70 bg-[radial-gradient(circle_at_top,rgba(94,201,255,0.08),transparent_40%),#000] p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] md:p-4">
@@ -166,7 +133,7 @@ export function PicographicsDisplayBoard({
             Interstate 75 W
           </p>
           <span
-            data-testid="picographics-runtime-status"
+            data-testid="interstate75-runtime-status"
             role="status"
             className={`rounded-full border px-3 py-1 text-[0.7rem] uppercase tracking-[0.18em] ${
               failed
@@ -185,11 +152,11 @@ export function PicographicsDisplayBoard({
           height={PANEL_HEIGHT}
           role="img"
           aria-label={`SL departure board preview for ${displayName}`}
-          aria-describedby={`picographics-board-summary-${slugify(displayName)}`}
+          aria-describedby={`interstate75-board-summary-${slugify(displayName)}`}
           className="h-auto w-full rounded-[0.6rem] bg-black"
         />
         <p
-          id={`picographics-board-summary-${slugify(displayName)}`}
+          id={`interstate75-board-summary-${slugify(displayName)}`}
           className="sr-only"
         >
           {accessibleSummary}
@@ -199,57 +166,7 @@ export function PicographicsDisplayBoard({
   );
 }
 
-function formatCompactDeparture(departure: DepartureRecord) {
-  return (
-    `${departure.line_number} ${departure.destination} ${departure.display_time}`.trim()
-  );
-}
-
-function buildMarqueeText(
-  departures: DepartureRecord[],
-  tone: DisplayBoardProps['tone'],
-  headline: string,
-  detail: string,
-) {
-  if (tone === 'live' && departures.length > 0) {
-    return (
-      departures.slice(1, 4).map(formatCompactDeparture).join('     ') ||
-      'No later departures'
-    );
-  }
-
-  return [headline ?? '', detail].filter(Boolean).join('     ');
-}
-
-function collectMeasurableStrings(
-  departures: DepartureRecord[],
-  tone: DisplayBoardProps['tone'],
-  headline: string,
-  detail: string,
-) {
-  const candidates = new Set<string>();
-
-  if (tone === 'live' && departures.length > 0) {
-    const lead = departures[0];
-
-    candidates.add(lead.line_number || '--');
-    candidates.add(lead.destination || 'Unknown');
-    candidates.add(lead.display_time || 'Now');
-
-    for (const departure of departures.slice(0, 4)) {
-      candidates.add(formatCompactDeparture(departure));
-    }
-  }
-
-  const marquee = buildMarqueeText(departures, tone, headline, detail);
-
-  if (marquee) candidates.add(marquee);
-  if (headline) candidates.add(headline);
-  if (detail) candidates.add(detail);
-
-  return [...candidates].filter(Boolean);
-}
-
-function measureLogicalWidth(value: string) {
-  return measureText(value, { gap: 1, scale: 1 });
+function describeError(error: unknown) {
+  if (error instanceof Error) return error.message;
+  return String(error);
 }
