@@ -1,13 +1,11 @@
 import {
   DIODE_SCALE,
-  getToneColors,
   LOGICAL_PANEL_HEIGHT,
   LOGICAL_PANEL_WIDTH,
-  type BoardTone,
 } from '@/components/display-board-shared';
 
 const WASM_URL = '/wasm/slpanel_preview.wasm';
-const FRAME_LENGTH = LOGICAL_PANEL_WIDTH * LOGICAL_PANEL_HEIGHT;
+const FRAME_LENGTH = LOGICAL_PANEL_WIDTH * LOGICAL_PANEL_HEIGHT * 2;
 
 interface RendererExports {
   memory: WebAssembly.Memory;
@@ -123,8 +121,8 @@ export async function createWasmBoard(
       throw new Error('WASM renderer returned an invalid frame.');
     }
 
-    const pixels = new Uint8Array(exports.memory.buffer, pointer, length);
-    paintFrame(canvas, pixels, frameInputJson);
+    const pixels = new DataView(exports.memory.buffer, pointer, length);
+    paintFrame(canvas, pixels);
   };
 
   return {
@@ -176,28 +174,25 @@ function validateExports(exports: RendererExports) {
   }
 }
 
-function paintFrame(
-  canvas: HTMLCanvasElement,
-  pixels: Uint8Array,
-  frameInputJson: string,
-) {
+function paintFrame(canvas: HTMLCanvasElement, pixels: DataView) {
   const context = canvas.getContext('2d');
   if (!context) {
     throw new Error('Could not create a 2D canvas context.');
   }
 
-  const input = JSON.parse(frameInputJson) as { tone?: BoardTone };
   const scaleX = canvas.width / LOGICAL_PANEL_WIDTH;
   const scaleY = canvas.height / LOGICAL_PANEL_HEIGHT;
-  const color = getToneColors(input.tone ?? 'loading').primary;
 
   context.fillStyle = '#020202';
   context.fillRect(0, 0, canvas.width, canvas.height);
-  context.fillStyle = color;
 
   for (let y = 0; y < LOGICAL_PANEL_HEIGHT; y += 1) {
     for (let x = 0; x < LOGICAL_PANEL_WIDTH; x += 1) {
-      if (pixels[y * LOGICAL_PANEL_WIDTH + x] === 0) continue;
+      const color = pixels.getUint16((y * LOGICAL_PANEL_WIDTH + x) * 2, true);
+      if (color === 0) continue;
+      const channel = (shift: number, max: number) =>
+        Math.round((((color >> shift) & max) * 255) / max);
+      context.fillStyle = `rgb(${channel(11, 31)}, ${channel(5, 63)}, ${channel(0, 31)})`;
 
       const left = Math.round(x * scaleX);
       const top = Math.round(y * scaleY);
