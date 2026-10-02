@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 const navigation = [
   { to: '/', label: 'Overview' },
   { to: '/config', label: 'Config' },
+  { to: '/device', label: 'USB device' },
   { to: '/display/demo-board', label: 'Display' },
 ];
 

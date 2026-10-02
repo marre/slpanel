@@ -76,6 +76,7 @@ The initial migration lives in `migrations/0001_initial.sql` and creates:
 
 - `/` landing page with links into config and display flows
 - `/config` owner-based config workspace for display CRUD and filter management
+- `/device` USB device configuration and recent/live logs using Web Serial
 - `/display/:displayId` public display board with live departures and auto-refresh
 - `/api/health` Worker health endpoint
 - `/api/displays` display CRUD root
@@ -316,6 +317,46 @@ The `/config` route now supports:
 - binding a single stop via search
 - configuring line, direction, and transport-mode filters
 - opening a saved display URL directly from the config screen
+
+## USB device workflow
+
+Open `/device` in desktop Chrome or Edge over HTTPS (or the local Vite server at
+`http://localhost:5173/device`). Plug in the panel with a USB data cable and click
+**Connect device** to select it in the browser picker. Close terminals or the
+Rust device tool before connecting; only one application can own the port.
+Unsupported browsers and insecure origins show instructions instead of a
+connection button that cannot work.
+
+The page automatically loads the saved Wi-Fi name, service URL, and display ID
+from the device. **Reload settings** discards form edits and reads them again.
+From a saved display in `/config`, **Configure USB device** prefills that display
+ID for binding it to the panel. The device reports whether a Wi-Fi password is
+saved, but never exports its value. Leave **Update Wi-Fi password** unchecked to
+preserve the durable password while changing the other settings. Check it to
+enter a new password, or explicitly select **Open Wi-Fi network** to clear it.
+After saving, the password field is cleared and subsequent saves preserve the
+new value by default. Reboot the panel after saving.
+
+Settings and new passwords travel directly over USB. They are never sent to the
+server API, or placed in browser storage or URLs. No local config file is needed.
+
+**Read logs** drains retained history and adds entries after the last read.
+**Follow logs** continues polling every 250 ms; stop it before saving settings or
+reading detailed diagnostics. The device retains 100 statements across USB
+disconnects, and this page retains up to 1,000 entries in memory. Logs include
+sequence numbers, uptime, and UTC once NTP is synchronized. The page reports
+overwritten device entries. **Download logs** exports the displayed entries as
+JSON lines, including the original millisecond timestamps. Reboot clears device
+history. Disconnecting or navigating away releases the port; timeouts and invalid
+responses close the session so late packets cannot answer a later request.
+
+This uses the USB JSON protocol v1 from the sibling `slpanel-rust` project with
+115200 baud, DTR enabled, and the development device identity `c0de:cafe`. Use
+firmware with the `config` read operation and optional-password update support;
+earlier protocol-v1 images need to be rebuilt and flashed. No server API change
+is needed. The Rust CLI remains available for browsers that do not support Web
+Serial. Browser API
+details: [Chrome Web Serial documentation](https://developer.chrome.com/docs/capabilities/serial).
 
 ## Display workflow
 

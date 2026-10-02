@@ -767,6 +767,15 @@ export function ConfigPage() {
 
               {selectedDisplay ? (
                 <Link
+                  to={`/device?display=${encodeURIComponent(selectedDisplay.id)}`}
+                  className="inline-flex rounded-full border border-[var(--panel-border)] px-5 py-3 text-sm text-[var(--panel-text)] transition hover:border-[var(--panel-text)]"
+                >
+                  Configure USB device
+                </Link>
+              ) : null}
+
+              {selectedDisplay ? (
+                <Link
                   to={`/display/${selectedDisplay.id}`}
                   className="ml-auto inline-flex rounded-full border border-[#84d8ff]/50 bg-[#84d8ff]/8 px-5 py-3 text-sm font-medium text-[#b9edff] transition hover:border-[#84d8ff]/80 hover:bg-[#84d8ff]/14"
                 >
