@@ -91,6 +91,221 @@ Use `/display/demo-board` to preview the board UI without needing a saved displa
 - The Trafiklab provider lives behind a replaceable adapter boundary in the Worker.
 - The stop search adapter currently fetches `/sites` and applies local filtering because the live API host does not appear to honor search query parameters consistently.
 
+## REST API
+
+The Worker exposes a JSON API under `/api`. When developing locally, use
+`http://localhost:8787/api` directly or send requests to `/api` through the
+Vite dev server at `http://localhost:5173`.
+
+| Method   | Path                           | Description                      |
+| -------- | ------------------------------ | -------------------------------- |
+| `GET`    | `/api/health`                  | Check that the Worker is running |
+| `GET`    | `/api/displays?owner=:ownerId` | List an owner's displays         |
+| `POST`   | `/api/displays`                | Create a display                 |
+| `GET`    | `/api/displays/:id`            | Get a display                    |
+| `PUT`    | `/api/displays/:id`            | Update a display                 |
+| `DELETE` | `/api/displays/:id`            | Delete a display                 |
+| `GET`    | `/api/stops/search?q=:query`   | Search for stops                 |
+| `GET`    | `/api/departures/:siteId`      | Get normalized departures        |
+
+Owner IDs are exactly 8 alphanumeric characters. A display resource ID combines
+that owner ID with a generated 12-character display ID, for example
+`aB3xZ9kQ-fG7mNpQr2wLt`.
+
+### Health
+
+`GET /api/health`
+
+Response (`200 OK`):
+
+```json
+{
+  "ok": true,
+  "service": "slpanel",
+  "timestamp": "2026-05-29T08:13:30.000Z"
+}
+```
+
+### Displays
+
+`GET /api/displays?owner=aB3xZ9kQ` lists all displays belonging to an owner.
+
+Response (`200 OK`):
+
+```json
+{
+  "owner_id": "aB3xZ9kQ",
+  "displays": [
+    {
+      "id": "aB3xZ9kQ-fG7mNpQr2wLt",
+      "owner_id": "aB3xZ9kQ",
+      "display_id": "fG7mNpQr2wLt",
+      "name": "Southbound platform",
+      "site_id": "1011",
+      "site_name": "Slussen",
+      "refresh_interval": 30,
+      "line_numbers": ["17", "18"],
+      "directions": ["Hagsätra"],
+      "modes": ["METRO"]
+    }
+  ]
+}
+```
+
+`POST /api/displays` creates a display. Only `owner_id` is required. The other
+fields default to an empty name, no stop, a 30-second refresh interval, and no
+filters. Transport modes are normalized to uppercase.
+
+Request:
+
+```json
+{
+  "owner_id": "aB3xZ9kQ",
+  "name": "Southbound platform",
+  "site_id": "1011",
+  "site_name": "Slussen",
+  "refresh_interval": 30,
+  "line_numbers": ["17", "18"],
+  "directions": ["Hagsätra"],
+  "modes": ["METRO"]
+}
+```
+
+Response (`201 Created`):
+
+```json
+{
+  "display": {
+    "id": "aB3xZ9kQ-fG7mNpQr2wLt",
+    "owner_id": "aB3xZ9kQ",
+    "display_id": "fG7mNpQr2wLt",
+    "name": "Southbound platform",
+    "site_id": "1011",
+    "site_name": "Slussen",
+    "refresh_interval": 30,
+    "line_numbers": ["17", "18"],
+    "directions": ["Hagsätra"],
+    "modes": ["METRO"]
+  }
+}
+```
+
+`GET /api/displays/aB3xZ9kQ-fG7mNpQr2wLt` returns the same `display` response
+shape as the create endpoint (`200 OK`).
+
+`PUT /api/displays/aB3xZ9kQ-fG7mNpQr2wLt` partially updates a display. Include
+only the fields to change; `id`, `owner_id`, and `display_id` are immutable. Set
+`site_id` to `null` to clear the selected stop.
+
+Request:
+
+```json
+{
+  "name": "Evening service",
+  "refresh_interval": 45,
+  "line_numbers": ["19"]
+}
+```
+
+Response (`200 OK`):
+
+```json
+{
+  "display": {
+    "id": "aB3xZ9kQ-fG7mNpQr2wLt",
+    "owner_id": "aB3xZ9kQ",
+    "display_id": "fG7mNpQr2wLt",
+    "name": "Evening service",
+    "site_id": "1011",
+    "site_name": "Slussen",
+    "refresh_interval": 45,
+    "line_numbers": ["19"],
+    "directions": ["Hagsätra"],
+    "modes": ["METRO"]
+  }
+}
+```
+
+`DELETE /api/displays/aB3xZ9kQ-fG7mNpQr2wLt` deletes the display and returns
+`204 No Content` with an empty response body.
+
+### Stop search
+
+`GET /api/stops/search?q=Slussen` searches stop names and stop areas. The query
+must contain at least 2 characters, and at most 25 matches are returned.
+
+Response (`200 OK`):
+
+```json
+{
+  "query": "Slussen",
+  "results": [
+    {
+      "site_id": "1011",
+      "name": "Slussen",
+      "type": "METROSTN",
+      "stop_area_name": "Slussen (Stockholm)"
+    }
+  ]
+}
+```
+
+### Departures
+
+`GET /api/departures/1011?line=17&line=18&direction=Hags%C3%A4tra&mode=METRO&forecast=60`
+returns provider-independent departures for a numeric site ID.
+
+All query parameters are optional:
+
+- `line` (alias `line_number`) filters by line number.
+- `direction` filters by direction name or provider direction code.
+- `mode` (alias `transport_mode`) filters by transport mode and is normalized
+  to uppercase.
+- `forecast` selects a forecast window from 1 to 240 minutes and defaults to 30.
+
+Filter parameters may be repeated, as above, or contain comma-separated values.
+
+Response (`200 OK`):
+
+```json
+{
+  "site_id": "1011",
+  "departures": [
+    {
+      "line_number": "17",
+      "destination": "Hagsätra",
+      "display_time": "5 min",
+      "minutes_until_departure": 5,
+      "scheduled_at": "2026-05-29T08:18:30+02:00",
+      "expected_at": "2026-05-29T08:18:30+02:00",
+      "transport_mode": "METRO",
+      "platform": "2",
+      "state": "EXPECTED"
+    }
+  ]
+}
+```
+
+`scheduled_at` and `expected_at` can be `null`, and `state` is either
+`EXPECTED` or `CANCELLED`.
+
+### Errors
+
+Validation failures return `400 Bad Request`, missing displays return
+`404 Not Found`, upstream transit-provider failures return `502 Bad Gateway`,
+and unexpected failures return `500 Internal Server Error`. Error responses use
+the same shape:
+
+```json
+{
+  "error": {
+    "code": "validation_error",
+    "message": "owner_id must be 8 alphanumeric characters.",
+    "details": null
+  }
+}
+```
+
 ## Config workflow
 
 The `/config` route now supports:
