@@ -110,6 +110,40 @@ describe('DevicePage', () => {
     expect(port.close).toHaveBeenCalledOnce();
   });
 
+  it('loads saved security and saves a WPA3 selection without exporting or replacing the password', async () => {
+    const port = new TestDevicePort(
+      () => ({ reply: 'saved', reboot_required: true }),
+      1,
+      {
+        wifi_ssid: 'Saved network',
+        wifi_security: 'auto',
+        service_origin: 'https://panel.xr.se/',
+        display_id: 'device-screen',
+        wifi_password_set: true,
+      },
+    );
+    exposePort(port);
+    showPage('/device');
+    await connect();
+    expect(screen.getByLabelText('Wi-Fi security')).toHaveValue('auto');
+    fireEvent.change(screen.getByLabelText('Wi-Fi security'), {
+      target: { value: 'wpa3' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save to device' }));
+    await screen.findByText(
+      'Configuration saved. Reboot the device to apply it.',
+    );
+    expect(port.requests.at(-1)).toEqual({
+      op: 'configure',
+      config: {
+        wifi_ssid: 'Saved network',
+        wifi_security: 'wpa3',
+        service_origin: 'https://panel.xr.se/',
+        display_id: 'device-screen',
+      },
+    });
+  });
+
   it('keeps credentials editable when the device refuses a save', async () => {
     const port = new TestDevicePort(() => ({
       reply: 'error',

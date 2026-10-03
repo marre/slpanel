@@ -11,6 +11,7 @@ import type {
   DeviceLogEntry,
   DeviceRequest,
   SavedDeviceConfig,
+  WifiSecurity,
 } from '@/lib/device-serial';
 
 const buttonClass =
@@ -180,6 +181,7 @@ export function DevicePage() {
       }
       const update: DeviceConfig = {
         wifi_ssid: config.wifi_ssid,
+        wifi_security: config.wifi_security,
         service_origin: config.service_origin,
         display_id: config.display_id,
         ...(changePassword
@@ -222,6 +224,7 @@ export function DevicePage() {
   ) {
     setConfig({
       wifi_ssid: saved.wifi_ssid,
+      wifi_security: saved.wifi_security,
       wifi_password: '',
       service_origin: saved.service_origin,
       display_id: useSelectedDisplay
@@ -464,6 +467,31 @@ export function DevicePage() {
               />
             </div>
             <div className="space-y-2">
+              <label htmlFor="device-security" className="text-sm">
+                Wi-Fi security
+              </label>
+              <select
+                id="device-security"
+                className={inputClass}
+                value={config.wifi_security ?? 'auto'}
+                disabled={config.wifi_security === undefined || openNetwork}
+                onChange={(event) =>
+                  setConfig((draft) => ({
+                    ...draft,
+                    wifi_security: event.target.value as WifiSecurity,
+                  }))
+                }
+              >
+                <option value="auto">Automatic (WPA2/WPA3)</option>
+                <option value="wpa2">WPA2 (compatibility)</option>
+                <option value="wpa3">WPA3 only</option>
+              </select>
+              <p className="text-sm text-[var(--muted-text)]">
+                Use WPA2 to test mixed-network compatibility, or WPA3 for a
+                WPA3-only network.
+              </p>
+            </div>
+            <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -510,7 +538,14 @@ export function DevicePage() {
                   onChange={(event) => {
                     setOpenNetwork(event.target.checked);
                     if (event.target.checked) {
-                      setConfig((draft) => ({ ...draft, wifi_password: '' }));
+                      setConfig((draft) => ({
+                        ...draft,
+                        wifi_password: '',
+                        wifi_security:
+                          draft.wifi_security === undefined
+                            ? undefined
+                            : 'auto',
+                      }));
                     }
                   }}
                 />

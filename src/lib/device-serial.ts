@@ -1,7 +1,9 @@
 // USB JSON protocol v1, shared with slpanel-rust/slpanel-device-protocol.
+export type WifiSecurity = 'auto' | 'wpa2' | 'wpa3';
 export type DeviceConfig = {
   wifi_ssid: string;
   wifi_password?: string;
+  wifi_security?: WifiSecurity;
   service_origin: string;
   display_id: string;
 };
@@ -64,14 +66,16 @@ export function validateDeviceConfig(value: unknown): DeviceConfig {
   if (
     !isObject(value) ||
     Object.keys(value).some(
-      (key) => ![...CONFIG_KEYS, 'wifi_password'].includes(key),
+      (key) =>
+        ![...CONFIG_KEYS, 'wifi_password', 'wifi_security'].includes(key),
     ) ||
     !CONFIG_KEYS.every((key) => typeof value[key] === 'string') ||
     (value.wifi_password !== undefined &&
-      typeof value.wifi_password !== 'string')
+      typeof value.wifi_password !== 'string') ||
+    (value.wifi_security !== undefined && !isWifiSecurity(value.wifi_security))
   ) {
     throw new Error(
-      'Config must contain wifi_ssid, service_origin, and display_id, with an optional wifi_password.',
+      'Config must contain wifi_ssid, service_origin, and display_id, with optional wifi_password and wifi_security (auto, wpa2, or wpa3).',
     );
   }
   const config = value as DeviceConfig;
@@ -83,6 +87,13 @@ export function validateDeviceConfig(value: unknown): DeviceConfig {
   }
   const ssidBytes = encoder.encode(config.wifi_ssid).length;
   const passwordBytes = encoder.encode(config.wifi_password ?? '').length;
+  if (
+    config.wifi_password === '' &&
+    config.wifi_security &&
+    config.wifi_security !== 'auto'
+  ) {
+    throw new Error('WPA2 or WPA3 requires a Wi-Fi password.');
+  }
   if (!ssidBytes || ssidBytes > 32) {
     throw new Error('Wi-Fi name must be 1–32 UTF-8 bytes.');
   }
@@ -107,6 +118,10 @@ export function validateDeviceConfig(value: unknown): DeviceConfig {
     throw new Error('Display ID is required.');
   }
   return config;
+}
+
+function isWifiSecurity(value: unknown): value is WifiSecurity {
+  return value === 'auto' || value === 'wpa2' || value === 'wpa3';
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -144,9 +159,15 @@ function parseReply(bytes: number[]): DeviceReply {
         const config = value.config;
         if (
           isObject(config) &&
-          Object.keys(config).length === 4 &&
+          Object.keys(config).every((key) =>
+            [...CONFIG_KEYS, 'wifi_password_set', 'wifi_security'].includes(
+              key,
+            ),
+          ) &&
           CONFIG_KEYS.every((key) => typeof config[key] === 'string') &&
-          typeof config.wifi_password_set === 'boolean'
+          typeof config.wifi_password_set === 'boolean' &&
+          (config.wifi_security === undefined ||
+            isWifiSecurity(config.wifi_security))
         ) {
           return value as DeviceReply;
         }

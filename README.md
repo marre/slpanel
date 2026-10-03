@@ -337,6 +337,11 @@ enter a new password, or explicitly select **Open Wi-Fi network** to clear it.
 After saving, the password field is cleared and subsequent saves preserve the
 new value by default. Reboot the panel after saving.
 
+With updated firmware, **Wi-Fi security** selects automatic WPA2/WPA3,
+WPA2 compatibility mode, or WPA3 only. The selection is loaded from and saved
+to the device along with the other settings; changing it preserves the password.
+The selector is disabled for older firmware that does not expose this setting.
+
 Settings and new passwords travel directly over USB. They are never sent to the
 server API, or placed in browser storage or URLs. No local config file is needed.
 

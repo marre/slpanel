@@ -12,6 +12,27 @@ const config: DeviceConfig = {
 };
 
 describe('device configuration', () => {
+  it('accepts explicit WPA3 without replacing a saved password and rejects open WPA3', () => {
+    const publicConfig: DeviceConfig = {
+      wifi_ssid: config.wifi_ssid,
+      service_origin: config.service_origin,
+      display_id: config.display_id,
+    };
+    expect(
+      validateDeviceConfig({ ...publicConfig, wifi_security: 'wpa3' })
+        .wifi_security,
+    ).toBe('wpa3');
+    expect(() =>
+      validateDeviceConfig({ ...config, wifi_security: 'unknown' }),
+    ).toThrow(/wifi_security/);
+    expect(() =>
+      validateDeviceConfig({
+        ...config,
+        wifi_password: '',
+        wifi_security: 'wpa3',
+      }),
+    ).toThrow(/requires a Wi-Fi password/);
+  });
   it('preserves whitespace and validates lengths in UTF-8 bytes', () => {
     expect(validateDeviceConfig(config)).toEqual(config);
     expect(() =>
