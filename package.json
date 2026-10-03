@@ -7,10 +7,9 @@
     "node": ">=20.19.0"
   },
   "scripts": {
-    "dev": "mkdir -p dist/client && concurrently -k -n web,worker,wasm -c green,blue,magenta \"npm:dev:web\" \"npm:dev:worker\" \"npm:dev:wasm\"",
+    "dev": "mkdir -p dist/client && concurrently -k -n web,worker -c green,blue \"npm:dev:web\" \"npm:dev:worker\"",
     "dev:web": "vite",
     "dev:worker": "wrangler dev --port 8787",
-    "dev:wasm": "node scripts/watch-wasm.mjs",
     "build": "npm run typecheck && vite build && npm run build:worker",
     "build:worker": "node node_modules/@typescript/native/bin/tsc -p tsconfig.worker.json",
     "preview": "vite preview",

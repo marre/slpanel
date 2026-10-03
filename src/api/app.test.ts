@@ -73,6 +73,7 @@ describe('createApp', () => {
     };
 
     expect(listResponse.status).toBe(200);
+    expect(listResponse.headers.get('Access-Control-Allow-Origin')).toBe('*');
     expect(listPayload.displays).toHaveLength(1);
 
     const displayId = listPayload.displays[0].id;

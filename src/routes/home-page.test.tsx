@@ -45,13 +45,9 @@ describe('HomePage', () => {
       screen.getByRole('link', { name: /set up a display/i }),
     ).toHaveAttribute('href', '/config');
     expect(
-      screen.getByRole('link', { name: /view demo board/i }),
-    ).toHaveAttribute('href', '/display/demo-board');
-    expect(
-      screen.getByRole('link', { name: /interstate 75 w preview/i }),
-    ).toHaveAttribute(
-      'href',
-      '/display/demo-board?renderer=interstate75',
-    );
+      screen.getByRole('link', { name: /connect USB device/i }),
+    ).toHaveAttribute('href', '/device');
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.queryByText(/interstate/i)).not.toBeInTheDocument();
   });
 });

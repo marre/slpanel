@@ -79,6 +79,8 @@ export function createApp(options: AppOptions = {}) {
   });
 
   api.get('/displays', async (context) => {
+    // The USB device page can browse this public list from another service.
+    context.header('Access-Control-Allow-Origin', '*');
     const ownerId = parseOwnerQuery(context.req.query('owner'));
     const displays = await createDisplayStore(
       getBindings(context).DB,

@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
+
+import { DeviceDiagnostics } from '@/components/device-diagnostics';
+import { DeviceDisplayPicker } from '@/components/device-display-picker';
 
 import {
   DeviceSerialClient,
@@ -16,7 +19,7 @@ import type {
 } from '@/lib/device-serial';
 
 const buttonClass =
-  'rounded-full border border-[var(--panel-border)] px-4 py-2 text-sm transition hover:border-[var(--panel-text)] hover:text-[var(--panel-text)] disabled:cursor-not-allowed disabled:opacity-40';
+  'rounded-lg border border-[var(--panel-border)] px-4 py-2 text-sm transition hover:border-[var(--panel-text)] hover:text-[var(--panel-text)] disabled:cursor-not-allowed disabled:opacity-40';
 const primaryClass = `${buttonClass} border-[var(--panel-text)] bg-[var(--panel-text)] text-black hover:bg-[var(--panel-text-soft)] hover:text-black`;
 const inputClass =
   'w-full rounded-xl border border-[var(--panel-border)] bg-black/30 px-4 py-3 text-base md:text-sm';
@@ -39,12 +42,16 @@ export function DevicePage() {
   const [changePassword, setChangePassword] = useState(false);
   const [passwordSet, setPasswordSet] = useState(false);
   const [busy, setBusy] = useState<
-    'config' | 'settings' | 'logs' | 'status' | 'wifi-scan' | null
+    'config' | 'settings' | 'status' | 'wifi-scan' | null
   >(null);
   const [networks, setNetworks] = useState<WifiNetwork[] | null>(null);
+  const [readingLogs, setReadingLogs] = useState(false);
   const [following, setFollowing] = useState(false);
   const [logs, setLogs] = useState<DeviceLogEntry[]>([]);
   const [lost, setLost] = useState(0);
+  const [diagnosticsCopyStatus, setDiagnosticsCopyStatus] = useState<
+    string | null
+  >(null);
   const [status, setStatus] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,8 +60,11 @@ export function DevicePage() {
   const generation = useRef(0);
   const follow = useRef(false);
   const cursor = useRef(0);
+  const logReader = useRef(false);
+  const requests = useRef<Promise<unknown>>(Promise.resolve());
+  const [copyStatus, setCopyStatus] = useState<string | null>(null);
   const savedSsid = useRef('');
-  const logEnd = useRef<HTMLDivElement | null>(null);
+  const logViewport = useRef<HTMLDivElement | null>(null);
   const secure = window.isSecureContext;
   const supported = Boolean(getDeviceSerialApi());
   const connected = connection === 'connected';
@@ -72,8 +82,8 @@ export function DevicePage() {
   }, []);
 
   useEffect(() => {
-    if (following) {
-      logEnd.current?.scrollIntoView?.({ block: 'nearest' });
+    if (following && logViewport.current) {
+      logViewport.current.scrollTop = logViewport.current.scrollHeight;
     }
   }, [following, logs]);
 
@@ -102,6 +112,7 @@ export function DevicePage() {
         }
         follow.current = false;
         setFollowing(false);
+        setReadingLogs(false);
         setConnection('disconnected');
         setBusy(null);
         setError(failure.message);
@@ -120,13 +131,18 @@ export function DevicePage() {
         await next.disconnect();
         return;
       }
+      requests.current = Promise.resolve();
+      logReader.current = false;
       cursor.current = 0;
       setLogs([]);
+      setCopyStatus(null);
       setLost(0);
       setStatus(null);
+      setDiagnosticsCopyStatus(null);
       applySavedConfig(saved.config, true);
       setConnection('connected');
       setNotice('Device connected. Saved settings loaded.');
+      void readLogs(true);
     } catch (failure) {
       await connecting?.disconnect();
       if (!mounted.current || generation.current !== attempt) {
@@ -149,6 +165,7 @@ export function DevicePage() {
     generation.current += 1;
     follow.current = false;
     setFollowing(false);
+    setReadingLogs(false);
     const current = client.current;
     client.current = null;
     setConnection('disconnecting');
@@ -161,7 +178,14 @@ export function DevicePage() {
   }
 
   async function request(request: DeviceRequest, current: DeviceSerialClient) {
-    const reply = await current.request(request);
+    const pending = requests.current.then(() => {
+      if (client.current !== current) {
+        throw new Error('Device disconnected.');
+      }
+      return current.request(request);
+    });
+    requests.current = pending.catch(() => undefined);
+    const reply = await pending;
     if (reply.reply === 'error') {
       throw new Error(reply.message);
     }
@@ -273,13 +297,14 @@ export function DevicePage() {
 
   async function readLogs(keepFollowing: boolean) {
     const current = client.current;
-    if (!current || busy) {
+    if (!current || logReader.current) {
       return;
     }
+    logReader.current = true;
+    setReadingLogs(true);
     const attempt = generation.current;
     follow.current = keepFollowing;
     setFollowing(keepFollowing);
-    setBusy('logs');
     setError(null);
     try {
       do {
@@ -307,16 +332,21 @@ export function DevicePage() {
           break;
         }
         await new Promise((resolve) => setTimeout(resolve, 250));
-      } while (!keepFollowing || follow.current);
+      } while (
+        mounted.current &&
+        generation.current === attempt &&
+        (!keepFollowing || follow.current)
+      );
     } catch (failure) {
       if (mounted.current && generation.current === attempt) {
         setError(readError(failure));
       }
     } finally {
       if (mounted.current && generation.current === attempt) {
+        logReader.current = false;
+        setReadingLogs(false);
         follow.current = false;
         setFollowing(false);
-        setBusy(null);
       }
     }
   }
@@ -375,6 +405,7 @@ export function DevicePage() {
         reply.reply === 'status'
       ) {
         setStatus(reply.details);
+        setDiagnosticsCopyStatus(null);
       }
     } catch (failure) {
       if (mounted.current && generation.current === attempt) {
@@ -384,6 +415,36 @@ export function DevicePage() {
       if (mounted.current && generation.current === attempt) {
         setBusy(null);
       }
+    }
+  }
+
+  async function copyDiagnostics() {
+    if (status === null) return;
+    try {
+      await navigator.clipboard.writeText(status);
+      if (mounted.current) setDiagnosticsCopyStatus('Diagnostics copied.');
+    } catch {
+      if (mounted.current)
+        setDiagnosticsCopyStatus(
+          'Could not copy diagnostics. Select and copy the raw text below.',
+        );
+    }
+  }
+
+  async function copyLogs() {
+    try {
+      await navigator.clipboard.writeText(
+        logs
+          .map(
+            (entry) =>
+              `#${entry.seq} · ${timestamp(entry)} · +${entry.uptime_ms} ms · ${entry.level}\n${entry.message}`,
+          )
+          .join('\n\n'),
+      );
+      if (mounted.current) setCopyStatus('Logs copied.');
+    } catch {
+      if (mounted.current)
+        setCopyStatus('Could not copy logs. Try downloading them instead.');
     }
   }
 
@@ -403,10 +464,10 @@ export function DevicePage() {
   return (
     <section className="space-y-8">
       <div className="space-y-3">
-        <p className="text-[0.7rem] uppercase tracking-[0.22em] text-[var(--muted-text)]">
+        <p className="text-[0.7rem] uppercase tracking-[0.08em] text-[var(--muted-text)]">
           USB device
         </p>
-        <h2 className="text-3xl font-semibold text-[var(--panel-text)]">
+        <h2 className="text-3xl font-semibold text-[var(--app-text)]">
           Connect your SLPanel
         </h2>
         <p className="max-w-3xl text-sm leading-7 text-[var(--muted-text)]">
@@ -426,7 +487,7 @@ export function DevicePage() {
         </p>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-[var(--panel-border)] bg-black/15 p-5">
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--panel-border)] bg-black/15 p-5">
         <span
           className={`mr-auto text-sm ${connected ? 'text-emerald-300' : 'text-[var(--muted-text)]'}`}
           role="status"
@@ -476,11 +537,11 @@ export function DevicePage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,4fr)_minmax(0,6fr)] lg:items-start">
         <form
           onSubmit={(event) => void save(event)}
-          className="space-y-5 rounded-2xl border border-[var(--panel-border)] bg-black/15 p-5"
+          className="space-y-5 rounded-xl border border-[var(--panel-border)] bg-black/15 p-5"
           aria-label="USB device configuration"
         >
           <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-[var(--panel-text)]">
+            <h3 className="text-lg font-semibold text-[var(--app-text)]">
               Device configuration
             </h3>
             <p className="text-sm leading-6 text-[var(--muted-text)]">
@@ -654,6 +715,17 @@ export function DevicePage() {
               />
             </div>
             <div className="space-y-2">
+              <DeviceDisplayPicker
+                displayId={config.display_id}
+                ownerId={searchParams.get('owner')}
+                serviceOrigin={config.service_origin}
+                onSelect={(display_id) =>
+                  setConfig((draft) => ({
+                    ...draft,
+                    display_id,
+                  }))
+                }
+              />
               <label htmlFor="device-display" className="text-sm">
                 Display ID
               </label>
@@ -670,11 +742,8 @@ export function DevicePage() {
                 required
               />
               <p className="text-xs leading-5 text-[var(--muted-text)]">
-                Choose a saved display from{' '}
-                <Link className="underline" to="/config">
-                  Config
-                </Link>{' '}
-                to use its ID here.
+                Choose a display from the Service URL above, or type an ID
+                manually.
               </p>
             </div>
           </fieldset>
@@ -699,30 +768,29 @@ export function DevicePage() {
           </p>
         </form>
 
-        <div className="min-w-0 space-y-5 rounded-2xl border border-[var(--panel-border)] bg-black/15 p-5">
+        <div className="min-w-0 space-y-5 rounded-xl border border-[var(--panel-border)] bg-black/15 p-5">
           <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-[var(--panel-text)]">
+            <h3 className="text-lg font-semibold text-[var(--app-text)]">
               Device logs
             </h3>
             <p className="text-sm leading-6 text-[var(--muted-text)]">
-              Read the panel’s last 100 log statements, or follow new entries as
-              they arrive. UTC timestamps appear once the panel has synchronized
-              its clock.
+              Logs stream automatically when connected. UTC timestamps appear
+              once the panel has synchronized its clock.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               className={buttonClass}
-              disabled={!connected || Boolean(busy)}
+              disabled={!connected || readingLogs}
               onClick={() => void readLogs(false)}
             >
-              {busy === 'logs' && !following ? 'Reading…' : 'Read logs'}
+              {readingLogs && !following ? 'Reading…' : 'Read logs'}
             </button>
             <button
               type="button"
               className={following ? primaryClass : buttonClass}
-              disabled={!connected || (Boolean(busy) && !following)}
+              disabled={!connected || (readingLogs && !following)}
               onClick={() => {
                 if (following) {
                   follow.current = false;
@@ -738,11 +806,22 @@ export function DevicePage() {
               type="button"
               className={buttonClass}
               disabled={!logs.length}
+              onClick={() => void copyLogs()}
+            >
+              Copy logs
+            </button>
+            <button
+              type="button"
+              className={buttonClass}
+              disabled={!logs.length}
               onClick={downloadLogs}
             >
               Download logs
             </button>
           </div>
+          <span role="status" className="text-xs text-[var(--muted-text)]">
+            {copyStatus}
+          </span>
           {lost > 0 ? (
             <p role="status" className="text-sm text-amber-200">
               {lost} log entries were overwritten on the device before they
@@ -751,15 +830,16 @@ export function DevicePage() {
           ) : null}
           <div
             className="max-h-[32rem] min-h-48 overflow-auto rounded-xl border border-[var(--panel-border)] bg-black/40 p-4"
+            ref={logViewport}
             aria-label="Device logs"
             role="region"
             tabIndex={0}
           >
             {!logs.length ? (
               <p className="text-sm text-[var(--muted-text)]">
-                {busy === 'logs'
+                {following
                   ? 'Waiting for log entries…'
-                  : 'Connect a device and read its logs.'}
+                  : 'Connect a device to stream its logs.'}
               </p>
             ) : (
               <ol className="space-y-3 font-mono text-xs leading-5">
@@ -780,7 +860,6 @@ export function DevicePage() {
                 ))}
               </ol>
             )}
-            <div ref={logEnd} />
           </div>
           <p className="text-xs text-[var(--muted-text)]">
             This page retains up to 1,000 entries. The device’s log history
@@ -798,10 +877,36 @@ export function DevicePage() {
             >
               {busy === 'status' ? 'Reading…' : 'Read diagnostics'}
             </button>
-            {status ? (
-              <pre className="whitespace-pre-wrap break-words text-xs leading-6">
-                {status}
-              </pre>
+            {status !== null ? (
+              <>
+                <DeviceDiagnostics details={status} />
+                <details
+                  open
+                  className="space-y-3 rounded-lg border border-[var(--panel-border)] bg-black/20 p-4"
+                >
+                  <summary className="cursor-pointer text-sm font-medium">
+                    Raw diagnostics
+                  </summary>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      className={buttonClass}
+                      onClick={() => void copyDiagnostics()}
+                    >
+                      Copy diagnostics
+                    </button>
+                    <span
+                      role="status"
+                      className="text-xs text-[var(--muted-text)]"
+                    >
+                      {diagnosticsCopyStatus}
+                    </span>
+                  </div>
+                  <pre className="whitespace-pre-wrap break-words text-xs leading-6">
+                    {status}
+                  </pre>
+                </details>
+              </>
             ) : null}
           </details>
         </div>

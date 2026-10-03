@@ -34,9 +34,10 @@ export class ConfigApiError extends Error {
 export async function listDisplays(
   ownerId: string,
   signal?: AbortSignal,
+  serviceOrigin?: string,
 ): Promise<DisplayRecord[]> {
   const response = await requestJson<{ displays: DisplayRecord[] }>(
-    `/api/displays?owner=${encodeURIComponent(ownerId)}`,
+    `${serviceOrigin?.replace(/\/+$/, '') ?? ''}/api/displays?owner=${encodeURIComponent(ownerId)}`,
     {
       signal,
     },

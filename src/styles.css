@@ -2,22 +2,25 @@
 
 :root {
   color-scheme: dark;
-  --app-bg: #081017;
-  --card-bg: rgba(15, 18, 21, 0.92);
+  --app-bg: #101216;
+  --card-bg: #191c22;
   --panel-bg: #020202;
-  --panel-border: rgba(255, 184, 77, 0.22);
+  --panel-border: #30343d;
   --panel-chassis: #111519;
-  --panel-text: #ffb84d;
-  --panel-text-soft: #ffd280;
-  --app-text: #f6ead0;
-  --muted-text: #c9ba98;
-  --focus-ring: #ffd280;
+  --panel-text: #a5c4ff;
+  --panel-text-soft: #c5d9ff;
+  --app-text: #eceef2;
+  --muted-text: #9da5b4;
+  --focus-ring: #a5c4ff;
   font-family:
-    ui-monospace, 'Cascadia Mono', 'SF Mono', 'SFMono-Regular', Menlo, Monaco,
-    Consolas, 'Liberation Mono', monospace;
-  background:
-    radial-gradient(circle at top, rgba(255, 159, 28, 0.16), transparent 32%),
-    linear-gradient(180deg, #10171d 0%, #05080c 58%, #030405 100%);
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  background: var(--app-bg);
 }
 
 * {
@@ -32,9 +35,7 @@ body,
 
 body {
   margin: 0;
-  background:
-    radial-gradient(circle at top, rgba(255, 159, 28, 0.16), transparent 32%),
-    linear-gradient(180deg, #10171d 0%, #05080c 58%, #030405 100%);
+  background: var(--app-bg);
   color: var(--app-text);
 }
 
@@ -49,7 +50,7 @@ canvas {
 }
 
 ::selection {
-  background: rgba(255, 184, 77, 0.28);
+  background: rgba(165, 196, 255, 0.28);
   color: white;
 }
 

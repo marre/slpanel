@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -198,39 +198,7 @@ describe('DisplayPage', () => {
     expect(screen.getByTestId('board-status')).toHaveTextContent(/live/i);
   });
 
-  it('defaults to the classic renderer and can switch to the interstate preview', async () => {
-    render(
-      <MemoryRouter initialEntries={['/display/demo-board']}>
-        <Routes>
-          <Route path="/display/:displayId" element={<DisplayPage />} />
-        </Routes>
-      </MemoryRouter>,
-    );
-
-    const classicButton = screen.getByRole('button', {
-      name: /classic board/i,
-    });
-    const previewButton = screen.getByRole('button', {
-      name: /interstate 75 w preview/i,
-    });
-
-    expect(classicButton).toHaveAttribute('aria-pressed', 'true');
-    expect(previewButton).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByTestId('classic-display-board')).toBeInTheDocument();
-
-    fireEvent.click(previewButton);
-
-    expect(classicButton).toHaveAttribute('aria-pressed', 'false');
-    expect(previewButton).toHaveAttribute('aria-pressed', 'true');
-    expect(
-      screen.getByTestId('interstate75-display-board'),
-    ).toBeInTheDocument();
-    expect(screen.getByTestId('interstate75-runtime-status')).toHaveTextContent(
-      /initializing/i,
-    );
-  });
-
-  it('renders the interstate preview when the renderer query param is set', async () => {
+  it('uses the bitmap board even with an old interstate preview URL', () => {
     render(
       <MemoryRouter
         initialEntries={['/display/demo-board?renderer=interstate75']}
@@ -240,15 +208,9 @@ describe('DisplayPage', () => {
         </Routes>
       </MemoryRouter>,
     );
-
+    expect(screen.getByTestId('classic-display-board')).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /interstate 75 w preview/i }),
-    ).toHaveAttribute('aria-pressed', 'true');
-    expect(
-      screen.getByTestId('interstate75-display-board'),
-    ).toBeInTheDocument();
-    expect(
-      screen.queryByTestId('classic-display-board'),
+      screen.queryByRole('group', { name: 'Board renderer' }),
     ).not.toBeInTheDocument();
   });
 });

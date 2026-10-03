@@ -129,12 +129,25 @@ describe('ConfigPage', () => {
       );
     });
 
+    const board = await screen.findByRole('img', {
+      name: /Southbound platform/,
+    });
+    const summary = () =>
+      document.getElementById(board.getAttribute('aria-describedby')!)!;
+    await waitFor(() => expect(summary()).toHaveTextContent('Farsta strand'));
+
     // Select line "17" from the CreatableSelect dropdown
     const lineSelectInput = screen.getByLabelText('Line numbers');
     fireEvent.mouseDown(lineSelectInput);
 
     const lineOption17 = await screen.findByRole('option', { name: /17/ });
     fireEvent.click(lineOption17);
+
+    expect(summary()).toHaveTextContent('Hagsätra');
+    expect(summary()).not.toHaveTextContent('Farsta strand');
+    expect(
+      fetchMock.mock.calls.some(([, init]) => init?.method === 'POST'),
+    ).toBe(false);
 
     // Select direction "Hagsätra" from the directions CreatableSelect
     const dirSelectInput = screen.getByLabelText('Direction filters');

@@ -37,8 +37,7 @@ The Vite dev server proxies `/api/*` requests to the Worker.
 
 ## Available scripts
 
-- `npm run dev` starts the frontend, Worker, and a watcher that copies updated
-  `public/wasm/slpanel_preview.wasm` files into the Worker asset directory
+- `npm run dev` starts the frontend and Worker
 - `npm run build` typechecks the app and builds both frontend and worker output
 - `npm run test` runs the Vitest suite
 - `npm run lint` runs ESLint
@@ -75,8 +74,8 @@ The initial migration lives in `migrations/0001_initial.sql` and creates:
 ## Current routes
 
 - `/` landing page with links into config and display flows
-- `/config` owner-based config workspace for display CRUD and filter management
-- `/device` USB device configuration and recent/live logs using Web Serial
+- `/config` owner-based config workspace with a preview of unsaved filters
+- `/device` USB device configuration with automatic live logs, clipboard copy, and download using Web Serial
 - `/display/:displayId` public display board with live departures and auto-refresh
 - `/api/health` Worker health endpoint
 - `/api/displays` display CRUD root

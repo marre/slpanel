@@ -1,9 +1,8 @@
 import { startTransition, useEffect, useMemo, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 import type { DepartureRecord, DisplayRecord } from '@/api/types';
 import { DisplayBoard } from '@/components/display-board';
-import { Interstate75DisplayBoard } from '@/components/interstate75-display-board';
 import { ConfigApiError, getDisplay, listDepartures } from '@/lib/config-api';
 
 const DEPARTURES_FORECAST_MINUTES = 240;
@@ -69,13 +68,10 @@ const DEMO_DEPARTURES: DepartureRecord[] = [
 ];
 
 type BoardTone = 'live' | 'loading' | 'empty' | 'error';
-type DisplayRenderer = 'classic' | 'interstate75';
 
 export function DisplayPage() {
   const { displayId } = useParams();
-  const [searchParams, setSearchParams] = useSearchParams();
   const isDemoBoard = displayId === 'demo-board';
-  const activeRenderer = parseDisplayRenderer(searchParams.get('renderer'));
   const [display, setDisplay] = useState<DisplayRecord | null>(null);
   const [departures, setDepartures] = useState<DepartureRecord[]>([]);
   const [isLoadingDisplay, setIsLoadingDisplay] = useState(!isDemoBoard);
@@ -235,53 +231,31 @@ export function DisplayPage() {
         ? 'Syncing now, the board appears with the first refresh.'
         : boardState.detail;
 
-  function handleRendererChange(renderer: DisplayRenderer) {
-    const nextSearchParams = new URLSearchParams(searchParams);
-
-    if (renderer === 'classic') {
-      nextSearchParams.delete('renderer');
-    } else {
-      nextSearchParams.set('renderer', renderer);
-    }
-
-    setSearchParams(nextSearchParams, { replace: true });
-  }
-
-  const boardElement =
-    activeRenderer === 'interstate75' ? (
-      <Interstate75DisplayBoard
-        displayName={displayName}
-        siteName={activeDisplay?.site_name ?? null}
-        departures={activeDepartures}
-        tone={boardState.tone}
-        headline={boardState.headline}
-        detail={boardState.detail}
-      />
-    ) : (
-      <DisplayBoard
-        displayName={displayName}
-        siteName={activeDisplay?.site_name ?? null}
-        departures={activeDepartures}
-        tone={boardState.tone}
-        headline={boardState.headline}
-        detail={boardState.detail}
-      />
-    );
+  const boardElement = (
+    <DisplayBoard
+      displayName={displayName}
+      siteName={activeDisplay?.site_name ?? null}
+      departures={activeDepartures}
+      tone={boardState.tone}
+      headline={boardState.headline}
+      detail={boardState.detail}
+    />
+  );
 
   return (
     <section className="space-y-6">
       <div className="space-y-3">
-        <p className="text-[0.7rem] uppercase tracking-[0.22em] text-[var(--muted-text)]">
+        <p className="text-[0.7rem] uppercase tracking-[0.08em] text-[var(--muted-text)]">
           Live board
         </p>
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 className="max-w-4xl text-3xl font-semibold leading-tight text-[var(--panel-text)] md:text-5xl">
+          <h2 className="max-w-4xl text-3xl font-semibold leading-tight text-[var(--app-text)] md:text-5xl">
             {displayName}
           </h2>
           <p
             data-testid="board-status"
             role="status"
-            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[0.7rem] font-medium uppercase tracking-[0.18em] ${
+            className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[0.7rem] font-medium uppercase tracking-[0.18em] ${
               boardState.tone === 'live'
                 ? 'border-emerald-400/40 text-emerald-200'
                 : boardState.tone === 'error'
@@ -291,7 +265,7 @@ export function DisplayPage() {
           >
             <span
               aria-hidden="true"
-              className={`inline-block size-1.5 rounded-full ${
+              className={`inline-block size-1.5 rounded-lg ${
                 boardState.tone === 'live'
                   ? 'bg-emerald-400'
                   : boardState.tone === 'error'
@@ -311,27 +285,6 @@ export function DisplayPage() {
           Shows the next departure on the top row and scrolls upcoming
           departures on the second row. {refreshCopy}
         </p>
-        <div
-          className="inline-flex shrink-0 rounded-full border border-[var(--panel-border)] bg-black/24 p-0.5"
-          role="group"
-          aria-label="Board renderer"
-        >
-          {DISPLAY_RENDERER_OPTIONS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              aria-pressed={activeRenderer === option.value}
-              onClick={() => handleRendererChange(option.value)}
-              className={`rounded-full px-2.5 py-1.5 text-[0.65rem] font-medium uppercase tracking-[0.18em] transition ${
-                activeRenderer === option.value
-                  ? 'bg-[var(--panel-text)]/15 text-[var(--panel-text)]'
-                  : 'text-[var(--muted-text)]/70 hover:text-[var(--muted-text)]'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
       </div>
     </section>
   );
@@ -440,21 +393,3 @@ function readErrorMessage(error: unknown, fallback: string) {
 
   return fallback;
 }
-
-function parseDisplayRenderer(value: string | null): DisplayRenderer {
-  return value === 'interstate75' ? value : 'classic';
-}
-
-const DISPLAY_RENDERER_OPTIONS: Array<{
-  value: DisplayRenderer;
-  label: string;
-}> = [
-  {
-    value: 'classic',
-    label: 'Classic board',
-  },
-  {
-    value: 'interstate75',
-    label: 'Interstate 75 W preview',
-  },
-];

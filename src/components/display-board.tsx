@@ -196,9 +196,9 @@ export function DisplayBoard({
   return (
     <div
       data-testid="classic-display-board"
-      className="w-full max-w-[68rem] rounded-[2.4rem] border border-[var(--panel-border)] bg-[linear-gradient(180deg,rgba(18,24,28,0.96),rgba(6,9,12,0.98))] p-4 shadow-[inset_0_0_0_1px_rgba(255,188,85,0.08),0_28px_80px_rgba(0,0,0,0.52)] md:p-5"
+      className="w-full max-w-[68rem] rounded-xl border border-[var(--panel-border)] bg-[linear-gradient(180deg,rgba(18,24,28,0.96),rgba(6,9,12,0.98))] p-2 shadow-sm md:p-3"
     >
-      <div className="w-full rounded-[1.55rem] border border-black/70 bg-[radial-gradient(circle_at_top,rgba(255,176,84,0.06),transparent_40%),#000] p-3 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] md:p-4">
+      <div className="w-full rounded-lg border border-black/70 bg-[radial-gradient(circle_at_top,rgba(255,176,84,0.06),transparent_40%),#000] p-2">
         <canvas
           ref={canvasRef}
           width={PANEL_WIDTH}
@@ -271,10 +271,7 @@ function drawBoard(
 }
 
 function layoutCenterOffset(text: string) {
-  const textWidth = Math.max(
-    measureText(text, CLASSIC_BOARD_FONT_OPTIONS),
-    1,
-  );
+  const textWidth = Math.max(measureText(text, CLASSIC_BOARD_FONT_OPTIONS), 1);
 
   if (textWidth >= PANEL_WIDTH) {
     return 0;

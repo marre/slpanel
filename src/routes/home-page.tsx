@@ -1,55 +1,61 @@
 import { Link } from 'react-router-dom';
 
-import { PanelPreview } from '@/components/panel-preview';
-
 export function HomePage() {
   return (
-    <div className="grid gap-12 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-center">
-      <section className="space-y-6">
-        <div className="space-y-6">
-          <p className="text-[0.7rem] uppercase tracking-[0.22em] text-[var(--muted-text)]">
-            Overview
-          </p>
-          <div className="space-y-6">
-            <h2 className="max-w-3xl text-3xl font-semibold leading-tight text-[var(--panel-text)] md:text-5xl">
-              Real-time SL transit displays
-            </h2>
-            <p className="max-w-3xl text-sm leading-7 text-[var(--muted-text)] md:text-base">
-              Create and share live departure boards for any SL stop. Filter by
-              line and direction, and the board auto-refreshes so you always
-              see the latest departures.
+    <section className="space-y-8 py-4 md:py-8">
+      <div className="max-w-2xl space-y-4">
+        <p className="text-sm font-medium text-[var(--muted-text)]">
+          Your transit display, connected
+        </p>
+        <h2 className="text-3xl font-semibold tracking-tight md:text-5xl">
+          Real-time SL transit displays
+        </h2>
+        <p className="text-base leading-7 text-[var(--muted-text)]">
+          The departures you need, on your panel. Choose a stop and fine-tune
+          your board, then connect your device to bring it to life.
+        </p>
+      </div>
+      <div className="grid gap-5 md:grid-cols-2">
+        <Link
+          to="/config"
+          className="group space-y-5 rounded-xl border border-[var(--panel-border)] bg-[var(--card-bg)] p-6 transition hover:border-[var(--panel-text)]/50"
+        >
+          <span className="text-xs font-medium text-[var(--muted-text)]">
+            01 / Configure
+          </span>
+          <div className="space-y-2">
+            <h3 className="text-xl font-semibold">
+              Set up a display{' '}
+              <span aria-hidden="true" className="text-[var(--panel-text)]">
+                →
+              </span>
+            </h3>
+            <p className="text-sm leading-6 text-[var(--muted-text)]">
+              Manage stops, lines, and directions. See your changes immediately
+              in the config preview.
             </p>
           </div>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <Link
-            to="/config"
-            className="rounded-full border border-[var(--panel-text)] bg-[var(--panel-text)] px-5 py-3 text-sm font-medium text-black transition hover:bg-[var(--panel-text-soft)]"
-          >
-            Set up a display
-          </Link>
-          <Link
-            to="/display/demo-board"
-            className="rounded-full border border-[var(--panel-border)] px-5 py-3 text-sm font-medium text-[var(--panel-text)] transition hover:border-[var(--panel-text)]/60 hover:bg-[var(--panel-text)]/8"
-          >
-            View demo board
-          </Link>
-          <Link
-            to="/display/demo-board?renderer=interstate75"
-            className="rounded-full border border-[#84d8ff]/50 bg-[#84d8ff]/8 px-5 py-3 text-sm font-medium text-[#b9edff] transition hover:border-[#84d8ff]/80 hover:bg-[#84d8ff]/14"
-          >
-            Interstate 75 W preview
-          </Link>
-        </div>
-      </section>
-
-      <figure className="min-w-0 space-y-3">
-        <PanelPreview />
-        <figcaption className="text-[0.7rem] uppercase tracking-[0.22em] text-[var(--muted-text)]">
-          Live preview: Slussen, lines 17 and 18
-        </figcaption>
-      </figure>
-    </div>
+        </Link>
+        <Link
+          to="/device"
+          className="group space-y-5 rounded-xl border border-[var(--panel-border)] bg-[var(--card-bg)] p-6 transition hover:border-[var(--panel-text)]/50"
+        >
+          <span className="text-xs font-medium text-[var(--muted-text)]">
+            02 / Connect
+          </span>
+          <div className="space-y-2">
+            <h3 className="text-xl font-semibold">
+              Connect USB device{' '}
+              <span aria-hidden="true" className="text-[var(--panel-text)]">
+                →
+              </span>
+            </h3>
+            <p className="text-sm leading-6 text-[var(--muted-text)]">
+              Set up Wi-Fi, link your board, and watch live device logs.
+            </p>
+          </div>
+        </Link>
+      </div>
+    </section>
   );
 }

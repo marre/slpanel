@@ -6,6 +6,9 @@ Object.defineProperty(HTMLCanvasElement.prototype, 'getContext', {
   value: vi.fn(() => {
     return {
       fillRect: vi.fn(),
+      beginPath: vi.fn(),
+      arc: vi.fn(),
+      fill: vi.fn(),
       fillStyle: '#000000',
     } as unknown as CanvasRenderingContext2D;
   }),
