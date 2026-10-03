@@ -52,6 +52,74 @@ describe('DevicePage', () => {
     vi.restoreAllMocks();
   });
 
+  it('scans, selects secured and open networks, and keeps manual entry', async () => {
+    const port = new TestDevicePort((request) =>
+      request.op === 'wifi-scan'
+        ? {
+            reply: 'wifi-scan',
+            networks: [
+              { ssid: 'Café network', rssi: -40, secured: true },
+              { ssid: 'Guest', rssi: -65, secured: false },
+            ],
+          }
+        : { reply: 'saved', reboot_required: true },
+    );
+    exposePort(port);
+    showPage();
+    await connect();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Scan Wi-Fi networks' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Café network/ }),
+    );
+    expect(screen.getByLabelText('Wi-Fi name')).toHaveValue('Café network');
+    expect(screen.getByLabelText('Wi-Fi password')).toBeEnabled();
+    expect(screen.getByLabelText('Update Wi-Fi password')).toBeChecked();
+    expect(
+      screen.getByLabelText('Open Wi-Fi network (no password)'),
+    ).not.toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: /Guest/ }));
+    expect(
+      screen.getByLabelText('Open Wi-Fi network (no password)'),
+    ).toBeChecked();
+    fireEvent.click(screen.getByRole('button', { name: 'Save to device' }));
+    await screen.findByText(/Configuration saved/);
+    expect(port.requests.at(-1)).toMatchObject({
+      op: 'configure',
+      config: { wifi_ssid: 'Guest', wifi_password: '' },
+    });
+    fireEvent.change(screen.getByLabelText('Wi-Fi name'), {
+      target: { value: 'Hidden' },
+    });
+    expect(screen.getByLabelText('Wi-Fi name')).toHaveValue('Hidden');
+  });
+
+  it('shows the scanning state and handles empty results and firmware errors', async () => {
+    const port = new TestDevicePort();
+    exposePort(port);
+    showPage();
+    await connect();
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Scan Wi-Fi networks' }),
+    );
+    expect(
+      screen.getByRole('button', { name: 'Scanning Wi-Fi…' }),
+    ).toBeDisabled();
+    expect(screen.getByLabelText('Wi-Fi name')).toBeDisabled();
+    port.send({ reply: 'wifi-scan', networks: [] });
+    await screen.findByText(/No networks found/);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Scan Wi-Fi networks' }),
+    );
+    port.send({
+      reply: 'error',
+      message: 'Wi-Fi is busy connecting; try scanning again shortly',
+    });
+    await screen.findByText(/Wi-Fi is busy connecting/);
+    expect(screen.getByLabelText('Wi-Fi name')).toBeEnabled();
+  });
+
   it('explains unsupported browsers without trying to connect, and prefills the saved display', () => {
     vi.stubGlobal('navigator', {});
     showPage();

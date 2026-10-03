@@ -198,6 +198,31 @@ describe('DeviceSerialClient', () => {
     },
   );
 
+  it('accepts scan results over split USB packets and rejects malformed results', async () => {
+    const port = new TestDevicePort(() => ({
+      reply: 'wifi-scan',
+      networks: [{ ssid: 'Nät', rssi: -42, secured: true }],
+    }));
+    const client = new DeviceSerialClient(port, vi.fn());
+    await client.connect();
+    expect(await client.request({ op: 'wifi-scan' })).toEqual({
+      reply: 'wifi-scan',
+      networks: [{ ssid: 'Nät', rssi: -42, secured: true }],
+    });
+    await client.disconnect();
+    const malformed = new TestDevicePort();
+    const next = new DeviceSerialClient(malformed, vi.fn());
+    await next.connect();
+    const failed = expect(next.request({ op: 'wifi-scan' })).rejects.toThrow(
+      /Unexpected device response/,
+    );
+    malformed.sendRaw(
+      '{"reply":"wifi-scan","networks":[{"ssid":"x","rssi":"strong","secured":true}]}\n',
+    );
+    await failed;
+    await next.disconnect();
+  });
+
   it('closes a device that is unplugged while a request is pending', async () => {
     const port = new TestDevicePort();
     const disconnected = vi.fn();

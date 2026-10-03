@@ -12,6 +12,7 @@ import type {
   DeviceRequest,
   SavedDeviceConfig,
   WifiSecurity,
+  WifiNetwork,
 } from '@/lib/device-serial';
 
 const buttonClass =
@@ -38,8 +39,9 @@ export function DevicePage() {
   const [changePassword, setChangePassword] = useState(false);
   const [passwordSet, setPasswordSet] = useState(false);
   const [busy, setBusy] = useState<
-    'config' | 'settings' | 'logs' | 'status' | null
+    'config' | 'settings' | 'logs' | 'status' | 'wifi-scan' | null
   >(null);
+  const [networks, setNetworks] = useState<WifiNetwork[] | null>(null);
   const [following, setFollowing] = useState(false);
   const [logs, setLogs] = useState<DeviceLogEntry[]>([]);
   const [lost, setLost] = useState(0);
@@ -51,6 +53,7 @@ export function DevicePage() {
   const generation = useRef(0);
   const follow = useRef(false);
   const cursor = useRef(0);
+  const savedSsid = useRef('');
   const logEnd = useRef<HTMLDivElement | null>(null);
   const secure = window.isSecureContext;
   const supported = Boolean(getDeviceSerialApi());
@@ -81,6 +84,7 @@ export function DevicePage() {
     }
     const attempt = ++generation.current;
     let connecting: DeviceSerialClient | null = null;
+    setNetworks(null);
     setConnection('connecting');
     setError(null);
     setNotice(null);
@@ -195,6 +199,7 @@ export function DevicePage() {
         return;
       }
       if (reply.reply === 'saved') {
+        savedSsid.current = update.wifi_ssid;
         if (changePassword) {
           setPasswordSet(!openNetwork);
         }
@@ -222,6 +227,7 @@ export function DevicePage() {
     saved: SavedDeviceConfig,
     useSelectedDisplay = false,
   ) {
+    savedSsid.current = saved.wifi_ssid;
     setConfig({
       wifi_ssid: saved.wifi_ssid,
       wifi_security: saved.wifi_security,
@@ -313,6 +319,44 @@ export function DevicePage() {
         setBusy(null);
       }
     }
+  }
+
+  async function scanWifi() {
+    const current = client.current;
+    if (!current || busy) return;
+    const attempt = generation.current;
+    setBusy('wifi-scan');
+    setNetworks(null);
+    setError(null);
+    setNotice(null);
+    try {
+      const reply = await request({ op: 'wifi-scan' }, current);
+      if (
+        mounted.current &&
+        generation.current === attempt &&
+        reply.reply === 'wifi-scan'
+      ) {
+        setNetworks(reply.networks);
+      }
+    } catch (failure) {
+      if (mounted.current && generation.current === attempt)
+        setError(readError(failure));
+    } finally {
+      if (mounted.current && generation.current === attempt) setBusy(null);
+    }
+  }
+
+  function selectNetwork(network: WifiNetwork) {
+    // A draft SSID may differ from the network owning the durable password.
+    const changed = network.ssid !== savedSsid.current;
+    setConfig((draft) => ({
+      ...draft,
+      wifi_ssid: network.ssid,
+      wifi_password: '',
+      wifi_security: draft.wifi_security === undefined ? undefined : 'auto',
+    }));
+    setChangePassword(changed || !network.secured || !passwordSet);
+    setOpenNetwork(!network.secured);
   }
 
   async function readStatus() {
@@ -448,6 +492,45 @@ export function DevicePage() {
             disabled={!connected || Boolean(busy)}
             className="space-y-4 disabled:opacity-60"
           >
+            <div className="space-y-2">
+              <button
+                type="button"
+                className={buttonClass}
+                onClick={() => void scanWifi()}
+              >
+                {busy === 'wifi-scan'
+                  ? 'Scanning Wi-Fi…'
+                  : 'Scan Wi-Fi networks'}
+              </button>
+              <p className="text-xs text-[var(--muted-text)]" role="status">
+                {busy === 'wifi-scan'
+                  ? 'Looking for nearby networks. The panel shows a train while scanning.'
+                  : networks?.length === 0
+                    ? 'No networks found. Try scanning again or enter a hidden network below.'
+                    : 'Scan for nearby 2.4 GHz networks, or enter a hidden network below.'}
+              </p>
+              {networks && networks.length > 0 && (
+                <div
+                  className="space-y-2"
+                  aria-label="Available Wi-Fi networks"
+                >
+                  {networks.map((network) => (
+                    <button
+                      key={`${network.ssid}-${network.secured}`}
+                      type="button"
+                      className={`${buttonClass} flex w-full items-center justify-between gap-3 text-left`}
+                      onClick={() => selectNetwork(network)}
+                    >
+                      <span>{network.ssid}</span>
+                      <span className="text-xs text-[var(--muted-text)]">
+                        {network.secured ? 'Password required' : 'Open'} ·{' '}
+                        {network.rssi} dBm
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="space-y-2">
               <label htmlFor="device-ssid" className="text-sm">
                 Wi-Fi name

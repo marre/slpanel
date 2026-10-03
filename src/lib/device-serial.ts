@@ -20,11 +20,14 @@ export type DeviceLogEntry = {
   message: string;
 };
 
+export type WifiNetwork = { ssid: string; rssi: number; secured: boolean };
+
 export type DeviceRequest =
   | { op: 'config' }
   | { op: 'configure'; config: DeviceConfig }
   | { op: 'logs'; after: number }
-  | { op: 'status' };
+  | { op: 'status' }
+  | { op: 'wifi-scan' };
 
 export type DeviceReply =
   | { reply: 'config'; config: SavedDeviceConfig }
@@ -37,6 +40,7 @@ export type DeviceReply =
       lost: number;
       more: boolean;
     }
+  | { reply: 'wifi-scan'; networks: WifiNetwork[] }
   | { reply: 'status'; details: string }
   | { reply: 'error'; message: string };
 
@@ -183,6 +187,26 @@ function parseReply(bytes: number[]): DeviceReply {
           return value as DeviceReply;
         }
         break;
+      case 'wifi-scan':
+        if (
+          Array.isArray(value.networks) &&
+          value.networks.length <= 20 &&
+          value.networks.every(
+            (network: unknown) =>
+              isObject(network) &&
+              typeof network.ssid === 'string' &&
+              encoder.encode(network.ssid).length > 0 &&
+              encoder.encode(network.ssid).length <= 32 &&
+              typeof network.rssi === 'number' &&
+              Number.isInteger(network.rssi) &&
+              network.rssi >= -32768 &&
+              network.rssi <= 32767 &&
+              typeof network.secured === 'boolean',
+          )
+        ) {
+          return value as DeviceReply;
+        }
+        break;
       case 'status':
         if (typeof value.details === 'string') {
           return value as DeviceReply;
@@ -298,7 +322,11 @@ export class DeviceSerialClient {
     const expected = request.op === 'configure' ? 'saved' : request.op;
     this.requesting = true;
     try {
-      const response = this.waitForReply();
+      const response = this.waitForReply(
+        request.op === 'wifi-scan'
+          ? Math.max(this.timeoutMs, 30_000)
+          : this.timeoutMs,
+      );
       const [, reply] = await Promise.all([this.writer.write(line), response]);
       if (reply.reply === 'error') {
         return reply;
@@ -326,14 +354,14 @@ export class DeviceSerialClient {
     }
   }
 
-  private waitForReply(): Promise<DeviceReply> {
+  private waitForReply(timeoutMs = this.timeoutMs): Promise<DeviceReply> {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(
         () =>
           this.fail(
             new Error('Device response timed out. Reconnect and try again.'),
           ),
-        this.timeoutMs,
+        timeoutMs,
       );
       this.pending = { resolve, reject, timer };
     });
