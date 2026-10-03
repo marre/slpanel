@@ -14,9 +14,7 @@ type DisplayBaseRow = {
 };
 
 type FilterTable =
-  | 'display_line_filters'
-  | 'display_direction_filters'
-  | 'display_mode_filters';
+  'display_line_filters' | 'display_direction_filters' | 'display_mode_filters';
 type FilterColumn = 'line_number' | 'direction' | 'mode';
 
 export function createD1DisplayStore(db: D1Database): DisplayStore {
