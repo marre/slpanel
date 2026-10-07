@@ -29,7 +29,7 @@ describe('HomePage', () => {
     vi.unstubAllGlobals();
   });
 
-  it('renders the scaffold actions', () => {
+  it('offers setup, device connection and a public demo', () => {
     render(
       <MemoryRouter>
         <HomePage />
@@ -47,6 +47,9 @@ describe('HomePage', () => {
     expect(
       screen.getByRole('link', { name: /connect USB device/i }),
     ).toHaveAttribute('href', '/device');
+    expect(
+      screen.getByRole('link', { name: /try the demo board/i }),
+    ).toHaveAttribute('href', '/display/demo-board');
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
     expect(screen.queryByText(/interstate/i)).not.toBeInTheDocument();
   });

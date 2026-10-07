@@ -5,7 +5,7 @@ import { listDisplays } from '@/lib/config-api';
 
 const ownerPattern = /^[A-Za-z0-9]{8}$/;
 const inputClass =
-  'w-full rounded-xl border border-[var(--panel-border)] bg-black/30 px-4 py-3 text-base md:text-sm';
+  'w-full rounded-lg border border-[var(--panel-border)] bg-white px-4 py-3 text-base md:text-sm';
 
 export function DeviceDisplayPicker({
   displayId,

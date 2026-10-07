@@ -1,17 +1,17 @@
 @import 'tailwindcss';
 
 :root {
-  color-scheme: dark;
-  --app-bg: #101216;
-  --card-bg: #191c22;
+  color-scheme: light;
+  --app-bg: #f1f3f5;
+  --card-bg: #ffffff;
   --panel-bg: #020202;
-  --panel-border: #30343d;
+  --panel-border: #c4cbd0;
   --panel-chassis: #111519;
-  --panel-text: #a5c4ff;
-  --panel-text-soft: #c5d9ff;
-  --app-text: #eceef2;
-  --muted-text: #9da5b4;
-  --focus-ring: #a5c4ff;
+  --panel-text: #007eae;
+  --panel-text-soft: #00658c;
+  --app-text: #16191c;
+  --muted-text: #535d65;
+  --focus-ring: #005b80;
   font-family:
     Inter,
     ui-sans-serif,
@@ -50,8 +50,8 @@ canvas {
 }
 
 ::selection {
-  background: rgba(165, 196, 255, 0.28);
-  color: white;
+  background: #cceaf5;
+  color: #16191c;
 }
 
 :focus-visible {
@@ -77,4 +77,60 @@ canvas {
     scroll-behavior: auto;
     transition-duration: 0.01ms;
   }
+}
+
+.skip-link {
+  position: absolute;
+  top: -5rem;
+  left: 1rem;
+  z-index: 100;
+  padding: 0.75rem 1rem;
+  background: white;
+  color: var(--app-text);
+}
+
+.skip-link:focus {
+  top: 1rem;
+}
+
+header :focus-visible {
+  outline-color: white;
+}
+
+.home-hero {
+  background: linear-gradient(120deg, #fff 35%, #deeff5);
+  border: 1px solid var(--panel-border);
+}
+
+.action-card {
+  display: block;
+  padding: 1.75rem;
+  border: 1px solid var(--panel-border);
+  border-top: 4px solid var(--panel-text);
+  border-radius: 0.25rem;
+  background: var(--card-bg);
+  transition:
+    background-color 150ms,
+    border-color 150ms;
+}
+
+.action-card:hover {
+  background: #eaf5fa;
+  border-color: var(--panel-text);
+}
+
+button,
+input:not([role='combobox']),
+select,
+summary {
+  min-height: 2.75rem;
+}
+
+input[type='checkbox'] {
+  min-height: auto;
+  accent-color: var(--panel-text);
+}
+
+label {
+  font-weight: 600;
 }

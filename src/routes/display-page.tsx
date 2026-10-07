@@ -245,31 +245,31 @@ export function DisplayPage() {
   return (
     <section className="space-y-6">
       <div className="space-y-3">
-        <p className="text-[0.7rem] uppercase tracking-[0.08em] text-[var(--muted-text)]">
+        <p className="text-[0.7rem] font-semibold text-[var(--muted-text)]">
           Live board
         </p>
         <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 className="max-w-4xl text-3xl font-semibold leading-tight text-[var(--app-text)] md:text-5xl">
+          <h1 className="max-w-4xl text-3xl font-semibold leading-tight text-[var(--app-text)] md:text-5xl">
             {displayName}
-          </h2>
+          </h1>
           <p
             data-testid="board-status"
             role="status"
-            className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-[0.7rem] font-medium uppercase tracking-[0.18em] ${
+            className={`inline-flex items-center gap-2 rounded border px-3 py-1.5 text-[0.7rem] font-medium uppercase tracking-[0.18em] ${
               boardState.tone === 'live'
-                ? 'border-emerald-400/40 text-emerald-200'
+                ? 'border-emerald-400/40 text-emerald-800'
                 : boardState.tone === 'error'
-                  ? 'border-rose-400/40 text-rose-200'
+                  ? 'border-rose-400/40 text-rose-800'
                   : 'border-[var(--panel-border)] text-[var(--muted-text)]'
             }`}
           >
             <span
               aria-hidden="true"
-              className={`inline-block size-1.5 rounded-lg ${
+              className={`inline-block size-1.5 rounded ${
                 boardState.tone === 'live'
                   ? 'bg-emerald-400'
                   : boardState.tone === 'error'
-                    ? 'bg-rose-400'
+                    ? 'bg-rose-700'
                     : 'bg-[var(--muted-text)]'
               }`}
             />

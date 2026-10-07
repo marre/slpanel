@@ -421,13 +421,13 @@ export function ConfigPage() {
   return (
     <section className="space-y-8">
       <div className="space-y-3">
-        <p className="text-[0.7rem] uppercase tracking-[0.08em] text-[var(--muted-text)]">
+        <p className="text-sm font-semibold text-[var(--muted-text)]">
           Display config
         </p>
         <div className="space-y-3">
-          <h2 className="max-w-3xl text-3xl font-semibold leading-tight text-[var(--app-text)] md:text-4xl">
+          <h1 className="max-w-3xl text-3xl font-semibold leading-tight text-[var(--app-text)] md:text-4xl">
             Set up and manage your transit display boards.
-          </h2>
+          </h1>
           <p className="max-w-3xl text-sm leading-7 text-[var(--muted-text)] md:text-base">
             Choose a stop, pick which lines and directions to show, and control
             how often the board refreshes. Preview changes as you edit, then
@@ -437,19 +437,19 @@ export function ConfigPage() {
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[minmax(16rem,19rem)_minmax(0,1fr)] xl:items-start">
-        <aside className="space-y-5 rounded-xl border border-[var(--panel-border)] bg-black/15 p-5">
+        <aside className="space-y-5 rounded-lg border border-[var(--panel-border)] bg-[var(--card-bg)] p-5">
           <form
             className="space-y-4"
             onSubmit={handleOwnerSubmit}
             aria-label="Load displays by owner"
           >
             <div className="space-y-2">
-              <p className="text-[0.7rem] uppercase tracking-[0.08em] text-[var(--muted-text)]">
+              <p className="text-sm font-semibold text-[var(--muted-text)]">
                 Step 1: Owner
               </p>
               <label
                 htmlFor="owner-id"
-                className="text-[0.7rem] uppercase tracking-[0.08em] text-[var(--muted-text)]"
+                className="text-sm font-semibold text-[var(--muted-text)]"
               >
                 Owner ID
               </label>
@@ -458,14 +458,14 @@ export function ConfigPage() {
                 value={ownerInput}
                 onChange={(event) => setOwnerInput(event.target.value)}
                 placeholder="e.g. aB3xZ9kQ, 8 characters"
-                className="w-full rounded-lg border border-[var(--panel-border)] bg-black/30 px-4 py-3 text-base text-[var(--app-text)] transition placeholder:text-[var(--muted-text)]/60 focus-visible:border-[var(--panel-text)] md:text-sm"
+                className="w-full rounded border border-[var(--panel-border)] bg-white px-4 py-3 text-base text-[var(--app-text)] transition placeholder:text-[var(--muted-text)] focus-visible:border-[var(--panel-text)] md:text-sm"
               />
             </div>
 
             <div className="flex flex-wrap gap-3">
               <button
                 type="submit"
-                className="rounded-lg border border-[var(--panel-text)] bg-[var(--panel-text)] px-4 py-2 text-sm font-medium text-black transition hover:bg-[var(--panel-text-soft)]"
+                className="rounded border border-[var(--panel-text)] bg-[var(--panel-text)] px-4 py-2 text-sm font-medium text-white transition hover:bg-[var(--panel-text-soft)]"
               >
                 Load displays
               </button>
@@ -478,7 +478,7 @@ export function ConfigPage() {
                     setStatusMessage(null);
                     setErrorMessage(null);
                   }}
-                  className="rounded-lg border border-[var(--panel-border)] px-4 py-2 text-sm text-[var(--muted-text)] transition hover:border-[var(--panel-text)]/50 hover:text-[var(--panel-text)]"
+                  className="rounded border border-[var(--panel-border)] px-4 py-2 text-sm text-[var(--muted-text)] transition hover:border-[var(--panel-text)]/50 hover:text-[var(--panel-text)]"
                 >
                   Clear owner
                 </button>
@@ -486,10 +486,10 @@ export function ConfigPage() {
             </div>
           </form>
 
-          <div className="rounded-lg border border-[var(--panel-border)] bg-black/20 p-4">
+          <div className="rounded border border-[var(--panel-border)] bg-slate-50 p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="space-y-1">
-                <p className="text-[0.7rem] uppercase tracking-[0.08em] text-[var(--muted-text)]">
+                <p className="text-sm font-semibold text-[var(--muted-text)]">
                   Step 2: Pick a board
                 </p>
                 <h3 className="text-lg font-semibold text-[var(--app-text)]">
@@ -503,7 +503,7 @@ export function ConfigPage() {
                 type="button"
                 onClick={handleStartNewDisplay}
                 disabled={!activeOwnerId}
-                className="rounded-lg border border-[var(--panel-border)] px-3 py-2 text-xs font-medium uppercase tracking-[0.08em] text-[var(--panel-text)] transition hover:border-[var(--panel-text)]/70 hover:bg-[var(--panel-text)]/8 disabled:cursor-not-allowed disabled:opacity-45"
+                className="rounded border border-[var(--panel-border)] px-3 py-2 text-xs font-semibold text-[var(--panel-text)] transition hover:border-[var(--panel-text)]/70 hover:bg-[var(--panel-text)]/8 disabled:cursor-not-allowed disabled:opacity-45"
               >
                 New display
               </button>
@@ -522,12 +522,13 @@ export function ConfigPage() {
                     <button
                       key={display.id}
                       type="button"
+                      aria-pressed={isSelected}
                       onClick={() => handleSelectDisplay(display)}
                       className={[
-                        'flex w-full flex-col gap-2 rounded-lg border px-4 py-4 text-left transition',
+                        'flex w-full flex-col gap-2 rounded border px-4 py-4 text-left transition',
                         isSelected
                           ? 'border-[var(--panel-text)] bg-[var(--panel-text)]/10 text-[var(--panel-text)]'
-                          : 'border-[var(--panel-border)] bg-black/10 text-[var(--app-text)] hover:border-[var(--panel-text)]/55',
+                          : 'border-[var(--panel-border)] bg-white text-[var(--app-text)] hover:border-[var(--panel-text)]/55',
                       ].join(' ')}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -540,7 +541,7 @@ export function ConfigPage() {
                           </p>
                         </div>
 
-                        <span className="rounded-lg border border-current/20 px-2 py-1 text-[11px] uppercase tracking-[0.16em]">
+                        <span className="rounded border border-current/20 px-2 py-1 text-[11px] uppercase tracking-[0.16em]">
                           {display.refresh_interval}s
                         </span>
                       </div>
@@ -552,7 +553,7 @@ export function ConfigPage() {
                   );
                 })
               ) : activeOwnerId ? (
-                <div className="rounded-lg border border-dashed border-[var(--panel-border)] px-4 py-6 text-sm text-[var(--muted-text)]">
+                <div className="rounded border border-dashed border-[var(--panel-border)] px-4 py-6 text-sm text-[var(--muted-text)]">
                   No displays yet. Create the first board for this owner.
                 </div>
               ) : (
@@ -564,10 +565,10 @@ export function ConfigPage() {
           </div>
         </aside>
 
-        <div className="space-y-5 rounded-xl border border-[var(--panel-border)] bg-black/15 p-5 md:p-6">
+        <div className="space-y-5 rounded-lg border border-[var(--panel-border)] bg-[var(--card-bg)] p-5 md:p-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
             <div className="space-y-2">
-              <p className="text-[0.7rem] uppercase tracking-[0.08em] text-[var(--muted-text)]">
+              <p className="text-sm font-semibold text-[var(--muted-text)]">
                 Step 3: {isCreating ? 'Configure the board' : 'Edit the board'}
               </p>
               <h3 className="text-2xl font-semibold text-[var(--app-text)]">
@@ -585,7 +586,7 @@ export function ConfigPage() {
           {statusMessage ? (
             <div
               role="status"
-              className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100"
+              className="rounded border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800"
             >
               {statusMessage}
             </div>
@@ -594,13 +595,13 @@ export function ConfigPage() {
           {errorMessage ? (
             <div
               role="alert"
-              className="rounded-lg border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-100"
+              className="rounded border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-800"
             >
               {errorMessage}
             </div>
           ) : null}
 
-          <figure className="md:sticky md:top-4 z-10 space-y-3 rounded-xl border border-[var(--panel-border)] bg-[var(--card-bg)] p-4 shadow-lg shadow-black/10">
+          <figure className="xl:sticky xl:top-4 z-10 space-y-3 rounded-lg border border-[var(--panel-border)] bg-[var(--card-bg)] p-4 shadow-lg shadow-black/10">
             <figcaption className="flex flex-wrap items-center justify-between gap-2 text-sm">
               <span className="font-medium">Config preview</span>
               <span className="text-xs text-[var(--muted-text)]">
@@ -652,7 +653,7 @@ export function ConfigPage() {
               <div className="space-y-2 md:col-span-2">
                 <label
                   htmlFor="display-name"
-                  className="text-[0.7rem] uppercase tracking-[0.08em] text-[var(--muted-text)]"
+                  className="text-sm font-semibold text-[var(--muted-text)]"
                 >
                   Display name
                 </label>
@@ -666,14 +667,14 @@ export function ConfigPage() {
                     }))
                   }
                   placeholder="e.g. Southbound platform"
-                  className="w-full rounded-lg border border-[var(--panel-border)] bg-black/30 px-4 py-3 text-base text-[var(--app-text)] transition placeholder:text-[var(--muted-text)]/60 focus-visible:border-[var(--panel-text)] md:text-sm"
+                  className="w-full rounded border border-[var(--panel-border)] bg-white px-4 py-3 text-base text-[var(--app-text)] transition placeholder:text-[var(--muted-text)] focus-visible:border-[var(--panel-text)] md:text-sm"
                 />
               </div>
 
               <div className="space-y-2 md:col-span-2">
                 <label
                   htmlFor="stop-search"
-                  className="text-[0.7rem] uppercase tracking-[0.08em] text-[var(--muted-text)]"
+                  className="text-sm font-semibold text-[var(--muted-text)]"
                 >
                   Stop search
                 </label>
@@ -703,7 +704,7 @@ export function ConfigPage() {
               <div className="space-y-2">
                 <label
                   htmlFor="refresh-interval"
-                  className="text-[0.7rem] uppercase tracking-[0.08em] text-[var(--muted-text)]"
+                  className="text-sm font-semibold text-[var(--muted-text)]"
                 >
                   Refresh interval (seconds)
                 </label>
@@ -722,14 +723,14 @@ export function ConfigPage() {
                       ),
                     }))
                   }
-                  className="w-full rounded-lg border border-[var(--panel-border)] bg-black/30 px-4 py-3 text-base text-[var(--app-text)] transition focus-visible:border-[var(--panel-text)] md:text-sm"
+                  className="w-full rounded border border-[var(--panel-border)] bg-white px-4 py-3 text-base text-[var(--app-text)] transition focus-visible:border-[var(--panel-text)] md:text-sm"
                 />
               </div>
 
               <div className="space-y-2">
                 <label
                   htmlFor="line-numbers"
-                  className="text-[0.7rem] uppercase tracking-[0.08em] text-[var(--muted-text)]"
+                  className="text-sm font-semibold text-[var(--muted-text)]"
                 >
                   Line numbers
                 </label>
@@ -756,7 +757,7 @@ export function ConfigPage() {
               <div className="space-y-2 md:col-span-2">
                 <label
                   htmlFor="directions"
-                  className="text-[0.7rem] uppercase tracking-[0.08em] text-[var(--muted-text)]"
+                  className="text-sm font-semibold text-[var(--muted-text)]"
                 >
                   Direction filters
                 </label>
@@ -789,7 +790,7 @@ export function ConfigPage() {
               <button
                 type="submit"
                 disabled={!activeOwnerId || saving}
-                className="rounded-lg border border-[var(--panel-text)] bg-[var(--panel-text)] px-5 py-3 text-sm font-medium text-black transition hover:bg-[var(--panel-text-soft)] disabled:cursor-not-allowed disabled:opacity-45"
+                className="rounded border border-[var(--panel-text)] bg-[var(--panel-text)] px-5 py-3 text-sm font-medium text-white transition hover:bg-[var(--panel-text-soft)] disabled:cursor-not-allowed disabled:opacity-45"
               >
                 {saving
                   ? isCreating
@@ -802,12 +803,12 @@ export function ConfigPage() {
 
               {!isCreating ? (
                 confirmingDelete ? (
-                  <span className="inline-flex flex-wrap items-center gap-2 rounded-lg border border-rose-400/40 bg-rose-500/10 px-2 py-1.5">
+                  <span className="inline-flex flex-wrap items-center gap-2 rounded border border-rose-400/40 bg-rose-500/10 px-2 py-1.5">
                     <button
                       type="button"
                       onClick={handleDeleteDisplay}
                       disabled={deleting}
-                      className="rounded-lg bg-rose-400 px-4 py-1.5 text-sm font-medium text-black transition hover:bg-rose-300 disabled:cursor-not-allowed disabled:opacity-45"
+                      className="rounded bg-rose-700 px-4 py-1.5 text-sm font-medium text-white transition hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-45"
                     >
                       {deleting ? 'Deleting…' : 'Confirm delete'}
                     </button>
@@ -815,7 +816,7 @@ export function ConfigPage() {
                       type="button"
                       onClick={handleCancelDelete}
                       disabled={deleting}
-                      className="rounded-lg border border-rose-400/40 px-4 py-1.5 text-sm font-medium text-rose-100 transition hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-45"
+                      className="rounded border border-rose-400/40 px-4 py-1.5 text-sm font-medium text-rose-800 transition hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-45"
                     >
                       Keep board
                     </button>
@@ -825,7 +826,7 @@ export function ConfigPage() {
                     type="button"
                     onClick={handleDeleteDisplay}
                     disabled={deleting}
-                    className="rounded-lg border border-rose-400/40 px-5 py-3 text-sm font-medium text-rose-100 transition hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-45"
+                    className="rounded border border-rose-400/40 px-5 py-3 text-sm font-medium text-rose-800 transition hover:bg-rose-500/10 disabled:cursor-not-allowed disabled:opacity-45"
                   >
                     Delete display
                   </button>
@@ -835,7 +836,7 @@ export function ConfigPage() {
               {selectedDisplay ? (
                 <Link
                   to={`/device?display=${encodeURIComponent(selectedDisplay.id)}`}
-                  className="inline-flex rounded-lg border border-[var(--panel-border)] px-5 py-3 text-sm text-[var(--panel-text)] transition hover:border-[var(--panel-text)]"
+                  className="inline-flex rounded border border-[var(--panel-border)] px-5 py-3 text-sm text-[var(--panel-text)] transition hover:border-[var(--panel-text)]"
                 >
                   Configure USB device
                 </Link>
@@ -844,7 +845,7 @@ export function ConfigPage() {
               {selectedDisplay ? (
                 <Link
                   to={`/display/${selectedDisplay.id}`}
-                  className="ml-auto inline-flex rounded-lg border border-[#84d8ff]/50 bg-[#84d8ff]/8 px-5 py-3 text-sm font-medium text-[#b9edff] transition hover:border-[#84d8ff]/80 hover:bg-[#84d8ff]/14"
+                  className="ml-auto inline-flex rounded border border-[#84d8ff]/50 bg-[#84d8ff]/8 px-5 py-3 text-sm font-medium text-[var(--panel-text)] transition hover:border-[#84d8ff]/80 hover:bg-[#84d8ff]/14"
                 >
                   View display
                 </Link>
@@ -1009,7 +1010,7 @@ function formatLineOption(
   return (
     <span className="flex items-center gap-2">
       <span>{option.label}</span>
-      <span className="rounded-lg border border-current/20 px-1.5 py-0.5 text-[11px] uppercase tracking-[0.12em] opacity-70">
+      <span className="rounded border border-current/20 px-1.5 py-0.5 text-[11px] uppercase tracking-[0.12em] opacity-70">
         {option.transportMode}
       </span>
     </span>
@@ -1029,7 +1030,7 @@ function formatDirectionOption(
       <span>{option.label}</span>
       <span className="flex items-center gap-1.5 text-xs opacity-65">
         <span>Line {option.lineNumber}</span>
-        <span className="rounded-lg border border-current/20 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.12em]">
+        <span className="rounded border border-current/20 px-1.5 py-0.5 text-[10px] uppercase tracking-[0.12em]">
           {option.transportMode}
         </span>
       </span>
@@ -1040,21 +1041,21 @@ function formatDirectionOption(
 const selectClassNames = {
   control: (state: { isFocused: boolean }) =>
     [
-      'rounded-lg border bg-black/30 px-2 py-2 text-base transition min-h-0 cursor-text md:text-sm',
+      'rounded border bg-white px-2 py-2 text-base transition min-h-0 cursor-text md:text-sm',
       state.isFocused
         ? 'border-[var(--panel-text)]'
         : 'border-[var(--panel-border)]',
     ].join(' '),
   valueContainer: () => 'flex flex-wrap gap-1',
   multiValue: () =>
-    'rounded-lg border border-[var(--panel-border)] bg-[var(--panel-text)]/10',
+    'rounded border border-[var(--panel-border)] bg-[var(--panel-text)]/10',
   multiValueLabel: () => 'text-xs text-[var(--panel-text)] px-2 py-0.5',
   multiValueRemove: () =>
     'text-[var(--muted-text)] hover:text-red-400 hover:bg-red-400/10 rounded-r-full px-1 transition',
   input: () => 'text-base text-[var(--app-text)] md:text-sm',
-  placeholder: () => 'text-sm text-[var(--muted-text)]/60',
+  placeholder: () => 'text-sm text-[var(--muted-text)]',
   menu: () =>
-    'mt-2 rounded-lg border border-[var(--panel-border)] bg-black/95 backdrop-blur-md shadow-xl shadow-black/40 overflow-hidden z-50',
+    'mt-2 rounded border border-[var(--panel-border)] bg-white backdrop-blur-md shadow-lg shadow-black/10 overflow-hidden z-50',
   menuList: () => 'p-2 max-h-64 overflow-auto',
   option: (state: { isFocused: boolean; isSelected: boolean }) =>
     [
@@ -1151,7 +1152,7 @@ function StopOptionComponent(props: OptionProps<StopOption, false>) {
           </span>
         </span>
         {typeLabel ? (
-          <span className="shrink-0 rounded-lg border border-[var(--panel-text)]/30 px-1.5 py-0.5 text-[11px] uppercase tracking-[0.1em] text-[var(--panel-text)]/75">
+          <span className="shrink-0 rounded border border-[var(--panel-text)]/30 px-1.5 py-0.5 text-[11px] uppercase tracking-[0.1em] text-[var(--panel-text)]/75">
             {typeLabel}
           </span>
         ) : null}
@@ -1166,7 +1167,7 @@ function formatStopOption(
 ) {
   const typeLabel = mapStopType(option.type);
   const badge = typeLabel ? (
-    <span className="rounded-lg border border-current/30 px-1.5 py-0.5 text-[11px] uppercase tracking-[0.1em] text-[var(--panel-text)]/80">
+    <span className="rounded border border-current/30 px-1.5 py-0.5 text-[11px] uppercase tracking-[0.1em] text-[var(--panel-text)]/80">
       {typeLabel}
     </span>
   ) : null;
