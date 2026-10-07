@@ -19,10 +19,10 @@ import type {
 } from '@/lib/device-serial';
 
 const buttonClass =
-  'rounded-lg border border-[var(--panel-border)] px-4 py-2 text-sm transition hover:border-[var(--panel-text)] hover:text-[var(--panel-text)] disabled:cursor-not-allowed disabled:opacity-40';
-const primaryClass = `${buttonClass} border-[var(--panel-text)] bg-[var(--panel-text)] text-black hover:bg-[var(--panel-text-soft)] hover:text-black`;
+  'rounded border border-[var(--panel-border)] px-4 py-2 text-sm transition hover:border-[var(--panel-text)] hover:text-[var(--panel-text)] disabled:cursor-not-allowed disabled:opacity-40';
+const primaryClass = `${buttonClass} border-[var(--panel-text)] bg-[var(--panel-text)] text-white hover:bg-[var(--panel-text-soft)] hover:text-white`;
 const inputClass =
-  'w-full rounded-xl border border-[var(--panel-border)] bg-black/30 px-4 py-3 text-base md:text-sm';
+  'w-full rounded-lg border border-[var(--panel-border)] bg-white px-4 py-3 text-base md:text-sm';
 
 type Connection = 'disconnected' | 'connecting' | 'connected' | 'disconnecting';
 
@@ -464,12 +464,12 @@ export function DevicePage() {
   return (
     <section className="space-y-8">
       <div className="space-y-3">
-        <p className="text-[0.7rem] uppercase tracking-[0.08em] text-[var(--muted-text)]">
+        <p className="text-[0.7rem] font-semibold text-[var(--muted-text)]">
           USB device
         </p>
-        <h2 className="text-3xl font-semibold text-[var(--app-text)]">
+        <h1 className="text-3xl font-semibold text-[var(--app-text)]">
           Connect your SLPanel
-        </h2>
+        </h1>
         <p className="max-w-3xl text-sm leading-7 text-[var(--muted-text)]">
           Plug in the panel with a USB data cable to configure Wi-Fi or read its
           logs. Close any terminal or other app using the device first.
@@ -477,19 +477,19 @@ export function DevicePage() {
       </div>
 
       {!secure ? (
-        <p role="alert" className="text-amber-200">
+        <p role="alert" className="text-amber-800">
           Open this page over HTTPS or on localhost to connect a USB device.
         </p>
       ) : !supported ? (
-        <p role="alert" className="text-amber-200">
+        <p role="alert" className="text-amber-800">
           This browser does not support Web Serial. Open this page in desktop
           Chrome or Edge.
         </p>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-[var(--panel-border)] bg-black/15 p-5">
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-[var(--panel-border)] bg-[var(--card-bg)] p-5">
         <span
-          className={`mr-auto text-sm ${connected ? 'text-emerald-300' : 'text-[var(--muted-text)]'}`}
+          className={`mr-auto text-sm ${connected ? 'text-emerald-800' : 'text-[var(--muted-text)]'}`}
           role="status"
         >
           {connection === 'connected'
@@ -523,13 +523,13 @@ export function DevicePage() {
       {error ? (
         <p
           role="alert"
-          className="rounded-xl border border-rose-400/30 bg-rose-500/10 p-4 text-sm text-rose-100"
+          className="rounded-lg border border-rose-400/30 bg-rose-500/10 p-4 text-sm text-rose-800"
         >
           {error}
         </p>
       ) : null}
       {notice ? (
-        <p role="status" className="text-sm text-[var(--panel-text-soft)]">
+        <p role="status" className="text-sm text-[var(--panel-text)]">
           {notice}
         </p>
       ) : null}
@@ -537,7 +537,7 @@ export function DevicePage() {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,4fr)_minmax(0,6fr)] lg:items-start">
         <form
           onSubmit={(event) => void save(event)}
-          className="space-y-5 rounded-xl border border-[var(--panel-border)] bg-black/15 p-5"
+          className="space-y-5 rounded-lg border border-[var(--panel-border)] bg-[var(--card-bg)] p-5"
           aria-label="USB device configuration"
         >
           <div className="space-y-2">
@@ -768,7 +768,7 @@ export function DevicePage() {
           </p>
         </form>
 
-        <div className="min-w-0 space-y-5 rounded-xl border border-[var(--panel-border)] bg-black/15 p-5">
+        <div className="min-w-0 space-y-5 rounded-lg border border-[var(--panel-border)] bg-[var(--card-bg)] p-5">
           <div className="space-y-2">
             <h3 className="text-lg font-semibold text-[var(--app-text)]">
               Device logs
@@ -823,13 +823,13 @@ export function DevicePage() {
             {copyStatus}
           </span>
           {lost > 0 ? (
-            <p role="status" className="text-sm text-amber-200">
+            <p role="status" className="text-sm text-amber-800">
               {lost} log entries were overwritten on the device before they
               could be read.
             </p>
           ) : null}
           <div
-            className="max-h-[32rem] min-h-48 overflow-auto rounded-xl border border-[var(--panel-border)] bg-black/40 p-4"
+            className="max-h-[32rem] min-h-48 overflow-auto rounded-lg border border-[var(--panel-border)] bg-slate-50 p-4"
             ref={logViewport}
             aria-label="Device logs"
             role="region"
@@ -848,7 +848,7 @@ export function DevicePage() {
                     <div
                       className={
                         entry.level === 'warn'
-                          ? 'text-amber-200'
+                          ? 'text-amber-800'
                           : 'text-[var(--muted-text)]'
                       }
                     >
@@ -882,7 +882,7 @@ export function DevicePage() {
                 <DeviceDiagnostics details={status} />
                 <details
                   open
-                  className="space-y-3 rounded-lg border border-[var(--panel-border)] bg-black/20 p-4"
+                  className="space-y-3 rounded border border-[var(--panel-border)] bg-slate-50 p-4"
                 >
                   <summary className="cursor-pointer text-sm font-medium">
                     Raw diagnostics
