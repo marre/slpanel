@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 
 const navigation = [
   { to: '/', label: 'Overview' },
@@ -8,6 +8,7 @@ const navigation = [
 ];
 
 export function AppLayout() {
+  const isHome = useLocation().pathname === '/';
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
 
@@ -16,41 +17,55 @@ export function AppLayout() {
       <a href="#main-content" className="skip-link">
         Skip to content
       </a>
-      <div className="bg-[#16191c] text-white">
-        <div className="mx-auto max-w-7xl px-5 py-2 text-xs md:px-8">
-          Your own departure board · Independent project using SL transit data
-        </div>
-      </div>
       <header className="bg-[var(--panel-text)] text-white">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-5 py-5 md:px-8 md:py-7">
-          <NavLink
-            to="/"
-            className="flex items-center gap-3"
-            aria-label="SLPanel overview"
-            onClick={() => setMenuOpen(false)}
-          >
-            <span
-              aria-hidden="true"
-              className="grid size-12 place-items-center rounded-full border-2 border-white text-lg font-bold"
+        <div className="mx-auto max-w-7xl px-5 md:px-8">
+          <div className="relative flex h-24 items-center justify-end md:h-32">
+            <NavLink
+              to="/"
+              className="absolute left-1/2 top-4 flex -translate-x-1/2 flex-col items-center gap-1 md:top-6"
+              aria-label="SLPanel overview"
+              onClick={() => setMenuOpen(false)}
             >
-              SP
-            </span>
-            <span className="text-2xl font-bold tracking-tight">SLPanel</span>
-          </NavLink>
-          <button
-            ref={menuButton}
-            type="button"
-            className="rounded border border-white/70 px-4 py-2 font-semibold md:hidden"
-            aria-expanded={menuOpen}
-            aria-controls="primary-navigation"
-            onClick={() => setMenuOpen(!menuOpen)}
-          >
-            {menuOpen ? 'Close menu' : 'Menu'}
-          </button>
+              <span
+                aria-hidden="true"
+                className="grid size-12 place-items-center rounded-full border-[3px] border-white text-xl font-bold md:size-16 md:text-2xl"
+              >
+                SP
+              </span>
+              <span className="text-xs font-semibold tracking-wide md:text-sm">
+                SLPanel
+              </span>
+            </NavLink>
+            <button
+              ref={menuButton}
+              type="button"
+              className="flex items-center gap-3 rounded px-2 py-3 text-lg transition hover:bg-white/10 md:text-xl"
+              aria-expanded={menuOpen}
+              aria-controls="primary-navigation"
+              onClick={() => setMenuOpen(!menuOpen)}
+            >
+              <span>{menuOpen ? 'Close' : 'Menu'}</span>
+              <svg
+                aria-hidden="true"
+                width="28"
+                height="28"
+                viewBox="0 0 28 28"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                {menuOpen ? (
+                  <path d="m5 5 18 18M23 5 5 23" />
+                ) : (
+                  <path d="M3 6h22M3 14h22M3 22h22" />
+                )}
+              </svg>
+            </button>
+          </div>
           <nav
             id="primary-navigation"
             aria-label="Primary"
-            className={`${menuOpen ? 'flex' : 'hidden'} w-full flex-col gap-1 md:flex md:w-auto md:flex-row md:gap-4`}
+            className={`${menuOpen ? 'flex' : 'hidden'} w-full flex-col gap-1 border-t border-white/30 py-3 md:flex-row md:justify-center md:gap-4`}
             onKeyDown={(event) => {
               if (event.key === 'Escape') {
                 setMenuOpen(false);
@@ -74,10 +89,25 @@ export function AppLayout() {
           </nav>
         </div>
       </header>
+      {isHome ? (
+        <div
+          className="h-48 overflow-hidden bg-[#24333c] md:h-80"
+          aria-hidden="true"
+        >
+          <img
+            src="/images/metro-station.webp"
+            alt=""
+            width={1536}
+            height={512}
+            fetchPriority="high"
+            className="h-full w-full object-cover object-center"
+          />
+        </div>
+      ) : null}
       <main
         id="main-content"
         tabIndex={-1}
-        className="mx-auto max-w-7xl px-5 py-8 md:px-8 md:py-10"
+        className={`relative mx-auto max-w-7xl px-5 pb-8 md:px-8 md:pb-10 ${isHome ? '-mt-12 pt-0' : 'py-8 md:py-10'}`}
       >
         <Outlet />
       </main>

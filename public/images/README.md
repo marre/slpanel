@@ -1,0 +1,7 @@
+# Transit station banner
+
+`metro-station.webp` is an original AI-generated decorative image created and revised with the built-in image generation tool, resized to 1536 × 512 and encoded as WebP (quality 85). The revision depicts a neutral silver train at a daylight station with a glass canopy, rather than a blue train in a rock cavern. It is not a photograph of a verified real station and does not use SL website artwork.
+
+Revision prompt (the earlier generated banner was the edit target):
+
+> Use case: precise-object-edit. Edit target: the supplied SLPanel website banner. Make this banner distinctly less similar to SL's website photography while retaining a photorealistic public transit theme and the exact wide 3:1 composition and dimensions. Replace the dark exposed rock cavern with a bright contemporary above-ground station: clean pale concrete, slender steel supports, a glass canopy and soft daylight. Replace the blue train with a neutral silver commuter train with restrained charcoal trim and no operator identity. Use a slightly oblique view along the platform rather than the symmetrical cavern framing, subdued warm-grey and sage surroundings, natural photographic texture, gentle train motion blur. Preserve the horizontal banner framing, central train visibility and uncluttered foreground suited to responsive cropping. No blue train, no rock walls, no SL motifs, no logos, text, signage, watermarks or graphic overlays.
