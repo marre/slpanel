@@ -98,7 +98,7 @@ header :focus-visible {
 }
 
 .home-hero {
-  background: linear-gradient(120deg, #fff 35%, #deeff5);
+  background: var(--app-bg);
   border: 1px solid var(--panel-border);
 }
 
