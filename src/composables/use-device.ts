@@ -1,3 +1,6 @@
+import { uploadFirmware, outcome } from '@/lib/firmware-updater';
+import type { Package, Phase } from '@/lib/firmware-updater';
+import type { DeviceInfo, UpdateIdentity } from '@/lib/firmware-protocol';
 import { useRoute } from 'vue-router';
 import { ref, shallowRef, computed, watch, onBeforeUnmount } from 'vue';
 
@@ -30,7 +33,9 @@ export function useDevice() {
   const openNetwork = ref(false);
   const changePassword = ref(false);
   const passwordSet = ref(false);
-  const busy = ref<'config' | 'settings' | 'status' | 'wifi-scan' | null>(null);
+  const busy = ref<
+    'config' | 'settings' | 'status' | 'wifi-scan' | 'update' | null
+  >(null);
   const networks = ref<WifiNetwork[] | null>(null);
   const readingLogs = ref(false);
   const following = ref(false);
@@ -40,6 +45,24 @@ export function useDevice() {
   const status = ref<string | null>(null);
   const notice = ref<string | null>(null);
   const error = ref<string | null>(null);
+  const firmwareInfo = shallowRef<DeviceInfo | null>(null);
+  const firmwarePhase = ref<Phase | null>(null);
+  const firmwareBytes = ref(0);
+  const firmwareOutcome = ref<string | null>(null);
+  let cancellation: AbortController | null = null;
+  let expectedUpdate: (UpdateIdentity & { device_id: string }) | null = null;
+  try {
+    const stored = JSON.parse(localStorage.getItem('slpanel-update') ?? 'null');
+    if (
+      stored &&
+      /^[0-9a-f]{16}$/.test(stored.device_id) &&
+      /^[0-9a-f]{64}$/.test(stored.image_id) &&
+      /^[0-9a-f]{32}$/.test(stored.attempt_id)
+    )
+      expectedUpdate = stored;
+  } catch {
+    /* local state is optional; the device's receipt is authoritative */
+  }
   const client = shallowRef<DeviceSerialClient | null>(null);
   const mounted = shallowRef(true);
   const generation = shallowRef(0);
@@ -142,6 +165,17 @@ export function useDevice() {
         await next.disconnect();
         return;
       }
+      firmwareInfo.value = null;
+      if (next.protocolVersion === 2) {
+        const info = await next.request({ op: 'device-info' });
+        if (info.reply !== 'device-info')
+          throw new Error('Could not read firmware capabilities.');
+        if (!mounted.value || generation.value !== attempt) {
+          await next.disconnect();
+          return;
+        }
+        firmwareInfo.value = info;
+      }
       requests.value = Promise.resolve();
       logReader.value = false;
       cursor.value = 0;
@@ -153,7 +187,8 @@ export function useDevice() {
       applySavedConfig(saved.config, true);
       connection.value = 'connected';
       notice.value = 'Device connected. Saved settings loaded.';
-      void readLogs(true);
+      if (expectedUpdate) void checkFirmware();
+      else void readLogs(true);
     } catch (failure) {
       await connecting?.disconnect();
       if (!mounted.value || generation.value !== attempt) {
@@ -322,7 +357,7 @@ export function useDevice() {
   }
   async function readLogs(keepFollowing: boolean) {
     const current = client.value;
-    if (!current || logReader.value) {
+    if (!current || logReader.value || busy.value === 'update') {
       return;
     }
     logReader.value = true;
@@ -507,7 +542,100 @@ export function useDevice() {
     }
   }
 
+  async function updateFirmware(pkg: Package) {
+    const current = client.value,
+      info = firmwareInfo.value;
+    if (!current || !info || busy.value) return;
+    follow.value = false;
+    following.value = false;
+    busy.value = 'update';
+    error.value = null;
+    firmwareOutcome.value = null;
+    cancellation = new AbortController();
+    try {
+      await requests.value;
+      await uploadFirmware(
+        pkg,
+        info,
+        (r) => request(r, current),
+        (phase, bytes) => {
+          firmwarePhase.value = phase;
+          firmwareBytes.value = bytes;
+        },
+        (identity) => {
+          expectedUpdate = { ...identity, device_id: info.device_id };
+          // Storage failure must not prevent a safe update; keep the receipt in RAM.
+          try {
+            localStorage.setItem(
+              'slpanel-update',
+              JSON.stringify(expectedUpdate),
+            );
+          } catch {
+            /* optional */
+          }
+        },
+        cancellation.signal,
+      );
+      await disconnect();
+      notice.value =
+        'Firmware restarted. Reconnect this panel to check the result.';
+    } catch (failure) {
+      error.value = readError(failure);
+      if (expectedUpdate)
+        notice.value =
+          'Reconnect this panel to check whether the update was confirmed.';
+    } finally {
+      busy.value = null;
+      cancellation = null;
+    }
+  }
+  function cancelFirmware() {
+    cancellation?.abort();
+  }
+  async function checkFirmware() {
+    const current = client.value,
+      info = firmwareInfo.value;
+    if (!current || !info || !expectedUpdate || busy.value) return;
+    busy.value = 'update';
+    follow.value = false;
+    following.value = false;
+    firmwarePhase.value = 'Checking device';
+    try {
+      for (let i = 0; i < 35 && client.value === current; i++) {
+        const status = await request({ op: 'update-status' }, current);
+        if (status.reply !== 'update-status')
+          throw new Error('Could not read the update result.');
+        const result = outcome(expectedUpdate, info, status.last_result);
+        if (result) {
+          firmwareOutcome.value = result;
+          firmwarePhase.value = null;
+          expectedUpdate = null;
+          try {
+            localStorage.removeItem('slpanel-update');
+          } catch {
+            /* optional */
+          }
+          return;
+        }
+        if (!['trial', 'pending'].includes(status.state)) break;
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+      notice.value =
+        'The device has not reported a terminal result for this update yet.';
+    } catch (failure) {
+      error.value = readError(failure);
+    } finally {
+      busy.value = null;
+    }
+  }
   return {
+    firmwareInfo,
+    firmwarePhase,
+    firmwareBytes,
+    firmwareOutcome,
+    updateFirmware,
+    cancelFirmware,
+    checkFirmware,
     config,
     connection,
     openNetwork,

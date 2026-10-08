@@ -1,3 +1,5 @@
+import { isUpdateReply, expectedUpdateReply } from './firmware-protocol';
+import type { UpdateRequest, UpdateReply } from './firmware-protocol';
 // USB JSON protocol v1, shared with slpanel-rust/slpanel-device-protocol.
 export type WifiSecurity = 'auto' | 'wpa2' | 'wpa3';
 export type DeviceConfig = {
@@ -23,6 +25,7 @@ export type DeviceLogEntry = {
 export type WifiNetwork = { ssid: string; rssi: number; secured: boolean };
 
 export type DeviceRequest =
+  | UpdateRequest
   | { op: 'config' }
   | { op: 'configure'; config: DeviceConfig }
   | { op: 'logs'; after: number }
@@ -30,6 +33,7 @@ export type DeviceRequest =
   | { op: 'wifi-scan' };
 
 export type DeviceReply =
+  | UpdateReply
   | { reply: 'config'; config: SavedDeviceConfig }
   | { reply: 'hello'; version: number }
   | { reply: 'saved'; reboot_required: boolean }
@@ -42,7 +46,7 @@ export type DeviceReply =
     }
   | { reply: 'wifi-scan'; networks: WifiNetwork[] }
   | { reply: 'status'; details: string }
-  | { reply: 'error'; message: string };
+  | { reply: 'error'; message: string; code?: string };
 
 // Keep the small API surface local: Web Serial is not in all DOM type libraries.
 export interface DeviceSerialPort {
@@ -157,6 +161,7 @@ function parseReply(bytes: number[]): DeviceReply {
       'Invalid device response. Check that the firmware supports USB protocol v1.',
     );
   }
+  if (isUpdateReply(value)) return value;
   if (isObject(value)) {
     switch (value.reply) {
       case 'config': {
@@ -248,6 +253,7 @@ type PendingReply = {
 
 /** One request at a time: v1 has no request IDs, so timeout invalidates the session. */
 export class DeviceSerialClient {
+  protocolVersion = 0;
   private reader?: ReadableStreamDefaultReader<Uint8Array>;
   private writer?: WritableStreamDefaultWriter<Uint8Array>;
   private readTask?: Promise<void>;
@@ -289,12 +295,13 @@ export class DeviceSerialClient {
       if (reply.reply === 'error') {
         throw new Error(reply.message);
       }
-      if (reply.reply !== 'hello' || reply.version !== 1) {
+      if (reply.reply !== 'hello' || ![1, 2].includes(reply.version)) {
         throw new Error('This device needs firmware with USB protocol v1.');
       }
       if (this.closed) {
         throw new Error('Device disconnected.');
       }
+      this.protocolVersion = reply.version;
       this.ready = true;
     } catch (error) {
       await this.disconnect();
@@ -313,19 +320,26 @@ export class DeviceSerialClient {
       validateDeviceConfig(request.config);
     }
     const bytes = encoder.encode(JSON.stringify(request));
-    if (bytes.length > 4096) {
+    if (bytes.length > 1024) {
       throw new Error('Config exceeds the device request limit.');
     }
     const line = new Uint8Array(bytes.length + 1);
     line.set(bytes);
     line[bytes.length] = 10;
-    const expected = request.op === 'configure' ? 'saved' : request.op;
+    const expected =
+      request.op === 'configure'
+        ? 'saved'
+        : (expectedUpdateReply[request.op] ?? request.op);
     this.requesting = true;
     try {
       const response = this.waitForReply(
-        request.op === 'wifi-scan'
-          ? Math.max(this.timeoutMs, 30_000)
-          : this.timeoutMs,
+        ['begin-update', 'finish-update', 'activate-update'].includes(
+          request.op,
+        )
+          ? Math.max(this.timeoutMs, 60_000)
+          : request.op === 'wifi-scan'
+            ? Math.max(this.timeoutMs, 30_000)
+            : this.timeoutMs,
       );
       const [, reply] = await Promise.all([this.writer.write(line), response]);
       if (reply.reply === 'error') {
