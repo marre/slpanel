@@ -1,9 +1,8 @@
-import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { h } from 'vue';
+import { screen } from '@testing-library/vue';
+import { render, routerFixture } from '@/test/render';
 import { afterEach, beforeEach, vi } from 'vitest';
-
-import { HomePage } from '@/routes/home-page';
-
+import HomePage from '@/routes/home-page.vue';
 describe('HomePage', () => {
   beforeEach(() => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
@@ -16,39 +15,37 @@ describe('HomePage', () => {
       fill: vi.fn(),
       fillStyle: '#000000',
     } as unknown as CanvasRenderingContext2D);
-
     vi.stubGlobal(
       'requestAnimationFrame',
       vi.fn(() => 1),
     );
     vi.stubGlobal('cancelAnimationFrame', vi.fn());
   });
-
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
-
-  it('offers setup, device connection and a public demo', () => {
-    render(
-      <MemoryRouter>
-        <HomePage />
-      </MemoryRouter>,
-    );
-
+  it('offers setup, device connection and a public demo', async () => {
+    await render(routerFixture(['/'], [h(HomePage, {})]));
     expect(
       screen.getByRole('heading', {
         name: /real-time SL transit displays/i,
       }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('link', { name: /set up a display/i }),
+      screen.getByRole('link', {
+        name: /set up a display/i,
+      }),
     ).toHaveAttribute('href', '/config');
     expect(
-      screen.getByRole('link', { name: /connect USB device/i }),
+      screen.getByRole('link', {
+        name: /connect USB device/i,
+      }),
     ).toHaveAttribute('href', '/device');
     expect(
-      screen.getByRole('link', { name: /try the demo board/i }),
+      screen.getByRole('link', {
+        name: /try the demo board/i,
+      }),
     ).toHaveAttribute('href', '/display/demo-board');
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
     expect(screen.queryByText(/interstate/i)).not.toBeInTheDocument();

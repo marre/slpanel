@@ -1,26 +1,27 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { h } from 'vue';
+import { fireEvent, screen, waitFor } from '@testing-library/vue';
+import { render, routerFixture } from '@/test/render';
 import { afterEach, beforeEach, vi } from 'vitest';
-
-import { ConfigPage } from '@/routes/config-page';
-
+import ConfigPage from '@/routes/config-page.vue';
 describe('ConfigPage', () => {
   const fetchMock = vi.fn<typeof fetch>();
-
   beforeEach(() => {
     vi.stubGlobal('fetch', fetchMock);
     window.localStorage.clear();
   });
-
   afterEach(() => {
     vi.unstubAllGlobals();
     fetchMock.mockReset();
   });
-
   it('loads an owner, searches stops, and creates a display', async () => {
     fetchMock
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ owner_id: 'aB3xZ9kQ', displays: [] })),
+        new Response(
+          JSON.stringify({
+            owner_id: 'aB3xZ9kQ',
+            displays: [],
+          }),
+        ),
       )
       .mockResolvedValueOnce(
         new Response(
@@ -84,51 +85,65 @@ describe('ConfigPage', () => {
               modes: ['METRO'],
             },
           }),
-          { status: 201 },
+          {
+            status: 201,
+          },
         ),
       );
-
-    render(
-      <MemoryRouter initialEntries={['/config?owner=aB3xZ9kQ']}>
-        <Routes>
-          <Route path="/config" element={<ConfigPage />} />
-        </Routes>
-      </MemoryRouter>,
+    await render(
+      routerFixture(
+        ['/config?owner=aB3xZ9kQ'],
+        [
+          [
+            {
+              path: '/config',
+              element: h(ConfigPage, {}),
+              children: [],
+            },
+          ],
+        ],
+      ),
     );
-
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/displays?owner=aB3xZ9kQ',
         expect.objectContaining({
-          headers: expect.objectContaining({ accept: 'application/json' }),
+          headers: expect.objectContaining({
+            accept: 'application/json',
+          }),
         }),
       );
     });
-
-    fireEvent.change(screen.getByLabelText(/display name/i), {
-      target: { value: 'Southbound platform' },
+    await fireEvent.input(screen.getByLabelText(/display name/i), {
+      target: {
+        value: 'Southbound platform',
+      },
     });
 
     // Type "Slussen" into the AsyncSelect stop search
     const stopInput = screen.getByLabelText(/stop search/i);
-    fireEvent.focus(stopInput);
-    fireEvent.change(stopInput, { target: { value: 'Slussen' } });
+    await fireEvent.focus(stopInput);
+    await fireEvent.input(stopInput, {
+      target: {
+        value: 'Slussen',
+      },
+    });
 
     // Wait for the "Slussen" option to appear and click it
     const slussenOption = await screen.findByRole('option', {
       name: /Slussen/,
     });
-    fireEvent.click(slussenOption);
-
+    await fireEvent.click(slussenOption);
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/departures/1011?forecast=240',
         expect.objectContaining({
-          headers: expect.objectContaining({ accept: 'application/json' }),
+          headers: expect.objectContaining({
+            accept: 'application/json',
+          }),
         }),
       );
     });
-
     const board = await screen.findByRole('img', {
       name: /Southbound platform/,
     });
@@ -138,11 +153,11 @@ describe('ConfigPage', () => {
 
     // Select line "17" from the CreatableSelect dropdown
     const lineSelectInput = screen.getByLabelText('Line numbers');
-    fireEvent.mouseDown(lineSelectInput);
-
-    const lineOption17 = await screen.findByRole('option', { name: /17/ });
-    fireEvent.click(lineOption17);
-
+    await fireEvent.keyDown(lineSelectInput, { key: 'ArrowDown' });
+    const lineOption17 = await screen.findByRole('option', {
+      name: /17/,
+    });
+    await fireEvent.click(lineOption17);
     expect(summary()).toHaveTextContent('Hagsätra');
     expect(summary()).not.toHaveTextContent('Farsta strand');
     expect(
@@ -151,15 +166,16 @@ describe('ConfigPage', () => {
 
     // Select direction "Hagsätra" from the directions CreatableSelect
     const dirSelectInput = screen.getByLabelText('Direction filters');
-    fireEvent.mouseDown(dirSelectInput);
-
+    await fireEvent.keyDown(dirSelectInput, { key: 'ArrowDown' });
     const dirOption = await screen.findByRole('option', {
       name: /Hagsätra/,
     });
-    fireEvent.click(dirOption);
-
-    fireEvent.click(screen.getByRole('button', { name: /create display/i }));
-
+    await fireEvent.click(dirOption);
+    await fireEvent.click(
+      screen.getByRole('button', {
+        name: /create display/i,
+      }),
+    );
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/displays',
@@ -178,17 +194,20 @@ describe('ConfigPage', () => {
         }),
       );
     });
-
     expect(await screen.findByText(/display created/i)).toBeInTheDocument();
     expect(screen.getAllByText(/southbound platform/i).length).toBeGreaterThan(
       0,
     );
   });
-
   it('shows line options from departures after selecting a stop', async () => {
     fetchMock
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ owner_id: 'aB3xZ9kQ', displays: [] })),
+        new Response(
+          JSON.stringify({
+            owner_id: 'aB3xZ9kQ',
+            displays: [],
+          }),
+        ),
       )
       .mockResolvedValueOnce(
         new Response(
@@ -225,34 +244,46 @@ describe('ConfigPage', () => {
           }),
         ),
       );
-
-    render(
-      <MemoryRouter initialEntries={['/config?owner=aB3xZ9kQ']}>
-        <Routes>
-          <Route path="/config" element={<ConfigPage />} />
-        </Routes>
-      </MemoryRouter>,
+    await render(
+      routerFixture(
+        ['/config?owner=aB3xZ9kQ'],
+        [
+          [
+            {
+              path: '/config',
+              element: h(ConfigPage, {}),
+              children: [],
+            },
+          ],
+        ],
+      ),
     );
 
     // Type "Vallentuna" into the AsyncSelect stop search
     const stopInput = screen.getByLabelText(/stop search/i);
-    fireEvent.focus(stopInput);
-    fireEvent.change(stopInput, { target: { value: 'Vallentuna' } });
+    await fireEvent.focus(stopInput);
+    await fireEvent.input(stopInput, {
+      target: {
+        value: 'Vallentuna',
+      },
+    });
 
     // Wait for option and click it
     const vallentunaOption = await screen.findByRole('option', {
       name: /Vallentuna/,
     });
-    fireEvent.click(vallentunaOption);
+    await fireEvent.click(vallentunaOption);
 
     // Open the line numbers dropdown to reveal the "27" option (fallback shows all lines)
-    fireEvent.mouseDown(screen.getByLabelText('Line numbers'));
-
+    await fireEvent.keyDown(screen.getByLabelText('Line numbers'), {
+      key: 'ArrowDown',
+    });
     expect(
-      await screen.findByRole('option', { name: /27/ }),
+      await screen.findByRole('option', {
+        name: /27/,
+      }),
     ).toBeInTheDocument();
   });
-
   it('requires confirmation before deleting a display', async () => {
     fetchMock.mockResolvedValueOnce(
       new Response(
@@ -275,30 +306,45 @@ describe('ConfigPage', () => {
         }),
       ),
     );
-
-    render(
-      <MemoryRouter initialEntries={['/config?owner=aB3xZ9kQ']}>
-        <Routes>
-          <Route path="/config" element={<ConfigPage />} />
-        </Routes>
-      </MemoryRouter>,
+    await render(
+      routerFixture(
+        ['/config?owner=aB3xZ9kQ'],
+        [
+          [
+            {
+              path: '/config',
+              element: h(ConfigPage, {}),
+              children: [],
+            },
+          ],
+        ],
+      ),
     );
-
     expect(
-      await screen.findByRole('button', { name: /delete display/i }),
+      await screen.findByRole('button', {
+        name: /delete display/i,
+      }),
     ).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: /delete display/i }));
-
+    await fireEvent.click(
+      screen.getByRole('button', {
+        name: /delete display/i,
+      }),
+    );
     expect(
-      screen.getByRole('button', { name: /confirm delete/i }),
+      screen.getByRole('button', {
+        name: /confirm delete/i,
+      }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /keep board/i }),
+      screen.getByRole('button', {
+        name: /keep board/i,
+      }),
     ).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalledWith(
       expect.stringContaining('/api/displays/aB3xZ9kQ-fG7mNpQr2wLt'),
-      expect.objectContaining({ method: 'DELETE' }),
+      expect.objectContaining({
+        method: 'DELETE',
+      }),
     );
   });
 });

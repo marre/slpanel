@@ -28,8 +28,8 @@ Browser (config UI / display UI / future hardware clients)
 ### Chosen technical direction
 
 - **Platform:** Cloudflare Workers
-- **Frontend framework:** React Router v7 + React + TypeScript
-- **Build tool:** Vite 7 (requires Node.js 20.19+ or 22.12+)
+- **Frontend framework:** Vue Router 4 + Vue 3 + TypeScript + Nuxt UI 4
+- **Build tool:** Vite 8 (requires Node.js 20.19+ or 22.12+)
 - **Backend framework:** Hono on Cloudflare Workers
 - **Styling:** Tailwind CSS
 - **Database:** Cloudflare D1
@@ -323,8 +323,8 @@ renderText(ctx, '3 min', 128 - timeW, 1, { scale: 1 });
 
 ### Framework choice
 
-Use **React Router v7** as the frontend framework because it fits a Cloudflare Workers deployment well,
-works cleanly with React and TypeScript, and keeps routing/data-loading structured without pulling in a
+Use **Vue Router 4** as the frontend framework because it fits a Cloudflare Workers deployment well,
+works cleanly with Vue and TypeScript, and keeps routing/data-loading structured without pulling in a
 heavier platform than needed.
 
 The **display frontend should be a SPA**.
@@ -427,9 +427,9 @@ These should be tracked explicitly in the implementation plan:
 - [x] Document the target architecture
 
 ### Phase 2 – Foundation
-- [x] Scaffold React Router v7 + TypeScript app with Vite 7 (Node.js 20.19+ or 22.12+)
+- [x] Scaffold Vue Router 4 + TypeScript app with Vite 8 (Node.js 20.19+ or 22.12+)
 - [x] Add Tailwind CSS
-- [x] Decide whether to add a lightweight component library for admin/display primitives — no component library in Phase 2
+- [x] Decide whether to add a lightweight component library for admin/display primitives — Nuxt UI provides frontend primitives
 - [x] Add Wrangler config for Cloudflare Workers + D1-ready binding placeholder
 - [x] Add ESLint, Prettier, Vitest
 - [x] Add `npm run dev`, `npm run build`, `npm run test`, `npm run deploy`
