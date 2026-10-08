@@ -1,6 +1,6 @@
 # SLPanel
 
-SLPanel is a Cloudflare Worker and React Router SPA for building Stockholm SL-style departure displays.
+SLPanel is a Cloudflare Worker and Vue Router SPA for building Stockholm SL-style departure displays.
 The repository now includes the owner config flow and the first live public display board: one display can
 load its saved filters, fetch normalized departures through the Worker API, and render the custom bitmap
 font on a fixed 128x32 canvas.
@@ -9,8 +9,8 @@ font on a fixed 128x32 canvas.
 
 - Cloudflare Workers + Wrangler
 - Hono for `/api/*` routes
-- React 19 + React Router 7 + TypeScript
-- Vite 7
+- Vue 3 + Vue Router 4 + Nuxt UI 4 + TypeScript
+- Vite 8
 - Tailwind CSS 4
 - Vitest + Testing Library
 - ESLint + Prettier
@@ -375,3 +375,9 @@ The `/display/:displayId` route now supports:
 ## CI
 
 GitHub Actions runs `lint`, `test`, `format`, and `build` on pushes to `main` and on pull requests.
+
+## Frontend
+
+The browser app uses Vue 3 single-file components, Vue Router, Nuxt UI 4 and Vite. Nuxt UI is integrated through its Vue/Vite plugins; the Hono Worker still serves the SPA and `/api/*`. The light theme is configured in `vite.config.ts` and `src/styles.css`.
+
+Routes are loaded lazily. `usePolling` owns cancellable departure refreshes, `useDevice` owns the Web Serial session and request queue, and `useDisplayCanvas` owns the pixel board animation. Stop and filter pickers use Nuxt UI comboboxes with typed events/models. `vue-tsc` checks both templates and application TypeScript; Worker typechecking stays separate.

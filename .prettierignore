@@ -6,3 +6,4 @@ package-lock.json
 AGENT.md
 PLAN.md
 src/font/sl-font.ts
+src/components.d.ts

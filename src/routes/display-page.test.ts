@@ -1,12 +1,10 @@
-import { render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { h } from 'vue';
+import { screen, waitFor } from '@testing-library/vue';
+import { render, routerFixture } from '@/test/render';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import { DisplayPage } from '@/routes/display-page';
-
+import DisplayPage from '@/routes/display-page.vue';
 describe('DisplayPage', () => {
   const fetchMock = vi.fn<typeof fetch>();
-
   beforeEach(() => {
     vi.stubGlobal('fetch', fetchMock);
     vi.stubGlobal(
@@ -25,14 +23,12 @@ describe('DisplayPage', () => {
       fillStyle: '#000000',
     } as unknown as CanvasRenderingContext2D);
   });
-
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     fetchMock.mockReset();
   });
-
   it('loads one display and its filtered departures', async () => {
     fetchMock
       .mockResolvedValueOnce(
@@ -84,44 +80,54 @@ describe('DisplayPage', () => {
           }),
         ),
       );
-
-    render(
-      <MemoryRouter initialEntries={['/display/aB3xZ9kQ-fG7mNpQr2wLt']}>
-        <Routes>
-          <Route path="/display/:displayId" element={<DisplayPage />} />
-        </Routes>
-      </MemoryRouter>,
+    await render(
+      routerFixture(
+        ['/display/aB3xZ9kQ-fG7mNpQr2wLt'],
+        [
+          [
+            {
+              path: '/display/:displayId',
+              element: h(DisplayPage, {}),
+              children: [],
+            },
+          ],
+        ],
+      ),
     );
-
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/displays/aB3xZ9kQ-fG7mNpQr2wLt',
         expect.objectContaining({
-          headers: expect.objectContaining({ accept: 'application/json' }),
+          headers: expect.objectContaining({
+            accept: 'application/json',
+          }),
         }),
       );
     });
-
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         '/api/departures/1011?line=17&line=18&direction=Hags%C3%A4tra&mode=METRO&forecast=240',
         expect.objectContaining({
-          headers: expect.objectContaining({ accept: 'application/json' }),
+          headers: expect.objectContaining({
+            accept: 'application/json',
+          }),
         }),
       );
     });
-
     expect(
-      await screen.findByRole('heading', { name: /southbound platform/i }),
+      await screen.findByRole('heading', {
+        name: /southbound platform/i,
+      }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('img', {
         name: /sl departure board for southbound platform/i,
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/refreshes every 45 seconds/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/refreshes every 45 seconds/i),
+    ).toBeInTheDocument();
   });
-
   it('polls departures using the configured refresh interval', async () => {
     fetchMock
       .mockResolvedValueOnce(
@@ -158,59 +164,75 @@ describe('DisplayPage', () => {
           }),
         ),
       );
-
-    render(
-      <MemoryRouter initialEntries={['/display/aB3xZ9kQ-fG7mNpQr2wLt']}>
-        <Routes>
-          <Route path="/display/:displayId" element={<DisplayPage />} />
-        </Routes>
-      </MemoryRouter>,
+    await render(
+      routerFixture(
+        ['/display/aB3xZ9kQ-fG7mNpQr2wLt'],
+        [
+          [
+            {
+              path: '/display/:displayId',
+              element: h(DisplayPage, {}),
+              children: [],
+            },
+          ],
+        ],
+      ),
     );
-
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
     });
-
     await waitFor(
       () => {
         expect(fetchMock).toHaveBeenCalledTimes(3);
       },
-      { timeout: 2500 },
+      {
+        timeout: 2500,
+      },
     );
-
     expect(fetchMock.mock.calls[2]?.[0]).toBe(
       '/api/departures/1011?line=17&forecast=240',
     );
   });
-
   it('describes the fixed 2-row board layout', async () => {
-    render(
-      <MemoryRouter initialEntries={['/display/demo-board']}>
-        <Routes>
-          <Route path="/display/:displayId" element={<DisplayPage />} />
-        </Routes>
-      </MemoryRouter>,
+    await render(
+      routerFixture(
+        ['/display/demo-board'],
+        [
+          [
+            {
+              path: '/display/:displayId',
+              element: h(DisplayPage, {}),
+              children: [],
+            },
+          ],
+        ],
+      ),
     );
-
     expect(
       screen.getByText(/next departure on the top row/i),
     ).toBeInTheDocument();
     expect(screen.getByTestId('board-status')).toHaveTextContent(/live/i);
   });
-
-  it('uses the bitmap board even with an old interstate preview URL', () => {
-    render(
-      <MemoryRouter
-        initialEntries={['/display/demo-board?renderer=interstate75']}
-      >
-        <Routes>
-          <Route path="/display/:displayId" element={<DisplayPage />} />
-        </Routes>
-      </MemoryRouter>,
+  it('uses the bitmap board even with an old interstate preview URL', async () => {
+    await render(
+      routerFixture(
+        ['/display/demo-board?renderer=interstate75'],
+        [
+          [
+            {
+              path: '/display/:displayId',
+              element: h(DisplayPage, {}),
+              children: [],
+            },
+          ],
+        ],
+      ),
     );
     expect(screen.getByTestId('classic-display-board')).toBeInTheDocument();
     expect(
-      screen.queryByRole('group', { name: 'Board renderer' }),
+      screen.queryByRole('group', {
+        name: 'Board renderer',
+      }),
     ).not.toBeInTheDocument();
   });
 });

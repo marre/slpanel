@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '@nuxt/ui';
 
 :root {
   color-scheme: light;
@@ -119,7 +120,7 @@ header :focus-visible {
   border-color: var(--panel-text);
 }
 
-button,
+button:not([role='checkbox']),
 input:not([role='combobox']),
 select,
 summary {
@@ -133,4 +134,13 @@ input[type='checkbox'] {
 
 label {
   font-weight: 600;
+}
+
+:root {
+  --ui-primary: var(--panel-text);
+  --ui-bg: var(--card-bg);
+  --ui-text: var(--app-text);
+  --ui-text-muted: var(--muted-text);
+  --ui-border: var(--panel-border);
+  --ui-radius: 0.25rem;
 }

@@ -2,17 +2,16 @@
 
 ## Status
 
-- This repository is currently **planning-only**.
-- The previous prototype was removed on purpose.
-- Do not reintroduce scaffold or implementation code unless the task explicitly asks for it.
+- Implemented Vue SPA and Hono API, deployed together on Cloudflare Workers.
+- `PLAN.md` describes the architecture; inspect current code when planning changes.
 
 ## Target stack
 
 - Cloudflare Workers
 - Cloudflare D1
-- React Router v7
-- React + TypeScript
-- Vite 7 (requires Node.js 20.19+ or 22.12+)
+- Vue Router 4
+- Vue 3 + TypeScript + Nuxt UI 4
+- Vite 8 (requires Node.js 20.19+ or 22.12+)
 - Hono for `/api/*`
 - Tailwind CSS
 - Trafiklab SL Transport API v3 (`https://transport.integration.sl.se/v1`) — no API key required
@@ -57,10 +56,19 @@ When updating the plan:
 - include CI, testing, deploy, and observability work
 - keep architecture and API contracts concrete
 - treat the display frontend as a SPA
-- use Tailwind CSS; add a component library only if it clearly helps
+- use Nuxt UI components and Tailwind CSS; preserve the established light theme
 
 ## Change discipline
 
 - Make the smallest change that satisfies the request.
 - Keep docs concise and current.
 - If implementation is requested later, follow `PLAN.md`.
+
+## Frontend conventions
+
+- Use Vue single-file components with `<script setup lang="ts">`, typed props/emits and `v-model`.
+- Use Vue Router and lazy route components. Use Nuxt UI’s Vite integration; this is a SPA, not a Nuxt server.
+- Keep transport, polling and canvas lifecycle logic in composables; abort requests and dispose timers/USB connections with the component scope.
+- Keep nonreactive class instances in `shallowRef`. Use `computed` for derived UI state.
+- Test user behavior with Vue Testing Library and actual Nuxt UI components, including keyboard interaction with popovers.
+- Run lint, tests, formatting and build before submitting changes.

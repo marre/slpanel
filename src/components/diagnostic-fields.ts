@@ -1,11 +1,10 @@
-type Field = {
+export type Field = {
   key: string;
   label: string;
   description: string;
   format?: 'duration' | 'boolean' | 'timestamp' | 'buttons' | 'http' | 'state';
 };
-
-const groups: {
+export const groups: {
   title: string;
   description: string;
   summary: string[];
@@ -366,7 +365,6 @@ const groups: {
     ],
   },
 ];
-
 const states: Record<string, string> = {
   'waiting-settings': 'Waiting for configuration',
   'invalid-settings': 'Configuration needs attention',
@@ -399,8 +397,7 @@ const states: Record<string, string> = {
   'loading-departures': 'Loading departures',
   'configuration-error': 'Configuration error',
 };
-
-function formatValue(
+export function formatValue(
   value: string,
   format?: Field['format'],
   key?: string,
@@ -447,7 +444,9 @@ function formatValue(
       if (format === 'duration') {
         return number < 1000
           ? `${number} ms`
-          : `${(number / 1000).toLocaleString('en', { maximumFractionDigits: 3 })} s`;
+          : `${(number / 1000).toLocaleString('en', {
+              maximumFractionDigits: 3,
+            })} s`;
       }
       const date = new Date(number);
       if (!Number.isNaN(date.getTime())) return date.toISOString();
@@ -455,110 +454,4 @@ function formatValue(
   }
   if (format === 'duration' && value === 'none') return 'Not available yet';
   return value || 'Empty';
-}
-
-export function DeviceDiagnostics({ details }: { details: string }) {
-  const entries = Array.from(
-    details.matchAll(/(?:^|\s)([a-zA-Z][\w]*)=([^\s]*)/g),
-    (match) => ({ key: match[1], value: match[2] }),
-  );
-  const knownKeys = new Set(
-    groups.flatMap((group) => group.fields.map((field) => field.key)),
-  );
-  const unknown = entries.filter((entry) => !knownKeys.has(entry.key));
-  return (
-    <div className="space-y-4" aria-label="Diagnostics summary" role="region">
-      <p className="text-xs leading-5 text-[var(--muted-text)]">
-        Snapshot from the last read. Counters show accumulated activity; stage
-        timings show how long the current step has been active.
-      </p>
-      {groups.map((group) => {
-        const reported = group.fields.flatMap((field) =>
-          entries
-            .filter((entry) => entry.key === field.key)
-            .map((entry) => ({ ...field, value: entry.value })),
-        );
-        if (!reported.length) return null;
-        return (
-          <section
-            key={group.title}
-            className="rounded-lg border border-[var(--panel-border)] p-4"
-          >
-            <h4 className="text-sm font-semibold">{group.title}</h4>
-            <p className="mt-1 text-xs text-[var(--muted-text)]">
-              {group.description}
-            </p>
-            <DiagnosticFields
-              fields={reported.filter((field) =>
-                group.summary.includes(field.key),
-              )}
-            />
-            {reported.some((field) => !group.summary.includes(field.key)) && (
-              <details className="mt-4 border-t border-[var(--panel-border)] pt-3">
-                <summary className="cursor-pointer text-xs text-[var(--muted-text)]">
-                  More {group.title.toLowerCase()} details
-                </summary>
-                <DiagnosticFields
-                  fields={reported.filter(
-                    (field) => !group.summary.includes(field.key),
-                  )}
-                />
-              </details>
-            )}
-          </section>
-        );
-      })}
-      {unknown.length > 0 && (
-        <section className="rounded-lg border border-[var(--panel-border)] p-4">
-          <h4 className="text-sm font-semibold">Additional firmware fields</h4>
-          <dl className="mt-3 space-y-2">
-            {unknown.map((field, index) => (
-              <div
-                key={index}
-                className="flex flex-wrap justify-between gap-2 text-sm"
-              >
-                <dt className="font-mono">{field.key}</dt>
-                <dd className="break-all">{field.value}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-      )}
-      {!entries.length && (
-        <p className="text-sm text-[var(--muted-text)]">
-          This firmware’s diagnostics are available in the raw view below.
-        </p>
-      )}
-    </div>
-  );
-}
-
-function DiagnosticFields({
-  fields,
-}: {
-  fields: (Field & { value: string })[];
-}) {
-  return (
-    <dl className="mt-4 space-y-4">
-      {fields.map((field, index) => (
-        <div
-          key={`${field.key}-${index}`}
-          className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1"
-        >
-          <dt className="min-w-0 flex-1 text-sm font-medium" title={field.key}>
-            {field.label}
-            <p className="mt-1 text-xs font-normal leading-5 text-[var(--muted-text)]">
-              {field.description}
-            </p>
-          </dt>
-          <dd
-            className="max-w-48 break-words text-right text-sm text-[var(--panel-text)]"
-            title={field.value}
-          >
-            {formatValue(field.value, field.format, field.key)}
-          </dd>
-        </div>
-      ))}
-    </dl>
-  );
 }
