@@ -5,19 +5,29 @@ import { useRoute } from 'vue-router';
 const route = useRoute();
 const isHome = computed(() => route.path === '/');
 const menuOpen = ref(false);
-const menuButton = ref<HTMLButtonElement | null>(null);
+const menuButton = ref<{ $el: HTMLButtonElement } | null>(null);
 const navigation = [
   {
     to: '/',
     label: 'Overview',
+    exact: true,
+    onSelect: () => {
+      menuOpen.value = false;
+    },
   },
   {
     to: '/config',
     label: 'My displays',
+    onSelect: () => {
+      menuOpen.value = false;
+    },
   },
   {
     to: '/device',
     label: 'USB device',
+    onSelect: () => {
+      menuOpen.value = false;
+    },
   },
 ];
 </script>
@@ -43,10 +53,12 @@ const navigation = [
               SLPanel
             </span>
           </RouterLink>
-          <button
+          <UButton
             ref="menuButton"
+            variant="ghost"
+            color="neutral"
             type="button"
-            class="flex items-center gap-3 rounded px-2 py-3 text-lg transition hover:bg-white/10 md:text-xl"
+            class="flex items-center gap-3 rounded px-2 py-3 text-lg text-white transition hover:bg-white/10 hover:text-white active:text-white md:text-xl"
             :aria-expanded="menuOpen"
             aria-controls="primary-navigation"
             @click="menuOpen = !menuOpen"
@@ -64,32 +76,27 @@ const navigation = [
               <path v-if="menuOpen" d="m5 5 18 18M23 5 5 23"></path>
               <path v-else d="M3 6h22M3 14h22M3 22h22"></path>
             </svg>
-          </button>
+          </UButton>
         </div>
-        <nav
+        <UNavigationMenu
           id="primary-navigation"
           aria-label="Primary"
-          :class="`${menuOpen ? 'flex' : 'hidden'} w-full flex-col gap-1 border-t border-white/30 py-3 md:flex-row md:justify-center md:gap-4`"
-          @keydown="
-            (event) => {
-              if (event.key === 'Escape') {
-                menuOpen = false;
-                menuButton?.focus();
-              }
-            }
+          :items="navigation"
+          :class="[
+            menuOpen ? 'flex' : 'hidden',
+            'w-full border-t border-white/30 py-3 [&>div]:w-full',
+          ]"
+          :ui="{
+            list: 'w-full flex-col gap-1 md:flex-row md:justify-center md:gap-4',
+            item: 'w-full md:w-auto',
+            link: 'w-full md:w-auto rounded-none border-b-4 border-transparent px-3 py-3 text-lg font-semibold text-white hover:bg-white/10 hover:text-white data-[active]:border-white data-[active]:text-white before:hidden after:hidden',
+            linkLabel: 'whitespace-normal',
+          }"
+          @keydown.esc="
+            menuOpen = false;
+            menuButton?.$el.focus();
           "
-        >
-          <template v-for="item in navigation" :key="item.to">
-            <RouterLink
-              :to="item.to"
-              :aria-current="route.path === item.to ? 'page' : undefined"
-              :class="`border-b-4 px-3 py-3 text-lg font-semibold transition hover:bg-white/10 ${route.path === item.to ? 'border-white' : 'border-transparent'}`"
-              @click="menuOpen = false"
-            >
-              {{ item.label }}
-            </RouterLink>
-          </template>
-        </nav>
+        />
       </div>
     </header>
     <div

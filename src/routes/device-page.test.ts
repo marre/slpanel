@@ -781,9 +781,11 @@ describe('DevicePage', () => {
       },
     });
     await showPage();
-    await fireEvent.click(screen.getByText('Current device diagnostics'));
+    await fireEvent.click(
+      screen.getByRole('button', { name: 'Current device diagnostics' }),
+    );
     expect(
-      screen.getByRole('button', {
+      await screen.findByRole('button', {
         name: 'Read diagnostics',
       }),
     ).toBeDisabled();

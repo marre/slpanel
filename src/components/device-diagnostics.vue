@@ -45,30 +45,35 @@ const reportedGroups = computed(() =>
       Snapshot from the last read. Counters show accumulated activity; stage
       timings show how long the current step has been active.
     </p>
-    <section
+    <UCard
       v-for="group in reportedGroups"
       :key="group.title"
-      class="rounded-lg border border-[var(--panel-border)] p-4"
+      as="section"
+      :ui="{ body: 'p-4 sm:p-4' }"
     >
       <h4 class="text-sm font-semibold">{{ group.title }}</h4>
       <p class="mt-1 text-xs text-[var(--muted-text)]">
         {{ group.description }}
       </p>
       <DiagnosticFields :fields="group.main" />
-      <details
+      <UCollapsible
         v-if="group.more.length"
         class="mt-4 border-t border-[var(--panel-border)] pt-3"
       >
-        <summary class="cursor-pointer text-xs text-[var(--muted-text)]">
+        <UButton
+          variant="link"
+          color="neutral"
+          class="cursor-pointer text-xs text-[var(--muted-text)]"
+          :ui="{ base: 'p-0 text-left font-normal' }"
+        >
           More {{ group.title.toLowerCase() }} details
-        </summary>
-        <DiagnosticFields :fields="group.more" />
-      </details>
-    </section>
-    <section
-      v-if="unknown.length"
-      class="rounded-lg border border-[var(--panel-border)] p-4"
-    >
+        </UButton>
+        <template #content>
+          <DiagnosticFields :fields="group.more" />
+        </template>
+      </UCollapsible>
+    </UCard>
+    <UCard v-if="unknown.length" as="section" :ui="{ body: 'p-4 sm:p-4' }">
       <h4 class="text-sm font-semibold">Additional firmware fields</h4>
       <dl class="mt-3 space-y-2">
         <div
@@ -80,7 +85,7 @@ const reportedGroups = computed(() =>
           <dd class="break-all">{{ field.value }}</dd>
         </div>
       </dl>
-    </section>
+    </UCard>
     <p v-if="!entries.length" class="text-sm text-[var(--muted-text)]">
       This firmware’s diagnostics are available in the raw view below.
     </p>

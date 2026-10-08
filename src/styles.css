@@ -120,7 +120,7 @@ header :focus-visible {
   border-color: var(--panel-text);
 }
 
-button,
+button:not([role='checkbox']),
 input:not([role='combobox']),
 select,
 summary {

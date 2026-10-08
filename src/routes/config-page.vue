@@ -402,30 +402,25 @@ function readErrorMessage(error: unknown): string {
     <div
       class="grid gap-6 xl:grid-cols-[minmax(16rem,19rem)_minmax(0,1fr)] xl:items-start"
     >
-      <aside
-        class="space-y-5 rounded-lg border border-[var(--panel-border)] bg-[var(--card-bg)] p-5"
-      >
-        <form
+      <UCard as="aside" :ui="{ body: 'space-y-5 p-5 sm:p-5' }">
+        <UForm
+          :state="{ ownerId: ownerInput }"
           class="space-y-4"
           aria-label="Load displays by owner"
-          @submit.prevent="handleOwnerSubmit"
+          @submit="handleOwnerSubmit"
         >
           <div class="space-y-2">
             <p class="text-sm font-semibold text-[var(--muted-text)]">
               Step 1: Owner
             </p>
-            <label
-              for="owner-id"
-              class="text-sm font-semibold text-[var(--muted-text)]"
-            >
-              Owner ID
-            </label>
-            <UInput
-              id="owner-id"
-              v-model="ownerInput"
-              placeholder="e.g. aB3xZ9kQ, 8 characters"
-              class="w-full"
-            ></UInput>
+            <UFormField name="ownerId" label="Owner ID">
+              <UInput
+                id="owner-id"
+                v-model="ownerInput"
+                placeholder="e.g. aB3xZ9kQ, 8 characters"
+                class="w-full"
+              ></UInput
+            ></UFormField>
           </div>
           <div class="flex flex-wrap gap-3">
             <UButton
@@ -445,7 +440,7 @@ function readErrorMessage(error: unknown): string {
               Clear owner
             </UButton>
           </div>
-        </form>
+        </UForm>
         <div
           class="rounded border border-[var(--panel-border)] bg-slate-50 p-4"
         >
@@ -527,10 +522,8 @@ function readErrorMessage(error: unknown): string {
             </template>
           </div>
         </div>
-      </aside>
-      <div
-        class="space-y-5 rounded-lg border border-[var(--panel-border)] bg-[var(--card-bg)] p-5 md:p-6"
-      >
+      </UCard>
+      <UCard :ui="{ body: 'space-y-5 p-5 sm:p-5 md:p-6' }">
         <div
           class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between"
         >
@@ -552,20 +545,22 @@ function readErrorMessage(error: unknown): string {
             </p>
           </div>
         </div>
-        <div
+        <UAlert
           v-if="statusMessage"
+          :description="statusMessage"
           role="status"
+          color="success"
+          variant="subtle"
           class="rounded border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-800"
-        >
-          {{ statusMessage }}
-        </div>
-        <div
+        />
+        <UAlert
           v-if="errorMessage"
+          :description="errorMessage"
           role="alert"
+          color="error"
+          variant="subtle"
           class="rounded border border-rose-400/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-800"
-        >
-          {{ errorMessage }}
-        </div>
+        />
         <figure
           class="xl:sticky xl:top-4 z-10 space-y-3 rounded-lg border border-[var(--panel-border)] bg-[var(--card-bg)] p-4 shadow-lg shadow-black/10"
         >
@@ -618,42 +613,36 @@ function readErrorMessage(error: unknown): string {
             "
           ></DisplayBoard>
         </figure>
-        <form class="space-y-6" @submit.prevent="handleSaveDisplay">
+        <UForm :state="draft" class="space-y-6" @submit="handleSaveDisplay">
           <div class="grid gap-5 md:grid-cols-2">
-            <div class="space-y-2 md:col-span-2">
-              <label
-                for="display-name"
-                class="text-sm font-semibold text-[var(--muted-text)]"
-              >
-                Display name
-              </label>
+            <UFormField
+              label="Display name"
+              name="name"
+              class="space-y-2 md:col-span-2"
+            >
               <UInput
                 id="display-name"
                 v-model="draft.name"
                 placeholder="e.g. Southbound platform"
                 class="w-full"
               ></UInput>
-            </div>
-            <div class="space-y-2 md:col-span-2">
-              <label
-                for="stop-search"
-                class="text-sm font-semibold text-[var(--muted-text)]"
-              >
-                Stop search
-              </label>
+            </UFormField>
+            <UFormField
+              label="Stop search"
+              name="site_id"
+              class="space-y-2 md:col-span-2"
+            >
               <StopPicker
                 :site-id="draft.site_id"
                 :site-name="draft.site_name"
                 @select="handleStopChange"
               />
-            </div>
-            <div class="space-y-2">
-              <label
-                for="refresh-interval"
-                class="text-sm font-semibold text-[var(--muted-text)]"
-              >
-                Refresh interval (seconds)
-              </label>
+            </UFormField>
+            <UFormField
+              label="Refresh interval (seconds)"
+              name="refresh_interval"
+              class="space-y-2"
+            >
               <UInput
                 id="refresh-interval"
                 v-model.number="draft.refresh_interval"
@@ -662,14 +651,12 @@ function readErrorMessage(error: unknown): string {
                 :step="1"
                 class="w-full"
               ></UInput>
-            </div>
-            <div class="space-y-2">
-              <label
-                for="line-numbers"
-                class="text-sm font-semibold text-[var(--muted-text)]"
-              >
-                Line numbers
-              </label>
+            </UFormField>
+            <UFormField
+              label="Line numbers"
+              name="line_numbers"
+              class="space-y-2"
+            >
               <FilterPicker
                 id="line-numbers"
                 v-model="draft.line_numbers"
@@ -677,14 +664,12 @@ function readErrorMessage(error: unknown): string {
                 :disabled="!draft.site_id"
                 placeholder="e.g. 17, 18…"
               />
-            </div>
-            <div class="space-y-2 md:col-span-2">
-              <label
-                for="directions"
-                class="text-sm font-semibold text-[var(--muted-text)]"
-              >
-                Direction filters
-              </label>
+            </UFormField>
+            <UFormField
+              label="Direction filters"
+              name="directions"
+              class="space-y-2 md:col-span-2"
+            >
               <FilterPicker
                 id="directions"
                 v-model="draft.directions"
@@ -692,7 +677,7 @@ function readErrorMessage(error: unknown): string {
                 :disabled="!draft.site_id"
                 placeholder="e.g. Hagsätra…"
               />
-            </div>
+            </UFormField>
           </div>
           <div
             class="flex flex-wrap gap-3 border-t border-[var(--panel-border)] pt-5"
@@ -758,8 +743,8 @@ function readErrorMessage(error: unknown): string {
               View display
             </RouterLink>
           </div>
-        </form>
-      </div>
+        </UForm>
+      </UCard>
     </div>
   </section>
 </template>

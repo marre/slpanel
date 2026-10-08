@@ -19,11 +19,17 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     StopPicker: typeof import('./components/stop-picker.vue')['default']
+    UAlert: typeof import('./../node_modules/@nuxt/ui/dist/runtime/components/Alert.vue')['default']
     UApp: typeof import('./../node_modules/@nuxt/ui/dist/runtime/components/App.vue')['default']
     UButton: typeof import('./../node_modules/@nuxt/ui/dist/runtime/components/Button.vue')['default']
+    UCard: typeof import('./../node_modules/@nuxt/ui/dist/runtime/components/Card.vue')['default']
+    UCheckbox: typeof import('./../node_modules/@nuxt/ui/dist/runtime/components/Checkbox.vue')['default']
+    UCollapsible: typeof import('./../node_modules/@nuxt/ui/dist/runtime/components/Collapsible.vue')['default']
+    UForm: typeof import('./../node_modules/@nuxt/ui/dist/runtime/components/Form.vue')['default']
     UFormField: typeof import('./../node_modules/@nuxt/ui/dist/runtime/components/FormField.vue')['default']
     UInput: typeof import('./../node_modules/@nuxt/ui/dist/runtime/components/Input.vue')['default']
     UInputMenu: typeof import('./../node_modules/@nuxt/ui/dist/runtime/components/InputMenu.vue')['default']
+    UNavigationMenu: typeof import('./../node_modules/@nuxt/ui/dist/runtime/components/NavigationMenu.vue')['default']
     USelect: typeof import('./../node_modules/@nuxt/ui/dist/runtime/components/Select.vue')['default']
   }
 }

@@ -15,6 +15,29 @@ export default defineConfig({
           slots: { base: 'rounded px-2 py-2 text-base md:text-sm' },
         },
         select: { slots: { base: 'rounded px-4 py-3 text-base md:text-sm' } },
+        card: {
+          slots: {
+            root: 'overflow-visible rounded-lg border border-[var(--panel-border)] divide-none',
+            body: 'p-5 sm:p-5',
+          },
+          variants: {
+            variant: {
+              outline: { root: 'bg-[var(--card-bg)] ring-0 divide-none' },
+            },
+          },
+        },
+        formField: {
+          slots: {
+            label: 'text-sm font-semibold text-[var(--muted-text)]',
+            container: 'mt-2',
+          },
+        },
+        alert: {
+          slots: {
+            root: 'rounded border p-4',
+            description: 'text-sm text-inherit',
+          },
+        },
       },
       autoImport: false,
       components: { dts: 'src/components.d.ts' },

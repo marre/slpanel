@@ -1,7 +1,14 @@
 import { h } from 'vue';
-import { screen, within } from '@testing-library/vue';
+import { fireEvent, screen, within } from '@testing-library/vue';
 import { render } from '@/test/render';
 import DeviceDiagnostics from '@/components/device-diagnostics.vue';
+async function expandDetails() {
+  for (const button of screen.queryAllByRole('button', {
+    name: /^More .* details$/,
+  })) {
+    await fireEvent.click(button);
+  }
+}
 function value(label: string) {
   return screen
     .getByText(label, {
@@ -37,6 +44,10 @@ describe('DeviceDiagnostics', () => {
         name: 'Panel activity',
       }),
     ).toBeInTheDocument();
+    await expandDetails();
+    expect(
+      await screen.findByText('Button press counts', { selector: 'dt' }),
+    ).toBeInTheDocument();
     expect(value('IP address')).toHaveTextContent('192.168.1.42');
     expect(value('Time in current state')).toHaveTextContent('1.5 s');
     expect(value('Recovery exhausted')).toHaveTextContent('No');
@@ -65,6 +76,12 @@ describe('DeviceDiagnostics', () => {
           'wifi=waiting-settings https_error=http api_age_ms=none http=0 new_sensor=odd-value',
       }),
     );
+    await expandDetails();
+    expect(
+      await screen.findByText('Time since successful request', {
+        selector: 'dt',
+      }),
+    ).toBeInTheDocument();
     expect(value('Connection state')).toHaveTextContent(
       'Waiting for configuration',
     );

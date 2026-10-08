@@ -46,9 +46,15 @@ export async function render(input: VNode | Fixture) {
       { global: { plugins: [router, ui] } },
     );
   }
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/:pathMatch(.*)*', component: { render: () => null } }],
+  });
+  await router.push('/');
+  await router.isReady();
   const result = renderVue(input.type as Component, {
     props: input.props ?? {},
-    global: { plugins: [ui] },
+    global: { plugins: [router, ui] },
   });
   return {
     ...result,
