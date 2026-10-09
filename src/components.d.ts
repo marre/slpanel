@@ -16,6 +16,7 @@ declare module 'vue' {
     DiagnosticFields: typeof import('./components/diagnostic-fields.vue')['default']
     DisplayBoard: typeof import('./components/display-board.vue')['default']
     FilterPicker: typeof import('./components/filter-picker.vue')['default']
+    FirmwareUpdate: typeof import('./components/firmware-update.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     StopPicker: typeof import('./components/stop-picker.vue')['default']
