@@ -385,8 +385,11 @@ Routes are loaded lazily. `usePolling` owns cancellable departure refreshes, `us
 ### Signed firmware updates
 
 Protocol 2 devices with the staged-update bootloader offer signed releases on
-`/device`. The catalogue is `public/firmware/releases.json`; it stays empty until
-a release is qualified on hardware. Users can also select a release's
+`/device`. The Worker discovers stable tagged releases from the firmware
+repository and serves the catalogue at `/firmware/releases.json`. It checks the
+tag commit, main ancestry, publication receipt, and required assets/SBOM before
+offering a release. New eligible releases appear without rebuilding the web app;
+discovery is cached for five minutes. Users can also select a release's
 `manifest.json` and `firmware.bin` locally. The browser checks exact size,
 compatibility, SHA-256 and metadata before uploading. The panel and bootloader
 verify Ed25519 against their embedded public key.
@@ -407,3 +410,14 @@ board/image/attempt identifiers, never passwords or signing keys.
 See the sibling `slpanel-rust/docs/update-build.md` for key configuration, signing,
 bootstrap/recovery and hardware release gates. To publish a qualified release,
 follow [the firmware asset instructions](public/firmware/README.md).
+
+The firmware repository is private. Configure a fine-grained GitHub token with
+**Contents: read** on `marre/slpanel-rust` only as the Worker secret
+`FIRMWARE_GITHUB_TOKEN` (`npx wrangler secret put FIRMWARE_GITHUB_TOKEN`).
+`FIRMWARE_REPOSITORY` is set in `wrangler.jsonc`. The Worker uses the credential
+server-side; browsers receive only catalogue data and the signed manifest/image.
+These update binaries are intentionally downloadable by visitors to the public
+web app even though the firmware source repository is private. Never configure
+the signing seed in the Worker. For local development set the same bindings in
+an untracked `.dev.vars` file. Missing/expired private-repo access produces a
+release-unavailable error; local package selection still works.

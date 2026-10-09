@@ -5,6 +5,8 @@ import type {
   Receipt,
 } from './firmware-protocol';
 import type { DeviceRequest, DeviceReply } from './device-serial';
+import type { Release } from './firmware-release';
+export type { Release } from './firmware-release';
 const IMAGE_BYTES = 1572864,
   PAYLOAD_BYTES = 1568768;
 const encoder = new TextEncoder();
@@ -194,14 +196,6 @@ export function outcome(
   return null;
 }
 
-export type Release = {
-  version: string;
-  board: string;
-  layout: string;
-  image_id: string;
-  manifest_url: string;
-  image_url: string;
-};
 async function boundedDownload(url: string, max: number): Promise<Uint8Array> {
   const response = await fetch(url, { cache: 'no-cache' });
   if (!response.ok || !response.body)

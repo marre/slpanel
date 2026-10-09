@@ -6,6 +6,8 @@ import { createD1DisplayStore } from './d1-display-store';
 import type { DisplayStore } from './display-store';
 import { ApiError, isApiError } from './errors';
 import { createTrafiklabProvider } from './trafiklab-provider';
+import { createFirmwareReleases } from './firmware-releases';
+import type { FirmwareBindings } from './firmware-releases';
 import type { TransitProvider } from './transit-provider';
 import {
   parseDeparturesQuery,
@@ -16,7 +18,7 @@ import {
   validateDisplayResourceId,
 } from './validation';
 
-export type WorkerBindings = {
+export type WorkerBindings = FirmwareBindings & {
   ASSETS?: Fetcher;
   DB?: D1Database;
 };
@@ -30,6 +32,7 @@ type ApiContext = Context<{ Bindings: WorkerBindings }>;
 
 export function createApp(options: AppOptions = {}) {
   const app = new Hono<{ Bindings: WorkerBindings }>();
+  const firmware = createFirmwareReleases();
   const transitProvider = options.transitProvider ?? createTrafiklabProvider();
   const createDisplayStore =
     options.createDisplayStore ??
@@ -164,6 +167,22 @@ export function createApp(options: AppOptions = {}) {
   });
 
   app.route('/api', api);
+
+  app.get('/firmware/releases.json', async (context) => {
+    const bindings = getBindings(context);
+    if (!bindings.FIRMWARE_REPOSITORY && bindings.ASSETS)
+      return bindings.ASSETS.fetch(context.req.raw);
+    context.header('Cache-Control', 'no-store');
+    return context.json(await firmware.catalogue(bindings));
+  });
+  app.get('/firmware/releases/:id/:image/:name', (context) =>
+    firmware.download(
+      getBindings(context),
+      context.req.param('id'),
+      context.req.param('image'),
+      context.req.param('name'),
+    ),
+  );
 
   app.notFound(async (context) => {
     const bindings = getBindings(context);
