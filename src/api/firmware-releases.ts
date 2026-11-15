@@ -60,8 +60,12 @@ export function createFirmwareReleases(request: typeof fetch = fetch) {
     if (
       !bindings.FIRMWARE_REPOSITORY ||
       !/^[\w.-]+\/[\w.-]+$/.test(bindings.FIRMWARE_REPOSITORY)
-    )
+    ) {
+      console.error('Firmware discovery configuration invalid', {
+        repositoryConfigured: Boolean(bindings.FIRMWARE_REPOSITORY),
+      });
       throw unavailable();
+    }
     return `https://api.github.com/repos/${bindings.FIRMWARE_REPOSITORY}`;
   }
   async function github(
@@ -78,14 +82,33 @@ export function createFirmwareReleases(request: typeof fetch = fetch) {
     };
     if (bindings.FIRMWARE_GITHUB_TOKEN)
       headers.Authorization = `Bearer ${bindings.FIRMWARE_GITHUB_TOKEN}`;
+    const endpoint = path.startsWith('/releases/assets/')
+      ? 'release-asset'
+      : path.startsWith('/releases?')
+        ? 'release-list'
+        : path.startsWith('/commits/')
+          ? 'tag-commit'
+          : path.startsWith('/compare/')
+            ? 'main-ancestry'
+            : 'other';
     const response = await request(repository(bindings) + path, {
       headers,
       redirect: 'manual',
       signal: AbortSignal.timeout(10000),
     });
+    if (!response.ok && !(binary && [301, 302, 303, 307, 308].includes(response.status))) {
+      console.error('Firmware GitHub request failed', {
+        endpoint,
+        status: response.status,
+        tokenConfigured: Boolean(bindings.FIRMWARE_GITHUB_TOKEN),
+      });
+    }
     if (binary && [301, 302, 303, 307, 308].includes(response.status)) {
       const location = response.headers.get('location');
-      if (!location) throw unavailable();
+      if (!location) {
+        console.error('Firmware asset redirect missing Location header');
+        throw unavailable();
+      }
       const url = new URL(location);
       if (
         url.protocol !== 'https:' ||
@@ -95,13 +118,20 @@ export function createFirmwareReleases(request: typeof fetch = fetch) {
           'release-assets.githubusercontent.com',
           'objects.githubusercontent.com',
         ].includes(url.hostname)
-      )
+      ) {
+        console.error('Firmware asset redirect rejected', { endpoint });
         throw unavailable();
+      }
       // A presigned asset URL needs no GitHub credential; never forward it.
-      return request(url.href, {
+      const assetResponse = await request(url.href, {
         redirect: 'error',
         signal: AbortSignal.timeout(10000),
       });
+      if (!assetResponse.ok)
+        console.error('Firmware redirected asset request failed', {
+          status: assetResponse.status,
+        });
+      return assetResponse;
     }
     return response;
   }
@@ -231,7 +261,10 @@ export function createFirmwareReleases(request: typeof fetch = fetch) {
         cached = { scope, until: Date.now() + 300000, entries };
         return entries;
       })
-      .catch(() => {
+      .catch((error: unknown) => {
+        console.error('Firmware discovery failed', {
+          errorType: error instanceof Error ? error.name : typeof error,
+        });
         throw unavailable();
       })
       .finally(() => {
