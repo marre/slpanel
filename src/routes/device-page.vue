@@ -2,10 +2,18 @@
 import type { DeviceLogEntry } from '@/lib/device-serial';
 import { useRoute } from 'vue-router';
 import { useDevice } from '@/composables/use-device';
+import FirmwareUpdate from '@/components/firmware-update.vue';
 import DeviceDiagnostics from '@/components/device-diagnostics.vue';
 import DeviceDisplayPicker from '@/components/device-display-picker.vue';
 const route = useRoute();
 const {
+  firmwareInfo,
+  firmwarePhase,
+  firmwareBytes,
+  firmwareOutcome,
+  updateFirmware,
+  cancelFirmware,
+  checkFirmware,
   config,
   connection,
   openNetwork,
@@ -131,6 +139,17 @@ function timestamp(entry: DeviceLogEntry): string {
     <p v-if="notice" role="status" class="text-sm text-[var(--panel-text)]">
       {{ notice }}
     </p>
+    <FirmwareUpdate
+      :info="firmwareInfo"
+      :connected="connected"
+      :busy="Boolean(busy)"
+      :phase="firmwarePhase"
+      :bytes="firmwareBytes"
+      :outcome="firmwareOutcome"
+      @update="updateFirmware"
+      @cancel="cancelFirmware"
+      @check="checkFirmware"
+    />
     <div
       class="grid gap-6 lg:grid-cols-[minmax(0,4fr)_minmax(0,6fr)] lg:items-start"
     >

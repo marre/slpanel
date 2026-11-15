@@ -381,3 +381,43 @@ GitHub Actions runs `lint`, `test`, `format`, and `build` on pushes to `main` an
 The browser app uses Vue 3 single-file components, Vue Router, Nuxt UI 4 and Vite. Nuxt UI is integrated through its Vue/Vite plugins; the Hono Worker still serves the SPA and `/api/*`. The light theme is configured in `vite.config.ts` and `src/styles.css`.
 
 Routes are loaded lazily. `usePolling` owns cancellable departure refreshes, `useDevice` owns the Web Serial session and request queue, and `useDisplayCanvas` owns the pixel board animation. Stop and filter pickers use Nuxt UI comboboxes with typed events/models. `vue-tsc` checks both templates and application TypeScript; Worker typechecking stays separate.
+
+### Signed firmware updates
+
+Protocol 2 devices with the staged-update bootloader offer signed releases on
+`/device`. The Worker discovers stable tagged releases from the firmware
+repository and serves the catalogue at `/firmware/releases.json`. It checks the
+tag commit, main ancestry, publication receipt, and required assets/SBOM before
+offering a release. New eligible releases appear without rebuilding the web app;
+discovery is cached for five minutes. Users can also select a release's
+`manifest.json` and `firmware.bin` locally. The browser checks exact size,
+compatibility, SHA-256 and metadata before uploading. The panel and bootloader
+verify Ed25519 against their embedded public key.
+
+Hold the blank-output button (GPIO22) for two seconds, then choose Update within
+60 seconds. Upload progress stops normal device actions. The panel verifies and
+restarts; reconnect the same panel to obtain the durable result. Success requires
+the expected image and exact attempt to be confirmed. Trial failure reports
+restoration of the previous image. Settings survive upgrades. Physical ROM UF2
+recovery handles initial bootloader installation and unbootable firmware.
+
+The client supports protocol 1 for existing configuration/logging and protocol 2
+for staged updates. It does not offer uploads on v1 devices. A request timeout
+closes the session; reconnect and rerun the same package to resume at the device's
+reported checkpoint. Update attempts stored in browser storage contain only
+board/image/attempt identifiers, never passwords or signing keys.
+
+See the sibling `slpanel-rust/docs/update-build.md` for key configuration, signing,
+bootstrap/recovery and hardware release gates. To publish a qualified release,
+follow [the firmware asset instructions](public/firmware/README.md).
+
+The firmware repository is private. Configure a fine-grained GitHub token with
+**Contents: read** on `marre/slpanel-rust` only as the Worker secret
+`FIRMWARE_GITHUB_TOKEN` (`npx wrangler secret put FIRMWARE_GITHUB_TOKEN`).
+`FIRMWARE_REPOSITORY` is set in `wrangler.jsonc`. The Worker uses the credential
+server-side; browsers receive only catalogue data and the signed manifest/image.
+These update binaries are intentionally downloadable by visitors to the public
+web app even though the firmware source repository is private. Never configure
+the signing seed in the Worker. For local development set the same bindings in
+an untracked `.dev.vars` file. Missing/expired private-repo access produces a
+release-unavailable error; local package selection still works.

@@ -174,7 +174,7 @@ describe('DeviceSerialClient', () => {
   });
 
   it('rejects incompatible firmware and releases its streams', async () => {
-    const port = new TestDevicePort(undefined, 2);
+    const port = new TestDevicePort(undefined, 3);
     const client = new DeviceSerialClient(port, vi.fn());
     await expect(client.connect()).rejects.toThrow('protocol v1');
     expect(port.close).toHaveBeenCalledOnce();
