@@ -135,8 +135,10 @@ export function createFirmwareReleases(request: typeof fetch = fetch) {
         throw unavailable();
       }
       // A presigned asset URL needs no GitHub credential; never forward it.
+      // Cloudflare Workers does not support redirect: 'error' (it throws TypeError).
+      // Manual mode prevents following a second redirect and never forwards the token.
       const assetResponse = await request(url.href, {
-        redirect: 'error',
+        redirect: 'manual',
         signal: AbortSignal.timeout(10000),
       });
       if (!assetResponse.ok)
