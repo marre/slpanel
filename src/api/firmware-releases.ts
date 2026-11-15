@@ -91,11 +91,23 @@ export function createFirmwareReleases(request: typeof fetch = fetch) {
           : path.startsWith('/compare/')
             ? 'main-ancestry'
             : 'other';
-    const response = await request(repository(bindings) + path, {
-      headers,
-      redirect: 'manual',
-      signal: AbortSignal.timeout(10000),
-    });
+    let response: Response;
+    try {
+      response = await request(repository(bindings) + path, {
+        headers,
+        redirect: 'manual',
+        signal: AbortSignal.timeout(10000),
+      });
+    } catch (error) {
+      // Never log request URLs, authorization headers, or error messages:
+      // a runtime error can contain credentials or presigned asset URLs.
+      console.error('Firmware GitHub fetch threw', {
+        endpoint,
+        errorType: error instanceof Error ? error.name : typeof error,
+        tokenConfigured: Boolean(bindings.FIRMWARE_GITHUB_TOKEN),
+      });
+      throw error;
+    }
     if (!response.ok && !(binary && [301, 302, 303, 307, 308].includes(response.status))) {
       console.error('Firmware GitHub request failed', {
         endpoint,
@@ -141,11 +153,30 @@ export function createFirmwareReleases(request: typeof fetch = fetch) {
     limit = 1048576,
     binary = false,
   ) {
-    return JSON.parse(
-      new TextDecoder('utf-8', { fatal: true }).decode(
-        await bounded(await github(bindings, path, binary), limit),
-      ),
-    );
+    const endpoint = path.startsWith('/releases/assets/')
+      ? 'release-asset'
+      : path.startsWith('/releases?')
+        ? 'release-list'
+        : path.startsWith('/commits/')
+          ? 'tag-commit'
+          : path.startsWith('/compare/')
+            ? 'main-ancestry'
+            : 'other';
+    let phase = 'fetch';
+    try {
+      const response = await github(bindings, path, binary);
+      phase = 'read-body';
+      const bytes = await bounded(response, limit);
+      phase = 'parse-json';
+      return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+    } catch (error) {
+      console.error('Firmware GitHub response processing failed', {
+        endpoint,
+        phase,
+        errorType: error instanceof Error ? error.name : typeof error,
+      });
+      throw error;
+    }
   }
   async function eligible(
     bindings: FirmwareBindings,
