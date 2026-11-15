@@ -144,6 +144,9 @@ describe('GitHub firmware releases', () => {
       'manifest.json',
     );
     expect(await response.text()).toBe('0123456789');
+    expect(request.mock.calls.at(-1)?.[1]).toMatchObject({
+      redirect: 'manual',
+    });
     expect(request.mock.calls.at(-1)?.[1]?.headers).toBeUndefined();
     request.mockImplementationOnce(
       async () => new Response('too long for the declared asset'),
@@ -151,6 +154,34 @@ describe('GitHub firmware releases', () => {
     await expect(
       provider.download(bindings, '42', imageId, 'manifest.json'),
     ).rejects.toMatchObject({ status: 503 });
+  });
+
+  it('does not follow additional redirects from a signed asset host', async () => {
+    const request = fixture();
+    const provider = createFirmwareReleases(request);
+    await provider.catalogue(bindings);
+    request.mockImplementationOnce(async () =>
+      new Response(null, {
+        status: 302,
+        headers: {
+          location: 'https://release-assets.githubusercontent.com/signed-url',
+        },
+      }),
+    );
+    request.mockImplementationOnce(async () =>
+      new Response(null, {
+        status: 302,
+        headers: { location: 'https://untrusted.example/download' },
+      }),
+    );
+    await expect(
+      provider.download(bindings, '42', imageId, 'manifest.json'),
+    ).rejects.toMatchObject({ status: 503 });
+    expect(request.mock.calls.at(-1)?.[1]).toMatchObject({
+      redirect: 'manual',
+    });
+    expect(request.mock.calls.at(-1)?.[1]?.headers).toBeUndefined();
+    expect(request).toHaveBeenCalledTimes(7);
   });
 
   it('rejects unlisted IDs, arbitrary files, and redirects to other hosts', async () => {
