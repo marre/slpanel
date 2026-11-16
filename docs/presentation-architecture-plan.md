@@ -1,6 +1,6 @@
 # Panel presentations: target architecture and implementation plan
 
-> Planning document only. This PR documents the agreed end state; it does not implement it.
+> Architecture roadmap and implementation checklist. The slpanel PR implements the backend and Vue workspace; the companion Rust firmware still needs its own implementation.
 > Companion repository: [slpanel](https://github.com/marre/slpanel) / [slpanel-rust](https://github.com/marre/slpanel-rust).
 
 ## Product requirements and decisions
