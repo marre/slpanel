@@ -80,23 +80,38 @@ watch(
     displayError.value = null;
     isLoadingDisplay.value = false;
     if (!id || isDemoBoard.value) return;
-    const controller = new AbortController();
-    onCleanup(() => controller.abort());
-    isLoadingDisplay.value = true;
-    getDisplay(id, controller.signal)
-      .then((result) => {
-        if (!controller.signal.aborted) display.value = result;
-      })
-      .catch((failure) => {
-        if (!controller.signal.aborted)
-          displayError.value =
-            failure instanceof Error
-              ? failure.message
-              : 'Could not load this display.';
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) isLoadingDisplay.value = false;
-      });
+    let disposed = false;
+    let currentController: AbortController | null = null;
+    let fetching = false;
+    const refresh = async () => {
+      if (fetching || disposed) return;
+      fetching = true;
+      const controller = new AbortController();
+      currentController = controller;
+      if (!display.value) isLoadingDisplay.value = true;
+      try {
+        const result = await getDisplay(id, controller.signal);
+        if (!disposed && !controller.signal.aborted) {
+          if (JSON.stringify(display.value) !== JSON.stringify(result))
+            display.value = result;
+          displayError.value = null;
+        }
+      } catch (failure) {
+        if (!disposed && !controller.signal.aborted)
+          displayError.value = failure instanceof Error
+            ? failure.message : 'Could not load this display.';
+      } finally {
+        fetching = false;
+        if (!disposed) isLoadingDisplay.value = false;
+      }
+    };
+    void refresh();
+    const interval = window.setInterval(() => void refresh(), 30000);
+    onCleanup(() => {
+      disposed = true;
+      clearInterval(interval);
+      currentController?.abort();
+    });
   },
   { immediate: true },
 );
@@ -191,6 +206,14 @@ function deriveBoardState(input: {
       statusLabel: 'Display error',
     };
   }
+  if (input.display?.output_mode === 'off') {
+    return {
+      tone: 'empty',
+      headline: 'Panel switched off',
+      detail: 'An explicit manual override or schedule has turned this panel off.',
+      statusLabel: 'Off',
+    };
+  }
   if (!input.display?.site_id) {
     return {
       tone: 'empty',
@@ -268,7 +291,11 @@ function deriveBoardState(input: {
         </p>
       </div>
     </div>
-    <div>
+    <div v-if="activeDisplay?.output_mode === 'off'"
+      role="img" aria-label="Panel off" class="grid min-h-40 place-items-center rounded-lg bg-black p-8 text-center text-sm text-slate-400">
+      Panel is off — the hardware display should be blank once firmware supports Off mode.
+    </div>
+    <div v-else>
       <DisplayBoard
         :display-name="displayName"
         :site-name="activeDisplay?.site_name ?? null"
