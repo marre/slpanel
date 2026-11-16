@@ -328,7 +328,7 @@ The `/config` route now supports:
 The physical display ID remains fixed on the device. The Worker now resolves which
 reusable **presentation** it should show. Each presentation references a
 **data source** (stop, filters and refresh interval) plus a registered
-**full-screen visualization**. Only \`departures-list\` is accepted until a
+**full-screen visualization**. Only `departures-list` is accepted until a
 matching Rust renderer is released, avoiding unsupported layout configurations.
 
 In **Presentations** (available in the main navigation and from each display
@@ -339,27 +339,27 @@ in **My displays**), select a panel and:
    overrides can expire after 1, 3 or 12 hours, or remain active until cleared.
 3. Choose the default presentation and add weekly time windows, including
    overnight windows and Off periods. Weekdays use the chosen IANA timezone
-   (default \`Europe/Stockholm\`). Overlapping windows are rejected.
+   (default `Europe/Stockholm`). Overlapping windows are rejected.
 
 Server-side precedence is **manual override > matching schedule > default**.
 A schedule is evaluated on every device configuration read, so no background
 Cron Trigger is needed. The response includes a best-effort
-\`next_transition_at\` hint. The device must still periodically refetch
+`next_transition_at` hint. The device must still periodically refetch
 configuration to handle clock skew and network interruptions.
 
-\`GET /api/displays/:id\` remains backwards compatible for older firmware:
-\`display\` continues to contain the flat stop/refresh/filter configuration,
+`GET /api/displays/:id` remains backwards compatible for older firmware:
+`display` continues to contain the flat stop/refresh/filter configuration,
 but it is resolved from the active presentation. The response also contains
-\`effective\` with the mode (\`presentation\`, \`off\`, or \`legacy\`),
+`effective` with the mode (`presentation`, `off`, or `legacy`),
 presentation, data source, reason and transition hint. The browser preview
 checks effective configuration every 30 seconds.
 
 **Firmware rollout limitation:** changing stops works on old firmware at its
-existing configuration-check interval (~5 minutes). \`Off\` resolves to an
-empty legacy stop while exposing the explicit mode in \`effective\`, but **does
+existing configuration-check interval (~5 minutes). `Off` resolves to an
+empty legacy stop while exposing the explicit mode in `effective`, but **does
 not guarantee a black or powered-down physical panel** on old firmware.
 True Off behavior, faster switching and additional renderers require the
-companion \`slpanel-rust\` implementation. The web preview explicitly labels
+companion `slpanel-rust` implementation. The web preview explicitly labels
 the Off state.
 
 The original My displays editor continues to edit the imported legacy
