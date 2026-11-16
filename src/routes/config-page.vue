@@ -394,8 +394,8 @@ function readErrorMessage(error: unknown): string {
           class="max-w-3xl text-sm leading-7 text-[var(--muted-text)] md:text-base"
         >
           Configure the original stop for a physical display, or open
-          Presentations &amp; schedule to switch saved configurations without USB.
-          Preview changes before saving.
+          Presentations &amp; schedule to switch saved configurations without
+          USB. Preview changes before saving.
         </p>
       </div>
     </div>
@@ -730,7 +730,10 @@ function readErrorMessage(error: unknown): string {
             </template>
             <RouterLink
               v-if="selectedDisplay"
-              :to="{ path: '/presentations', query: { owner: activeOwnerId, display: selectedDisplay.id } }"
+              :to="{
+                path: '/presentations',
+                query: { owner: activeOwnerId, display: selectedDisplay.id },
+              }"
               class="inline-flex rounded border border-[var(--panel-text)] bg-[var(--panel-text)]/10 px-5 py-3 text-sm font-semibold text-[var(--panel-text)] transition hover:bg-[var(--panel-text)]/15"
             >
               Presentations &amp; schedule

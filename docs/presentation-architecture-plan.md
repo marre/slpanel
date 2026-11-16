@@ -101,7 +101,7 @@ Current code points: `migrations/0001_initial.sql` stores stop and filters direc
 2. Migrate each existing display's site, filters and refresh interval into a data source and default presentation transactionally; avoid orphaning existing records. Define referential delete behavior for active presentations and schedules.
 3. Implement an effective-configuration resolver with injectable clock for deterministic schedule tests; enforce ownership, schema validation, overlap detection, and override precedence.
 4. Preserve the device endpoint and rollout compatibility; add authenticated CRUD for data sources/presentations, assignment and schedule management. Ensure device-facing response never exposes unrelated owner configuration.
-5. Update Vue config UI to edit reusable sources and presentations, choose active/default presentation, manage weekly schedule and Off periods, and preview the *effective* result. Refresh the browser preview when assignment changes.
+5. Update Vue config UI to edit reusable sources and presentations, choose active/default presentation, manage weekly schedule and Off periods, and preview the _effective_ result. Refresh the browser preview when assignment changes.
 6. Tests: migration, D1/memory parity, authorization, invalid renderer/settings, deleted source references, timezone/DST boundaries, overnight windows, override expiry and backward-compatible device reads.
 
 ### Ownership boundary

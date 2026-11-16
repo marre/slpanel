@@ -108,7 +108,10 @@ export function createFirmwareReleases(request: typeof fetch = fetch) {
       });
       throw error;
     }
-    if (!response.ok && !(binary && [301, 302, 303, 307, 308].includes(response.status))) {
+    if (
+      !response.ok &&
+      !(binary && [301, 302, 303, 307, 308].includes(response.status))
+    ) {
       console.error('Firmware GitHub request failed', {
         endpoint,
         status: response.status,
@@ -170,7 +173,9 @@ export function createFirmwareReleases(request: typeof fetch = fetch) {
       phase = 'read-body';
       const bytes = await bounded(response, limit);
       phase = 'parse-json';
-      return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+      return JSON.parse(
+        new TextDecoder('utf-8', { fatal: true }).decode(bytes),
+      );
     } catch (error) {
       console.error('Firmware GitHub response processing failed', {
         endpoint,
