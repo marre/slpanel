@@ -121,7 +121,7 @@ describe('PresentationsPage', () => {
       });
     });
     expect(
-      screen.getByText('Off — no departures displayed'),
+      await screen.findByText('Off — no departures displayed'),
     ).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Resume schedule' }),
