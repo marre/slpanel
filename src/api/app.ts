@@ -106,7 +106,7 @@ export function createApp(options: AppOptions = {}) {
   }
 
   async function requireDisplay(context: ApiContext): Promise<DisplayRecord> {
-    const id = validateDisplayResourceId(context.req.param('id'));
+    const id = validateDisplayResourceId(context.req.param('id') ?? '');
     const display = await createDisplayStore(getBindings(context).DB).getById(
       id,
     );
