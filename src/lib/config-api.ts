@@ -66,14 +66,19 @@ export async function getDisplay(
   displayId: string,
   signal?: AbortSignal,
 ): Promise<DisplayRecord> {
-  const response = await requestJson<{ display: DisplayRecord }>(
+  const response = await requestJson<{
+    display: DisplayRecord;
+    effective?: { mode: 'legacy' | 'presentation' | 'off' };
+  }>(
     `/api/displays/${encodeURIComponent(displayId)}`,
     {
       signal,
     },
   );
 
-  return response.display;
+  return response.effective
+    ? { ...response.display, output_mode: response.effective.mode }
+    : response.display;
 }
 
 export async function updateDisplay(
