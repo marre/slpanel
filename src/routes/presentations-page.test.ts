@@ -144,6 +144,6 @@ describe('PresentationsPage', () => {
       mode: 'presentation',
       presentation_id: profileId,
     });
-    expect(screen.getByText(/schedule saved/i)).toBeInTheDocument();
+    expect(await screen.findByText(/schedule saved/i)).toBeInTheDocument();
   });
 });
