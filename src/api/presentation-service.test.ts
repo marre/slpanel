@@ -62,14 +62,14 @@ describe('presentation scheduling', () => {
       manual: {
         mode: 'off',
         presentation_id: null,
-        until: '2026-11-16T08:00:00Z',
+        until: '2026-11-16T07:30:00Z',
       },
     };
     expect(
       chooseSelection(control, new Date('2026-11-16T07:00:00Z')).reason,
     ).toBe('manual');
     expect(
-      chooseSelection(control, new Date('2026-11-16T08:00:00Z')).reason,
+      chooseSelection(control, new Date('2026-11-16T07:30:00Z')).reason,
     ).toBe('schedule');
   });
   it('handles the repeated Swedish autumn hour and spring clock jump', () => {
