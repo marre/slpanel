@@ -218,16 +218,7 @@ function localMinute(
   at: Date,
   timezone: string,
 ): { day: number; minute: number; year: number; month: number; date: number } {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    weekday: 'short',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(at);
+  const parts = formatterFor(timezone).formatToParts(at);
   const get = (type: string) =>
     parts.find((item) => item.type === type)?.value ?? '';
   return {
