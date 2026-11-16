@@ -63,7 +63,7 @@ When you are ready to update the remote database too:
 npm run db:migrate:remote
 ```
 
-The initial migration lives in `migrations/0001_initial.sql` and creates:
+The migrations live in `migrations/0001_initial.sql` and `migrations/0002_presentations.sql`. Apply both **before deploying a Worker that uses the presentation API**. The initial migration creates:
 
 - `owners`
 - `displays`
@@ -71,15 +71,21 @@ The initial migration lives in `migrations/0001_initial.sql` and creates:
 - `display_direction_filters`
 - `display_mode_filters`
 
+The second migration creates `data_sources` with normalized line/direction/mode filter tables, `presentations`, `display_controls` and `display_schedule_rules`. Existing displays are imported as a default reusable presentation without changing their permanent device IDs. Run `npm run db:migrate:remote` before deploying this branch.
+
 ## Current routes
 
 - `/` landing page with links into config and display flows
 - `/config` owner-based config workspace with a preview of unsaved filters
+- `/presentations` reusable full-screen presentation library, assignments and weekly schedules
 - `/device` USB device configuration with automatic live logs, clipboard copy, and download using Web Serial
 - `/display/:displayId` public display board with live departures and auto-refresh
 - `/api/health` Worker health endpoint
 - `/api/displays` display CRUD root
-- `/api/displays/:id` single display CRUD route
+- `/api/displays/:id` effective device configuration (legacy flat `display` plus an `effective` block) and display CRUD
+- `/api/displays/:id/control` assignment, manual overrides and schedule management
+- `/api/data-sources` and `/api/data-sources/:sourceId` reusable departure source CRUD
+- `/api/presentations` and `/api/presentations/:presentationId` presentation CRUD
 - `/api/stops/search` stop search adapter
 - `/api/departures/:siteId` normalized departures adapter
 
@@ -316,6 +322,55 @@ The `/config` route now supports:
 - binding a single stop via search
 - configuring line, direction, and transport-mode filters
 - opening a saved display URL directly from the config screen
+
+## Reusable presentations and schedules
+
+The physical display ID remains fixed on the device. The Worker now resolves which
+reusable **presentation** it should show. Each presentation references a
+**data source** (stop, filters and refresh interval) plus a registered
+**full-screen visualization**. Only \`departures-list\` is accepted until a
+matching Rust renderer is released, avoiding unsupported layout configurations.
+
+In **Presentations** (available in the main navigation and from each display
+in **My displays**), select a panel and:
+
+1. Create a presentation from a new stop or reuse an existing data source.
+2. Choose **Show now**, **Turn off now**, or **Resume schedule**. Manual
+   overrides can expire after 1, 3 or 12 hours, or remain active until cleared.
+3. Choose the default presentation and add weekly time windows, including
+   overnight windows and Off periods. Weekdays use the chosen IANA timezone
+   (default \`Europe/Stockholm\`). Overlapping windows are rejected.
+
+Server-side precedence is **manual override > matching schedule > default**.
+A schedule is evaluated on every device configuration read, so no background
+Cron Trigger is needed. The response includes a best-effort
+\`next_transition_at\` hint. The device must still periodically refetch
+configuration to handle clock skew and network interruptions.
+
+\`GET /api/displays/:id\` remains backwards compatible for older firmware:
+\`display\` continues to contain the flat stop/refresh/filter configuration,
+but it is resolved from the active presentation. The response also contains
+\`effective\` with the mode (\`presentation\`, \`off\`, or \`legacy\`),
+presentation, data source, reason and transition hint. The browser preview
+checks effective configuration every 30 seconds.
+
+**Firmware rollout limitation:** changing stops works on old firmware at its
+existing configuration-check interval (~5 minutes). \`Off\` resolves to an
+empty legacy stop while exposing the explicit mode in \`effective\`, but **does
+not guarantee a black or powered-down physical panel** on old firmware.
+True Off behavior, faster switching and additional renderers require the
+companion \`slpanel-rust\` implementation. The web preview explicitly labels
+the Off state.
+
+The original My displays editor continues to edit the imported legacy
+configuration. If a panel is assigned to a different presentation, edits to
+that original configuration do not change the active selection. Use the
+presentation workspace for shared sources and schedules.
+
+**Access control:** the existing owner ID is not an authentication token.
+The v1 API does not authenticate writes, including the new presentation
+endpoints. Deploy the management API behind suitable access controls before
+exposing it to untrusted users; avoid treating predictable IDs as secrets.
 
 ## USB device workflow
 
