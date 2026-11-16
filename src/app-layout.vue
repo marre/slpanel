@@ -23,6 +23,11 @@ const navigation = [
     },
   },
   {
+    to: '/presentations',
+    label: 'Presentations',
+    onSelect: () => { menuOpen.value = false; },
+  },
+  {
     to: '/device',
     label: 'USB device',
     onSelect: () => {
