@@ -39,7 +39,6 @@ const sourceDraft = ref<DataSourceInput>(emptySource());
 const lineText = ref('');
 const directionText = ref('');
 const modeText = ref('');
-const currentDisplay = computed(() => displays.value.find((display) => display.id === selectedDisplayId.value));
 const selectedSource = computed(() => sources.value.find((s) => s.id === sourceMode.value));
 const busy = computed(() => saving.value || loading.value || loadingPanel.value);
 const stateSummary = computed(() => {
@@ -170,8 +169,9 @@ async function writeControl(input: PanelControlInput, successText: string) {
 function controlInput(): PanelControlInput | null {
   if (!control.value) return null;
   return { timezone: control.value.timezone, default_presentation_id: control.value.default_presentation_id,
-    manual: control.value.manual, rules: control.value.rules.map(({ id: _id, ...rule }) => ({
-      ...rule, days: [...rule.days],
+    manual: control.value.manual, rules: control.value.rules.map((rule) => ({
+      days: [...rule.days], start_time: rule.start_time, end_time: rule.end_time,
+      mode: rule.mode, presentation_id: rule.presentation_id,
     })) };
 }
 async function saveSchedule() {
