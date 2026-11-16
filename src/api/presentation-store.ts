@@ -3,7 +3,7 @@ import { ApiError } from './errors';
 import type { DisplayRecord } from './types';
 import type {
   DataSourceInput, DataSourceRecord, PanelControl, PanelControlInput,
-  PresentationInput, PresentationRecord, ScheduleRule,
+  PresentationInput, PresentationRecord,
 } from './presentation-types';
 
 export interface PresentationStore {
