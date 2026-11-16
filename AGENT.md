@@ -32,8 +32,8 @@
 
 - `owners` table
 - `displays` table with `owner_id` foreign key
-- a single selected stop per display
-- explicit stop/line configuration per display
+- each physical display has a stable ID; reusable data sources and presentations determine the active stop and full-screen visualization
+- server-side assignment resolution (manual override > weekly schedule > default) and explicit Off state
 - Explicit filter tables for line, direction, and mode
 - No generic JSON config blob
 - Prefer one initial migration while nothing is deployed
