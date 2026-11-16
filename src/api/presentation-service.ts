@@ -48,7 +48,7 @@ export function parseDataSource(value: unknown): DataSourceInput {
   const siteId = input.site_id === null ? null : required(input.site_id, 'site_id');
   if (siteId !== null && !/^[0-9]+$/.test(siteId)) bad('site_id must be numeric.');
   const interval = input.refresh_interval === undefined ? 30 : input.refresh_interval;
-  if (!Number.isInteger(interval) || (interval as number) < 5 || (interval as number) > 3600)
+  if (typeof interval !== 'number' || !Number.isInteger(interval) || interval < 5 || interval > 3600)
     bad('refresh_interval must be between 5 and 3600 seconds.');
   return {
     owner_id: required(input.owner_id, 'owner_id'),
