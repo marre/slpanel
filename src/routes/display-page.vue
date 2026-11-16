@@ -98,8 +98,10 @@ watch(
         }
       } catch (failure) {
         if (!disposed && !controller.signal.aborted)
-          displayError.value = failure instanceof Error
-            ? failure.message : 'Could not load this display.';
+          displayError.value =
+            failure instanceof Error
+              ? failure.message
+              : 'Could not load this display.';
       } finally {
         fetching = false;
         if (!disposed) isLoadingDisplay.value = false;
@@ -210,7 +212,8 @@ function deriveBoardState(input: {
     return {
       tone: 'empty',
       headline: 'Panel switched off',
-      detail: 'An explicit manual override or schedule has turned this panel off.',
+      detail:
+        'An explicit manual override or schedule has turned this panel off.',
       statusLabel: 'Off',
     };
   }
@@ -291,9 +294,14 @@ function deriveBoardState(input: {
         </p>
       </div>
     </div>
-    <div v-if="activeDisplay?.output_mode === 'off'"
-      role="img" aria-label="Panel off" class="grid min-h-40 place-items-center rounded-lg bg-black p-8 text-center text-sm text-slate-400">
-      Panel is off — the hardware display should be blank once firmware supports Off mode.
+    <div
+      v-if="activeDisplay?.output_mode === 'off'"
+      role="img"
+      aria-label="Panel off"
+      class="grid min-h-40 place-items-center rounded-lg bg-black p-8 text-center text-sm text-slate-400"
+    >
+      Panel is off — the hardware display should be blank once firmware supports
+      Off mode.
     </div>
     <div v-else>
       <DisplayBoard

@@ -69,12 +69,9 @@ export async function getDisplay(
   const response = await requestJson<{
     display: DisplayRecord;
     effective?: { mode: 'legacy' | 'presentation' | 'off' };
-  }>(
-    `/api/displays/${encodeURIComponent(displayId)}`,
-    {
-      signal,
-    },
-  );
+  }>(`/api/displays/${encodeURIComponent(displayId)}`, {
+    signal,
+  });
 
   return response.effective
     ? { ...response.display, output_mode: response.effective.mode }
