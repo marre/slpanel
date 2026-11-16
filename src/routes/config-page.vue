@@ -393,9 +393,9 @@ function readErrorMessage(error: unknown): string {
         <p
           class="max-w-3xl text-sm leading-7 text-[var(--muted-text)] md:text-base"
         >
-          Choose a stop, pick which lines and directions to show, and control
-          how often the board refreshes. Preview changes as you edit, then save
-          to update your display.
+          Configure the original stop for a physical display, or open
+          Presentations &amp; schedule to switch saved configurations without USB.
+          Preview changes before saving.
         </p>
       </div>
     </div>
@@ -728,6 +728,13 @@ function readErrorMessage(error: unknown): string {
                 Delete display
               </UButton>
             </template>
+            <RouterLink
+              v-if="selectedDisplay"
+              :to="{ path: '/presentations', query: { owner: activeOwnerId, display: selectedDisplay.id } }"
+              class="inline-flex rounded border border-[var(--panel-text)] bg-[var(--panel-text)]/10 px-5 py-3 text-sm font-semibold text-[var(--panel-text)] transition hover:bg-[var(--panel-text)]/15"
+            >
+              Presentations &amp; schedule
+            </RouterLink>
             <RouterLink
               v-if="selectedDisplay"
               :to="`/device?display=${encodeURIComponent(selectedDisplay.id)}`"
