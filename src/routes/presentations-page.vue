@@ -40,9 +40,7 @@ const lineText = ref('');
 const directionText = ref('');
 const modeText = ref('');
 const currentDisplay = computed(() => displays.value.find((display) => display.id === selectedDisplayId.value));
-const selectedDefault = computed(() => presentations.value.find((p) => p.id === control.value?.default_presentation_id));
 const selectedSource = computed(() => sources.value.find((s) => s.id === sourceMode.value));
-const selectedPresentation = computed(() => presentations.value.find((p) => p.id === editingId.value));
 const busy = computed(() => saving.value || loading.value || loadingPanel.value);
 const stateSummary = computed(() => {
   if (!effective.value) return 'Loading current configuration';
@@ -56,6 +54,10 @@ const choiceReason = computed(() => ({
   default: 'Default presentation',
   legacy: 'Original configuration',
 })[effective.value?.reason ?? 'legacy']);
+if (!owner.value && typeof window !== 'undefined') {
+  const stored = window.localStorage.getItem('slpanel.owner-id');
+  if (stored && /^[A-Za-z0-9]{8}$/.test(stored)) void router.replace({ query: { ...route.query, owner: stored } });
+}
 const selectClass = 'w-full rounded-lg border border-[var(--panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--app-text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-700';
 const inputClass = selectClass;
 function emptySource(): DataSourceInput {
@@ -150,9 +152,6 @@ watch(selectedDisplayId, (id, _old, onCleanup) => {
     .catch((failure) => { if (!cancelled) error.value = message(failure); })
     .finally(() => { if (!cancelled) loadingPanel.value = false; });
 });
-function profileLabel(id: string | null) {
-  return presentations.value.find((entry) => entry.id === id)?.name ?? 'Select presentation';
-}
 async function writeControl(input: PanelControlInput, successText: string) {
   if (!selectedDisplayId.value || saving.value) return;
   saving.value = true;
@@ -330,7 +329,7 @@ async function deleteProfile() {
                 </select>
               </label>
               <div class="flex flex-wrap gap-2">
-                <button type="button" :disabled="busy" class="rounded-lg bg-[var(--panel-text)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+                <button type="button" :disabled="busy || !control.default_presentation_id" class="rounded-lg bg-[var(--panel-text)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
                   @click="selectNow('presentation', control.default_presentation_id)"
                 >Show default now</button>
                 <button type="button" :disabled="busy" class="rounded-lg border border-[var(--panel-border)] bg-white px-4 py-2.5 text-sm font-semibold disabled:opacity-50"
