@@ -7,12 +7,25 @@ CREATE TABLE data_sources (
   site_id TEXT,
   site_name TEXT,
   refresh_interval INTEGER NOT NULL CHECK (refresh_interval > 0),
-  line_numbers TEXT NOT NULL DEFAULT '[]',
-  directions TEXT NOT NULL DEFAULT '[]',
-  modes TEXT NOT NULL DEFAULT '[]',
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX idx_data_sources_owner ON data_sources(owner_id);
+
+CREATE TABLE data_source_line_filters (
+  data_source_id TEXT NOT NULL REFERENCES data_sources(id) ON DELETE CASCADE,
+  line_number TEXT NOT NULL,
+  PRIMARY KEY (data_source_id, line_number)
+);
+CREATE TABLE data_source_direction_filters (
+  data_source_id TEXT NOT NULL REFERENCES data_sources(id) ON DELETE CASCADE,
+  direction TEXT NOT NULL,
+  PRIMARY KEY (data_source_id, direction)
+);
+CREATE TABLE data_source_mode_filters (
+  data_source_id TEXT NOT NULL REFERENCES data_sources(id) ON DELETE CASCADE,
+  mode TEXT NOT NULL,
+  PRIMARY KEY (data_source_id, mode)
+);
 
 CREATE TABLE presentations (
   id TEXT PRIMARY KEY,
@@ -47,16 +60,19 @@ CREATE INDEX idx_schedule_display ON display_schedule_rules(display_id);
 
 -- Migrate current stop configurations without changing stable physical display IDs.
 INSERT INTO data_sources (
-  id, owner_id, name, site_id, site_name, refresh_interval, line_numbers, directions, modes
+  id, owner_id, name, site_id, site_name, refresh_interval
 )
-SELECT
-  'legacy-source:' || d.id, d.owner_id,
-  COALESCE(NULLIF(d.site_name, ''), NULLIF(d.name, ''), 'Existing stop'),
-  d.site_id, d.site_name, d.refresh_interval,
-  COALESCE((SELECT json_group_array(line_number) FROM display_line_filters WHERE display_id = d.id), '[]'),
-  COALESCE((SELECT json_group_array(direction) FROM display_direction_filters WHERE display_id = d.id), '[]'),
-  COALESCE((SELECT json_group_array(mode) FROM display_mode_filters WHERE display_id = d.id), '[]')
-FROM displays AS d;
+SELECT 'legacy-source:' || id, owner_id,
+  COALESCE(NULLIF(site_name, ''), NULLIF(name, ''), 'Existing stop'),
+  site_id, site_name, refresh_interval
+FROM displays;
+
+INSERT INTO data_source_line_filters (data_source_id, line_number)
+SELECT 'legacy-source:' || display_id, line_number FROM display_line_filters;
+INSERT INTO data_source_direction_filters (data_source_id, direction)
+SELECT 'legacy-source:' || display_id, direction FROM display_direction_filters;
+INSERT INTO data_source_mode_filters (data_source_id, mode)
+SELECT 'legacy-source:' || display_id, mode FROM display_mode_filters;
 
 INSERT INTO presentations (id, owner_id, name, data_source_id, visualization)
 SELECT 'legacy-presentation:' || id, owner_id,
