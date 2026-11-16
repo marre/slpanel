@@ -59,6 +59,7 @@ function sourceFromRow(row: SourceRow): DataSourceRecord {
   return { ...row, line_numbers: JSON.parse(row.line_numbers) as string[],
     directions: JSON.parse(row.directions) as string[], modes: JSON.parse(row.modes) as string[] };
 }
+type PresentationRow = { id: string; owner_id: string; name: string; data_source_id: string; visualization: 'departures-list' };
 type ControlRow = { display_id: string; timezone: string; default_presentation_id: string | null;
   manual_mode: 'off' | 'presentation' | null; manual_presentation_id: string | null; manual_until: string | null };
 type ScheduleRow = { id: string; display_id: string; days: string; start_time: string;
@@ -100,10 +101,10 @@ export function createD1PresentationStore(db: D1Database): PresentationStore {
       return true;
     },
     async listPresentations(owner) {
-      return allRows<PresentationRecord>(db, 'SELECT id, owner_id, name, data_source_id, visualization FROM presentations WHERE owner_id=? ORDER BY name,id', [owner]);
+      return allRows<PresentationRow>(db, 'SELECT id, owner_id, name, data_source_id, visualization FROM presentations WHERE owner_id=? ORDER BY name,id', [owner]);
     },
     async getPresentation(owner, id) {
-      return firstRow<PresentationRecord>(db, 'SELECT id, owner_id, name, data_source_id, visualization FROM presentations WHERE owner_id=? AND id=?', [owner,id]);
+      return firstRow<PresentationRow>(db, 'SELECT id, owner_id, name, data_source_id, visualization FROM presentations WHERE owner_id=? AND id=?', [owner,id]);
     },
     async savePresentation(input, id) {
       if (!await this.getSource(input.owner_id, input.data_source_id)) invalid('Data source is not available for this owner.');
