@@ -195,6 +195,25 @@ export function parsePanelControl(value: unknown): PanelControlInput {
 }
 
 const WEEKDAY = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const timezoneFormatters = new Map<string, Intl.DateTimeFormat>();
+function formatterFor(timezone: string): Intl.DateTimeFormat {
+  let formatter = timezoneFormatters.get(timezone);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      weekday: 'short',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hourCycle: 'h23',
+    });
+    if (timezoneFormatters.size >= 24) timezoneFormatters.clear();
+    timezoneFormatters.set(timezone, formatter);
+  }
+  return formatter;
+}
 function localMinute(
   at: Date,
   timezone: string,
