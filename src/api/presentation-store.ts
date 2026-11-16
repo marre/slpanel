@@ -93,14 +93,25 @@ type SourceRow = {
   site_name: string | null;
   refresh_interval: number;
 };
-async function hydrateSources(db: D1Database, rows: SourceRow[]): Promise<DataSourceRecord[]> {
+async function hydrateSources(
+  db: D1Database,
+  rows: SourceRow[],
+): Promise<DataSourceRecord[]> {
   if (rows.length === 0) return [];
   const ids = rows.map((row) => row.id);
-  async function load(table: string, column: string): Promise<Map<string, string[]>> {
+  async function load(
+    table: string,
+    column: string,
+  ): Promise<Map<string, string[]>> {
     const values = await allRows<{ data_source_id: string; value: string }>(
       db,
-      'SELECT data_source_id, ' + column + ' AS value FROM ' + table +
-        ' WHERE data_source_id IN (' + ids.map(() => '?').join(',') + ') ORDER BY value',
+      'SELECT data_source_id, ' +
+        column +
+        ' AS value FROM ' +
+        table +
+        ' WHERE data_source_id IN (' +
+        ids.map(() => '?').join(',') +
+        ') ORDER BY value',
       ids,
     );
     const output = new Map<string, string[]>();
@@ -141,9 +152,18 @@ function filterQueries(id: string, source: DataSourceInput) {
 }
 function clearFilterQueries(id: string) {
   return [
-    { sql: 'DELETE FROM data_source_line_filters WHERE data_source_id=?', params: [id] },
-    { sql: 'DELETE FROM data_source_direction_filters WHERE data_source_id=?', params: [id] },
-    { sql: 'DELETE FROM data_source_mode_filters WHERE data_source_id=?', params: [id] },
+    {
+      sql: 'DELETE FROM data_source_line_filters WHERE data_source_id=?',
+      params: [id],
+    },
+    {
+      sql: 'DELETE FROM data_source_direction_filters WHERE data_source_id=?',
+      params: [id],
+    },
+    {
+      sql: 'DELETE FROM data_source_mode_filters WHERE data_source_id=?',
+      params: [id],
+    },
   ];
 }
 type PresentationRow = {
@@ -171,24 +191,41 @@ type ScheduleRow = {
   presentation_id: string | null;
 };
 function sourceParams(input: DataSourceInput): Array<string | number | null> {
-  return [input.owner_id, input.name, input.site_id, input.site_name, input.refresh_interval];
+  return [
+    input.owner_id,
+    input.name,
+    input.site_id,
+    input.site_name,
+    input.refresh_interval,
+  ];
 }
 export function createD1PresentationStore(db: D1Database): PresentationStore {
   const store: PresentationStore = {
     async listSources(owner) {
-      const rows = await allRows<SourceRow>(db, 'SELECT * FROM data_sources WHERE owner_id = ? ORDER BY name, id', [owner]);
+      const rows = await allRows<SourceRow>(
+        db,
+        'SELECT * FROM data_sources WHERE owner_id = ? ORDER BY name, id',
+        [owner],
+      );
       return hydrateSources(db, rows);
     },
     async getSource(owner, id) {
-      const row = await firstRow<SourceRow>(db, 'SELECT * FROM data_sources WHERE id = ? AND owner_id = ?', [id, owner]);
-      return row ? (await hydrateSources(db, [row]))[0] ?? null : null;
+      const row = await firstRow<SourceRow>(
+        db,
+        'SELECT * FROM data_sources WHERE id = ? AND owner_id = ?',
+        [id, owner],
+      );
+      return row ? ((await hydrateSources(db, [row]))[0] ?? null) : null;
     },
     async saveSource(input, id) {
-      if (id && !await this.getSource(input.owner_id, id)) invalid('Data source not found for this owner.');
+      if (id && !(await this.getSource(input.owner_id, id)))
+        invalid('Data source not found for this owner.');
       id = id ?? crypto.randomUUID();
       const queries = [
-        { sql: 'INSERT INTO data_sources (id,owner_id,name,site_id,site_name,refresh_interval) VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,site_id=excluded.site_id,site_name=excluded.site_name,refresh_interval=excluded.refresh_interval',
-          params: [id, ...sourceParams(input)] },
+        {
+          sql: 'INSERT INTO data_sources (id,owner_id,name,site_id,site_name,refresh_interval) VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,site_id=excluded.site_id,site_name=excluded.site_name,refresh_interval=excluded.refresh_interval',
+          params: [id, ...sourceParams(input)],
+        },
         ...clearFilterQueries(id),
         ...filterQueries(id, input),
       ];
@@ -355,14 +392,26 @@ export function createD1PresentationStore(db: D1Database): PresentationStore {
       const source = legacySourceData(display);
       const presentation = legacyPresentationData(display);
       await executeBatch(db, [
-        { sql: 'INSERT INTO data_sources (id,owner_id,name,site_id,site_name,refresh_interval) VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,site_id=excluded.site_id,site_name=excluded.site_name,refresh_interval=excluded.refresh_interval',
-          params: [legacySource(display.id), ...sourceParams(source)] },
+        {
+          sql: 'INSERT INTO data_sources (id,owner_id,name,site_id,site_name,refresh_interval) VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,site_id=excluded.site_id,site_name=excluded.site_name,refresh_interval=excluded.refresh_interval',
+          params: [legacySource(display.id), ...sourceParams(source)],
+        },
         ...clearFilterQueries(legacySource(display.id)),
         ...filterQueries(legacySource(display.id), source),
-        { sql: 'INSERT OR IGNORE INTO presentations (id,owner_id,name,data_source_id,visualization) VALUES (?,?,?,?,?)',
-          params: [legacyPresentation(display.id),presentation.owner_id,presentation.name,presentation.data_source_id,presentation.visualization] },
-        { sql: 'INSERT OR IGNORE INTO display_controls (display_id,default_presentation_id) VALUES (?,?)',
-          params: [display.id,legacyPresentation(display.id)] },
+        {
+          sql: 'INSERT OR IGNORE INTO presentations (id,owner_id,name,data_source_id,visualization) VALUES (?,?,?,?,?)',
+          params: [
+            legacyPresentation(display.id),
+            presentation.owner_id,
+            presentation.name,
+            presentation.data_source_id,
+            presentation.visualization,
+          ],
+        },
+        {
+          sql: 'INSERT OR IGNORE INTO display_controls (display_id,default_presentation_id) VALUES (?,?)',
+          params: [display.id, legacyPresentation(display.id)],
+        },
       ]);
     },
   };
