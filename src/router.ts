@@ -9,6 +9,7 @@ export const routes = [
       { path: '', component: () => import('./routes/home-page.vue') },
       { path: 'config', component: () => import('./routes/config-page.vue') },
       { path: 'device', component: () => import('./routes/device-page.vue') },
+      { path: 'presentations', component: () => import('./routes/presentations-page.vue') },
       {
         path: 'display/:displayId',
         component: () => import('./routes/display-page.vue'),
