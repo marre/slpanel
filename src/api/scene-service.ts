@@ -226,7 +226,8 @@ export function selectScheduledScene(
       end = minute(rule.end_time);
     const matches =
       start === end
-        ? rule.days.includes(local.day)
+        ? (rule.days.includes(local.day) && local.minute >= start) ||
+          (rule.days.includes((local.day + 6) % 7) && local.minute < start)
         : start < end
           ? rule.days.includes(local.day) &&
             local.minute >= start &&
