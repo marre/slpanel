@@ -4,7 +4,7 @@ import { render } from '@/test/render';
 import FilterPicker from './filter-picker.vue';
 import { expect, it, vi } from 'vitest';
 
-it('creates and removes a custom filter through the Nuxt UI combobox', async () => {
+it('creates and removes a custom filter through Nuxt UI SelectMenu', async () => {
   const update = vi.fn();
   const view = await render(
     h(FilterPicker, {
@@ -16,10 +16,8 @@ it('creates and removes a custom filter through the Nuxt UI combobox', async () 
       'onUpdate:modelValue': update,
     }),
   );
-  const input = screen.getByPlaceholderText('Line numbers');
-  input.focus();
-  await fireEvent.keyDown(input, { key: 'ArrowDown' });
-  await fireEvent.input(input, { target: { value: '99' } });
+  await fireEvent.click(screen.getByRole('combobox'));
+  await fireEvent.update(screen.getByPlaceholderText('Search or add a value…'), '99');
   await fireEvent.click(await screen.findByRole('option', { name: /99/ }));
   await waitFor(() => expect(update).toHaveBeenCalledWith(['99']));
   await view.rerender(
@@ -32,7 +30,7 @@ it('creates and removes a custom filter through the Nuxt UI combobox', async () 
       'onUpdate:modelValue': update,
     }),
   );
-  await fireEvent.keyDown(input, { key: 'Escape' });
-  await fireEvent.click(await screen.findByRole('button', { name: '99' }));
+  await fireEvent.click(screen.getByRole('combobox'));
+  await fireEvent.click(await screen.findByRole('option', { name: /99/ }));
   await waitFor(() => expect(update).toHaveBeenCalledWith([]));
 });
