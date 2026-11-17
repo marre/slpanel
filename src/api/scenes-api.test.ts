@@ -208,16 +208,19 @@ describe('scene and shared schedule API', () => {
 
     const editedSource = await app.request(
       '/api/data-sources/' + encodeURIComponent(sourceId),
-      json({
-        owner_id: OWNER,
-        name: 'Edited source',
-        site_id: '9192',
-        site_name: 'Updated stop',
-        refresh_interval: 60,
-        line_numbers: ['18'],
-        directions: ['Northbound'],
-        modes: ['BUS'],
-      }, 'PUT'),
+      json(
+        {
+          owner_id: OWNER,
+          name: 'Edited source',
+          site_id: '9192',
+          site_name: 'Updated stop',
+          refresh_interval: 60,
+          line_numbers: ['18'],
+          directions: ['Northbound'],
+          modes: ['BUS'],
+        },
+        'PUT',
+      ),
     );
     expect(editedSource.status).toBe(200);
 
@@ -236,7 +239,9 @@ describe('scene and shared schedule API', () => {
       directions: ['Northbound'],
       modes: ['BUS'],
     });
-    const effective = await app.request('/api/displays/' + encodeURIComponent(id));
+    const effective = await app.request(
+      '/api/displays/' + encodeURIComponent(id),
+    );
     const effectiveBody = (await effective.json()) as {
       display: { name: string; site_id: string | null };
     };
@@ -247,7 +252,10 @@ describe('scene and shared schedule API', () => {
     // compatibility stop/filter fields into the imported reusable source.
     const legacyUpdate = await app.request(
       '/api/displays/' + encodeURIComponent(id),
-      json({ site_id: '2022', site_name: 'Legacy update', line_numbers: ['21'] }, 'PUT'),
+      json(
+        { site_id: '2022', site_name: 'Legacy update', line_numbers: ['21'] },
+        'PUT',
+      ),
     );
     expect(legacyUpdate.status).toBe(200);
     expect(await scenes.getSource(OWNER, sourceId)).toMatchObject({
@@ -256,5 +264,4 @@ describe('scene and shared schedule API', () => {
       line_numbers: ['21'],
     });
   });
-
 });
