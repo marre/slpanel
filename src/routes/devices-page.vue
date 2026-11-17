@@ -328,17 +328,24 @@ async function removeDevice() {
               <span class="block font-semibold">{{
                 device.name || device.display_id
               }}</span>
-              <span class="mt-1 block font-mono text-xs text-[var(--muted-text)]">{{
-                device.display_id
-              }}</span>
+              <span
+                class="mt-1 block font-mono text-xs text-[var(--muted-text)]"
+                >{{ device.display_id }}</span
+              >
             </button>
             <button
               type="button"
-              :aria-label="'Delete device ' + (device.name || device.display_id)"
+              :aria-label="
+                'Delete device ' + (device.name || device.display_id)
+              "
               class="shrink-0 rounded-md p-2.5 text-rose-700 hover:bg-rose-100 focus-visible:outline-2 focus-visible:outline-rose-700"
               @click="pendingDelete = device"
             >
-              <UIcon name="i-lucide-trash-2" class="size-4" aria-hidden="true" />
+              <UIcon
+                name="i-lucide-trash-2"
+                class="size-4"
+                aria-hidden="true"
+              />
             </button>
           </div>
         </div>
