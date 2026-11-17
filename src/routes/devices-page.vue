@@ -309,7 +309,11 @@ async function removeDevice() {
           No devices yet. Save a scene first, then add your panel.
         </p>
         <div class="space-y-2">
-          <div v-for="device in displays" :key="device.id" class="flex items-stretch gap-2">
+          <div
+            v-for="device in displays"
+            :key="device.id"
+            class="flex items-stretch gap-2"
+          >
             <button
               type="button"
               :aria-pressed="selectedId === device.id"
@@ -321,16 +325,27 @@ async function removeDevice() {
               "
               @click="selectDevice(device)"
             >
-              <span class="block font-semibold">{{ device.name || device.display_id }}</span>
-              <span class="mt-1 block font-mono text-xs text-[var(--muted-text)]">{{ device.display_id }}</span>
+              <span class="block font-semibold">{{
+                device.name || device.display_id
+              }}</span>
+              <span
+                class="mt-1 block font-mono text-xs text-[var(--muted-text)]"
+                >{{ device.display_id }}</span
+              >
             </button>
             <button
               type="button"
-              :aria-label="'Delete device ' + (device.name || device.display_id)"
+              :aria-label="
+                'Delete device ' + (device.name || device.display_id)
+              "
               class="self-center rounded-lg border border-rose-200 p-2.5 text-rose-700 hover:bg-rose-50"
               @click="pendingDelete = device"
             >
-              <UIcon name="i-lucide-trash-2" class="size-4" aria-hidden="true" />
+              <UIcon
+                name="i-lucide-trash-2"
+                class="size-4"
+                aria-hidden="true"
+              />
             </button>
           </div>
         </div>
