@@ -1,0 +1,53 @@
+import { h } from 'vue';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, screen, waitFor } from '@testing-library/vue';
+import { render, routerFixture } from '@/test/render';
+import DevicesPage from './devices-page.vue';
+
+const owner='aB3xZ9kQ';
+const scene={id:'scene-1',owner_id:owner,name:'Home departures',data_source_id:'source-1',visualization:'departures-list'};
+const display={id:owner+'-fG7mNpQr2wLt',owner_id:owner,display_id:'fG7mNpQr2wLt',
+  name:'Hallway panel',site_id:null,site_name:null,refresh_interval:30,line_numbers:[],directions:[],modes:[]};
+describe('Devices page',()=>{
+  const fetchMock=vi.fn<typeof fetch>();
+  let posted:Record<string,unknown>|null=null;
+  let assigned:Record<string,unknown>|null=null;
+  beforeEach(()=>{
+    window.localStorage.clear();posted=null;assigned=null;
+    fetchMock.mockImplementation(async (input,init)=>{
+      const path=String(input);
+      if(path.startsWith('/api/displays?'))return Response.json({displays:[]});
+      if(path.startsWith('/api/scenes?'))return Response.json({scenes:[scene]});
+      if(path.startsWith('/api/schedules?'))return Response.json({schedules:[]});
+      if(path==='/api/displays'&&init?.method==='POST'){
+        posted=JSON.parse(String(init.body)) as Record<string,unknown>;
+        return Response.json({display},{status:201});
+      }
+      if(path.endsWith('/assignment')){
+        if(init?.method==='PUT'){
+          assigned=JSON.parse(String(init.body)) as Record<string,unknown>;
+          return Response.json({display,assignment:{display_id:display.id,...assigned},
+            effective:{mode:'scene',reason:'direct',scene,data_source:null,schedule_id:null,next_transition_at:null}});
+        }
+        return Response.json({display,assignment:{display_id:display.id,kind:'scene',scene_id:scene.id,schedule_id:null},
+          effective:{mode:'scene',reason:'direct',scene,data_source:null,schedule_id:null,next_transition_at:null}});
+      }
+      throw new Error('Unexpected request '+path);
+    });
+    vi.stubGlobal('fetch',fetchMock);
+  });
+  afterEach(()=>{vi.unstubAllGlobals();fetchMock.mockReset();});
+  it('assigns a reusable scene while keeping a physical device ID',async()=>{
+    await render(routerFixture(['/devices?owner='+owner],[[
+      {path:'/devices',element:h(DevicesPage),children:[]},
+    ]]));
+    await screen.findByRole('heading',{name:'Your physical panels'});
+    await screen.findByLabelText('Device name');
+    await fireEvent.input(screen.getByLabelText('Device name'),{target:{value:'Hallway panel'}});
+    await fireEvent.click(screen.getByRole('button',{name:'Add device'}));
+    await waitFor(()=>expect(assigned).not.toBeNull());
+    expect(posted).toMatchObject({owner_id:owner,name:'Hallway panel',site_id:null});
+    expect(assigned).toEqual({kind:'scene',scene_id:scene.id,schedule_id:null});
+    expect(await screen.findByText(/physical ID remains unchanged/i)).toBeInTheDocument();
+  });
+});
