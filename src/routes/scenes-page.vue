@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import StopPicker from '@/components/stop-picker.vue';
 import FilterPicker from '@/components/filter-picker.vue';
 import DisplayBoard from '@/components/display-board.vue';
+import ConfirmDeleteDialog from '@/components/confirm-delete-dialog.vue';
 import { useOwnerWorkspace } from '@/composables/use-owner-workspace';
 import { usePolling } from '@/composables/use-polling';
 import type { DepartureRecord, StopSearchResult } from '@/api/types';
@@ -39,7 +40,8 @@ const modes = ref<string[]>([]);
 const loading = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
-const confirmDelete = ref(false);
+const pendingDelete = ref<SceneRecord | null>(null);
+const copyingId = ref<string | null>(null);
 const status = ref('');
 const error = ref('');
 const previewSource = computed(() => sourceDraft.value);
@@ -87,7 +89,7 @@ function edit(scene: SceneRecord) {
   );
   filtersText(sourceDraft.value);
   editing.value = true;
-  confirmDelete.value = false;
+  pendingDelete.value = null;
   clearMessages();
 }
 function cloneSource(source?: DataSourceRecord): DataSourceInput {
@@ -110,7 +112,7 @@ function beginNew() {
   sourceDraft.value = emptySource();
   filtersText(sourceDraft.value);
   editing.value = true;
-  confirmDelete.value = false;
+  pendingDelete.value = null;
   clearMessages();
 }
 function stopChanged(stop: StopSearchResult | null) {
@@ -129,6 +131,7 @@ watch(
     sources.value = [];
     editing.value = false;
     selectedId.value = null;
+    pendingDelete.value = null;
     clearMessages();
     if (!id) return;
     loading.value = true;
@@ -254,18 +257,43 @@ async function persist() {
     saving.value = false;
   }
 }
+async function copyScene(scene: SceneRecord) {
+  if (copyingId.value || saving.value || deleting.value) return;
+  copyingId.value = scene.id;
+  clearMessages();
+  try {
+    const copy = await saveScene({
+      owner_id: owner.value,
+      name: ('Copy of ' + scene.name).slice(0, 120),
+      data_source_id: scene.data_source_id,
+      visualization: scene.visualization,
+    });
+    if (owner.value !== scene.owner_id) return;
+    await refreshLibrary();
+    edit(copy);
+    status.value = 'Scene copied. Edit the copy without changing the original.';
+  } catch (failure) {
+    error.value = errorText(failure);
+  } finally {
+    copyingId.value = null;
+  }
+}
+
 async function remove() {
-  if (!selectedId.value || !confirmDelete.value || deleting.value) return;
+  const scene = pendingDelete.value;
+  if (!scene || deleting.value) return;
   deleting.value = true;
   clearMessages();
   try {
-    await removeScene(owner.value, selectedId.value);
+    await removeScene(scene.owner_id, scene.id);
+    if (owner.value !== scene.owner_id) return;
     await refreshLibrary();
-    editing.value = false;
-    selectedId.value = null;
-    confirmDelete.value = false;
-    status.value =
-      'Scene deleted. Its reusable stop configuration was preserved.';
+    pendingDelete.value = null;
+    if (selectedId.value === scene.id) {
+      editing.value = false;
+      selectedId.value = null;
+    }
+    status.value = 'Scene deleted. Its reusable stop configuration was preserved.';
   } catch (failure) {
     error.value = errorText(failure);
   } finally {
@@ -341,24 +369,41 @@ function description(scene: SceneRecord) {
           No scenes yet. Create one to show departures on your first device.
         </p>
         <div class="space-y-2">
-          <button
-            v-for="scene in scenes"
-            :key="scene.id"
-            type="button"
-            :aria-pressed="selectedId === scene.id"
-            class="w-full rounded-lg border px-4 py-3 text-left transition"
-            :class="
-              selectedId === scene.id
-                ? 'border-[var(--panel-text)] bg-sky-50'
-                : 'border-[var(--panel-border)] bg-white hover:border-slate-400'
-            "
-            @click="edit(scene)"
-          >
-            <span class="block text-sm font-semibold">{{ scene.name }}</span>
-            <span class="mt-1 block text-xs text-[var(--muted-text)]">{{
-              description(scene)
-            }}</span>
-          </button>
+          <div v-for="scene in scenes" :key="scene.id" class="flex items-stretch gap-2">
+            <button
+              type="button"
+              :aria-pressed="selectedId === scene.id"
+              class="min-w-0 flex-1 rounded-lg border px-4 py-3 text-left transition"
+              :class="
+                selectedId === scene.id
+                  ? 'border-[var(--panel-text)] bg-sky-50'
+                  : 'border-[var(--panel-border)] bg-white hover:border-slate-400'
+              "
+              @click="edit(scene)"
+            >
+              <span class="block text-sm font-semibold">{{ scene.name }}</span>
+              <span class="mt-1 block text-xs text-[var(--muted-text)]">{{ description(scene) }}</span>
+            </button>
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                :aria-label="'Copy scene ' + scene.name"
+                :disabled="!!copyingId || saving || deleting"
+                class="rounded-lg border border-[var(--panel-border)] p-2.5 hover:bg-slate-50 disabled:opacity-50"
+                @click="copyScene(scene)"
+              >
+                <UIcon name="i-lucide-copy" class="size-4" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                :aria-label="'Delete scene ' + scene.name"
+                class="rounded-lg border border-rose-200 p-2.5 text-rose-700 hover:bg-rose-50"
+                @click="pendingDelete = scene"
+              >
+                <UIcon name="i-lucide-trash-2" class="size-4" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
         </div>
         <p class="text-xs text-[var(--muted-text)]">
           To change what a panel shows, choose a scene on the
@@ -549,38 +594,23 @@ function description(scene: SceneRecord) {
                 v-if="selectedId"
                 type="button"
                 class="ml-auto text-sm font-semibold text-rose-700 underline"
-                @click="confirmDelete = true"
+                @click="pendingDelete = scenes.find((item) => item.id === selectedId) ?? null"
               >
                 Delete…
               </button>
             </div>
           </form>
-          <div
-            v-if="confirmDelete"
-            class="space-y-3 rounded-lg border border-rose-300 bg-rose-50 p-4 text-sm"
-          >
-            <p>
-              Delete this scene? Scenes used by a schedule or a device cannot be
-              deleted until unlinked.
-            </p>
-            <button
-              type="button"
-              :disabled="deleting"
-              class="rounded-lg bg-rose-700 px-3 py-2 font-semibold text-white"
-              @click="remove"
-            >
-              Confirm delete
-            </button>
-            <button
-              type="button"
-              class="ml-3 underline"
-              @click="confirmDelete = false"
-            >
-              Cancel
-            </button>
-          </div>
+
         </template>
       </UCard>
     </div>
+    <ConfirmDeleteDialog
+      :open="!!pendingDelete"
+      kind="scene"
+      :name="pendingDelete?.name || ''"
+      :loading="deleting"
+      @update:open="if (!$event) pendingDelete = null"
+      @confirm="remove"
+    />
   </section>
 </template>
