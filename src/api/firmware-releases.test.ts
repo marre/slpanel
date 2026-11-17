@@ -160,19 +160,21 @@ describe('GitHub firmware releases', () => {
     const request = fixture();
     const provider = createFirmwareReleases(request);
     await provider.catalogue(bindings);
-    request.mockImplementationOnce(async () =>
-      new Response(null, {
-        status: 302,
-        headers: {
-          location: 'https://release-assets.githubusercontent.com/signed-url',
-        },
-      }),
+    request.mockImplementationOnce(
+      async () =>
+        new Response(null, {
+          status: 302,
+          headers: {
+            location: 'https://release-assets.githubusercontent.com/signed-url',
+          },
+        }),
     );
-    request.mockImplementationOnce(async () =>
-      new Response(null, {
-        status: 302,
-        headers: { location: 'https://untrusted.example/download' },
-      }),
+    request.mockImplementationOnce(
+      async () =>
+        new Response(null, {
+          status: 302,
+          headers: { location: 'https://untrusted.example/download' },
+        }),
     );
     await expect(
       provider.download(bindings, '42', imageId, 'manifest.json'),

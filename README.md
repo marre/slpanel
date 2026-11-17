@@ -63,7 +63,7 @@ When you are ready to update the remote database too:
 npm run db:migrate:remote
 ```
 
-The initial migration lives in `migrations/0001_initial.sql` and creates:
+The migrations live in `migrations/0001_initial.sql` and `migrations/0002_scenes_schedules.sql`. Apply both **before deploying a Worker that uses the scene and schedule APIs**. The initial migration creates:
 
 - `owners`
 - `displays`
@@ -71,15 +71,24 @@ The initial migration lives in `migrations/0001_initial.sql` and creates:
 - `display_direction_filters`
 - `display_mode_filters`
 
+The second migration creates reusable `data_sources` with normalized filters, `scenes`, `schedules`, `schedule_rules`, and exclusive `device_assignments`. Existing devices are migrated to direct scenes without changing their permanent IDs. Run `npm run db:migrate:remote` before deploying this branch.
+
 ## Current routes
 
 - `/` landing page with links into config and display flows
-- `/config` owner-based config workspace with a preview of unsaved filters
+- `/devices` physical panel administration and scene/schedule assignment
+- `/scenes` reusable screen content and visualization editor with live preview
+- `/schedules` reusable weekly time windows; Off is implicit outside windows
+- `/config` redirects to `/devices` and `/presentations` redirects to `/scenes`
 - `/device` USB device configuration with automatic live logs, clipboard copy, and download using Web Serial
 - `/display/:displayId` public display board with live departures and auto-refresh
 - `/api/health` Worker health endpoint
 - `/api/displays` display CRUD root
-- `/api/displays/:id` single display CRUD route
+- `/api/displays/:id` effective device configuration (legacy flat `display` plus an `effective` block) and display CRUD
+- `/api/displays/:id/assignment` direct scene or schedule selection
+- `/api/data-sources` and `/api/data-sources/:sourceId` reusable departure source CRUD
+- `/api/scenes` and `/api/scenes/:sceneId` reusable scene CRUD
+- `/api/schedules` and `/api/schedules/:scheduleId` shared schedule CRUD
 - `/api/stops/search` stop search adapter
 - `/api/departures/:siteId` normalized departures adapter
 
@@ -306,16 +315,25 @@ the same shape:
 }
 ```
 
-## Config workflow
+## Devices, Scenes and Schedules
 
-The `/config` route now supports:
+The configuration workspace has three separate pages:
 
-- entering or recalling an owner ID
-- listing existing displays for that owner
-- creating, editing, and deleting displays
-- binding a single stop via search
-- configuring line, direction, and transport-mode filters
-- opening a saved display URL directly from the config screen
+- **Devices** (`/devices`) administers physical panels and selects either one fixed scene or one reusable schedule.
+- **Scenes** (`/scenes`) defines named fullscreen views of stops and filters; source data can be shared.
+- **Schedules** (`/schedules`) binds one or more scenes to non-overlapping weekly time windows. **Outside every window the device is Off.** This default is permanent and not configurable.
+
+One schedule can be linked to multiple devices, which will all resolve to the same scene or Off at the same moment. Weekly rules use an IANA timezone (default `Europe/Stockholm`), permit overnight windows, and are evaluated by the server on each configuration read. No background cron is required.
+
+`GET /api/displays/:id` remains backward compatible for existing firmware: the `display` object contains flat stop/refresh/filter values for the currently selected scene and a null stop when Off. Its `effective` object describes the selected scene, mode and optional next transition. The web preview rechecks configuration every 30 seconds.
+
+**Firmware limitation:** old firmware can switch stops at its existing configuration-check interval (~5 minutes) but does not guarantee hardware blanking or power saving for Off. True Off, faster switching, and future visualizations require a companion `slpanel-rust` update. The browser preview labels scheduled Off separately from missing stop.
+
+Run `npm run db:migrate:remote` **before** deploying this Worker. The second migration is `migrations/0002_scenes_schedules.sql` and replaces the unmerged experimental presentation schema.
+
+**Access control:** the eight-character owner ID is not authentication. As in the original v1 API, management endpoints are not protected. A real access-control layer is required before exposing these write APIs to untrusted users.
+
+For the full architecture and rollout decisions, see [Devices, Scenes and Schedules](docs/presentation-architecture-plan.md).
 
 ## USB device workflow
 
@@ -328,7 +346,7 @@ connection button that cannot work.
 
 The page automatically loads the saved Wi-Fi name, service URL, and display ID
 from the device. **Reload settings** discards form edits and reads them again.
-From a saved display in `/config`, **Configure USB device** prefills that display
+From a saved device in `/devices`, **Configure over USB** prefills that display
 ID for binding it to the panel. The device reports whether a Wi-Fi password is
 saved, but never exports its value. Leave **Update Wi-Fi password** unchecked to
 preserve the durable password while changing the other settings. Check it to

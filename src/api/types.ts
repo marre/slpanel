@@ -9,6 +9,8 @@ export interface DisplayRecord {
   line_numbers: string[];
   directions: string[];
   modes: string[];
+  // Client-side effective output mode; absent in legacy configurations.
+  output_mode?: 'legacy' | 'scene' | 'off';
 }
 
 export interface CreateDisplayInput {
