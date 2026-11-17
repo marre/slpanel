@@ -17,7 +17,10 @@ it('creates and removes a custom filter through Nuxt UI SelectMenu', async () =>
     }),
   );
   await fireEvent.click(screen.getByRole('button'));
-  await fireEvent.update(screen.getByPlaceholderText('Search or add a value…'), '99');
+  await fireEvent.update(
+    screen.getByPlaceholderText('Search or add a value…'),
+    '99',
+  );
   await fireEvent.click(await screen.findByRole('option', { name: /99/ }));
   await waitFor(() => expect(update).toHaveBeenCalledWith(['99']));
   await view.rerender(
@@ -60,7 +63,5 @@ it('keeps selected directions compact without losing their full labels', async (
   expect(
     screen.getByText('Hagsätra via Skanstull and Gullmarsplan +2 more'),
   ).toHaveClass('truncate');
-  expect(
-    screen.getByTitle(values.join(', ')),
-  ).toBeInTheDocument();
+  expect(screen.getByTitle(values.join(', '))).toBeInTheDocument();
 });
