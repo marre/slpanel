@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import StopPicker from '@/components/stop-picker.vue';
+import FilterPicker from '@/components/filter-picker.vue';
 import DisplayBoard from '@/components/display-board.vue';
 import { useOwnerWorkspace } from '@/composables/use-owner-workspace';
 import { usePolling } from '@/composables/use-polling';
@@ -11,6 +12,7 @@ import type {
   SceneRecord,
 } from '@/api/scene-types';
 import { listDepartures } from '@/lib/config-api';
+import { directionOptions, lineOptions, sourceSaveDecision, transportModeOptions } from '@/lib/scene-editor';
 import {
   listScenes,
   listSources,
@@ -25,26 +27,17 @@ const sources = ref<DataSourceRecord[]>([]);
 const selectedId = ref<string | null>(null);
 const editing = ref(false);
 const name = ref('');
-const sourceId = ref('new');
-const editShared = ref(false);
 const sourceDraft = ref<DataSourceInput>(emptySource());
-const lines = ref('');
-const directions = ref('');
-const modes = ref('');
+const lines = ref<string[]>([]);
+const directions = ref<string[]>([]);
+const modes = ref<string[]>([]);
 const loading = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
 const confirmDelete = ref(false);
 const status = ref('');
 const error = ref('');
-const selectedSource = computed(() =>
-  sources.value.find((item) => item.id === sourceId.value),
-);
-const previewSource = computed(() =>
-  sourceId.value === 'new' || editShared.value
-    ? sourceDraft.value
-    : (selectedSource.value ?? sourceDraft.value),
-);
+const previewSource = computed(() => sourceDraft.value);
 const previewName = computed(() => name.value.trim() || 'New scene');
 const fieldClass =
   'w-full rounded-lg border border-[var(--panel-border)] bg-white px-3 py-2.5 text-sm text-[var(--app-text)] focus-visible:outline-2 focus-visible:outline-sky-700';
@@ -70,29 +63,20 @@ function clearMessages() {
   error.value = '';
 }
 function filtersText(source: DataSourceInput) {
-  lines.value = source.line_numbers.join(', ');
-  directions.value = source.directions.join(', ');
-  modes.value = source.modes.join(', ');
+  lines.value = [...source.line_numbers];
+  directions.value = [...source.directions];
+  modes.value = [...source.modes];
 }
-function split(input: string) {
-  return [
-    ...new Set(
-      input
-        .split(',')
-        .map((x) => x.trim())
-        .filter(Boolean),
-    ),
-  ];
+function modesChanged(values: string[]) {
+  modes.value = [...new Set(values.map((value) => value.trim().toUpperCase()).filter(Boolean))];
 }
 function edit(scene: SceneRecord) {
   selectedId.value = scene.id;
   name.value = scene.name;
-  sourceId.value = scene.data_source_id;
   sourceDraft.value = cloneSource(
-    sources.value.find((item) => item.id === sourceId.value),
+    sources.value.find((item) => item.id === scene.data_source_id),
   );
   filtersText(sourceDraft.value);
-  editShared.value = false;
   editing.value = true;
   confirmDelete.value = false;
   clearMessages();
@@ -114,18 +98,11 @@ function cloneSource(source?: DataSourceRecord): DataSourceInput {
 function beginNew() {
   selectedId.value = null;
   name.value = '';
-  sourceId.value = 'new';
   sourceDraft.value = emptySource();
   filtersText(sourceDraft.value);
-  editShared.value = false;
   editing.value = true;
   confirmDelete.value = false;
   clearMessages();
-}
-function sourceChanged() {
-  editShared.value = false;
-  sourceDraft.value = cloneSource(selectedSource.value);
-  filtersText(sourceDraft.value);
 }
 function stopChanged(stop: StopSearchResult | null) {
   sourceDraft.value.site_id = stop?.site_id ?? null;
@@ -174,28 +151,28 @@ const previewPoll = usePolling<DepartureRecord[]>(
       : null,
   () => previewSource.value.refresh_interval,
 );
-const filteredDepartures = computed(() => {
-  const source = previewSource.value;
-  const lineFilters =
-    sourceId.value === 'new' || editShared.value
-      ? split(lines.value)
-      : source.line_numbers;
-  const directionFilters =
-    sourceId.value === 'new' || editShared.value
-      ? split(directions.value)
-      : source.directions;
-  const modeFilters =
-    sourceId.value === 'new' || editShared.value
-      ? split(modes.value).map((x) => x.toUpperCase())
-      : source.modes;
-  return (previewPoll.data.value ?? []).filter(
-    (departure) =>
-      (!lineFilters.length || lineFilters.includes(departure.line_number)) &&
-      (!directionFilters.length ||
-        directionFilters.includes(departure.destination)) &&
-      (!modeFilters.length || modeFilters.includes(departure.transport_mode)),
-  );
+const departureHints = computed(() => previewPoll.data.value ?? []);
+const availableModes = computed(() => {
+  const options = [...transportModeOptions];
+  for (const mode of [...modes.value, ...departureHints.value.map((d) => d.transport_mode)]) {
+    if (!options.some((option) => option.value === mode)) {
+      options.push({ value: mode, label: mode, transportMode: '' });
+    }
+  }
+  return options;
 });
+const availableLines = computed(() => lineOptions(departureHints.value, modes.value));
+const availableDirections = computed(() =>
+  directionOptions(departureHints.value, lines.value, modes.value),
+);
+const filteredDepartures = computed(() =>
+  departureHints.value.filter(
+    (departure) =>
+      (!lines.value.length || lines.value.includes(departure.line_number)) &&
+      (!directions.value.length || directions.value.includes(departure.destination)) &&
+      (!modes.value.length || modes.value.includes(departure.transport_mode)),
+  ),
+);
 async function refreshLibrary() {
   const [nextScenes, nextSources] = await Promise.all([
     listScenes(owner.value),
@@ -213,29 +190,25 @@ async function persist() {
   }
   saving.value = true;
   try {
-    let selectedSourceId = sourceId.value;
-    if (sourceId.value === 'new' || editShared.value) {
-      if (!sourceDraft.value.site_id)
-        throw new Error('Choose a stop before saving the scene.');
-      const data: DataSourceInput = {
-        ...sourceDraft.value,
-        owner_id: owner.value,
-        name:
-          sourceDraft.value.name.trim() ||
-          sourceDraft.value.site_name ||
-          name.value.trim(),
-        line_numbers: split(lines.value),
-        directions: split(directions.value),
-        modes: split(modes.value).map((item) => item.toUpperCase()),
-      };
-      const created = await saveSource(
-        data,
-        sourceId.value === 'new' ? undefined : sourceId.value,
-      );
-      selectedSourceId = created.id;
+    if (!sourceDraft.value.site_id)
+      throw new Error('Choose a stop before saving the scene.');
+    const data: DataSourceInput = {
+      ...sourceDraft.value,
+      owner_id: owner.value,
+      name: sourceDraft.value.name.trim() || sourceDraft.value.site_name || name.value.trim(),
+      line_numbers: [...lines.value],
+      directions: [...directions.value],
+      modes: [...modes.value],
+    };
+    const scene = scenes.value.find((item) => item.id === selectedId.value);
+    const source = sources.value.find((item) => item.id === scene?.data_source_id);
+    const decision = sourceSaveDecision(source, scenes.value, selectedId.value, data);
+    let selectedSourceId = source?.id;
+    if (decision.save) {
+      const savedSource = await saveSource(data, decision.updateId);
+      selectedSourceId = savedSource.id;
     }
-    if (selectedSourceId === 'new' || !selectedSourceId)
-      throw new Error('Choose a stop configuration.');
+    if (!selectedSourceId) throw new Error('Could not save stop configuration.');
     const saved = await saveScene(
       {
         owner_id: owner.value,
@@ -405,8 +378,6 @@ function description(scene: SceneRecord) {
                   lines,
                   directions,
                   modes,
-                  sourceId,
-                  editShared,
                 ])
               "
               :display-name="previewName"
@@ -450,108 +421,69 @@ function description(scene: SceneRecord) {
                 placeholder="e.g. Morning commute"
               />
             </label>
-            <label class="block space-y-1.5 text-sm font-medium">
-              <span>Departure data source</span>
-              <select
-                v-model="sourceId"
-                :class="fieldClass"
-                @change="sourceChanged"
-              >
-                <option value="new">+ Configure a new stop</option>
-                <option
-                  v-for="source in sources"
-                  :key="source.id"
-                  :value="source.id"
-                >
-                  {{ source.name
-                  }}{{ source.site_name ? ' — ' + source.site_name : '' }}
-                </option>
-              </select>
-            </label>
-            <div
-              v-if="sourceId !== 'new' && !editShared"
-              class="space-y-2 rounded-lg bg-slate-50 p-4 text-sm"
-            >
-              <p>
-                <strong>{{ selectedSource?.name }}</strong> ·
-                {{ selectedSource?.site_name || 'No stop' }}
-              </p>
-              <p class="text-xs text-[var(--muted-text)]">
-                Lines: {{ selectedSource?.line_numbers.join(', ') || 'All' }} ·
-                {{ selectedSource?.refresh_interval }}s refresh
-              </p>
-              <button
-                type="button"
-                class="font-semibold underline"
-                @click="editShared = true"
-              >
-                Edit shared stop settings
-              </button>
-              <p class="text-xs text-amber-800">
-                Shared settings affect every scene that uses this data source.
-              </p>
+            <div class="space-y-1.5">
+              <label for="stop-search" class="text-sm font-medium">Search stop</label>
+              <StopPicker
+                :site-id="sourceDraft.site_id"
+                :site-name="sourceDraft.site_name"
+                @select="stopChanged"
+              />
             </div>
-            <template v-else>
+            <div class="space-y-1.5">
+              <label for="transport-modes" class="text-sm font-medium">
+                Transport modes (optional)
+              </label>
+              <FilterPicker
+                id="transport-modes"
+                :model-value="modes"
+                :options="availableModes"
+                :disabled="!sourceDraft.site_id"
+                placeholder="All transport modes"
+                @update:model-value="modesChanged"
+              />
+            </div>
+            <div class="grid gap-3 sm:grid-cols-2">
               <label class="block space-y-1.5 text-sm font-medium">
-                <span>Stop configuration name</span>
+                <span>Refresh every (seconds)</span>
                 <input
-                  v-model="sourceDraft.name"
+                  v-model.number="sourceDraft.refresh_interval"
+                  type="number"
+                  min="5"
+                  max="3600"
+                  required
                   :class="fieldClass"
-                  placeholder="e.g. Slussen southbound"
                 />
               </label>
               <div class="space-y-1.5">
-                <label for="stop-search" class="text-sm font-medium"
-                  >Search stop</label
-                >
-                <StopPicker
-                  :site-id="sourceDraft.site_id"
-                  :site-name="sourceDraft.site_name"
-                  @select="stopChanged"
+                <label for="line-numbers" class="text-sm font-medium">
+                  Lines (optional)
+                </label>
+                <FilterPicker
+                  id="line-numbers"
+                  v-model="lines"
+                  :options="availableLines"
+                  :disabled="!sourceDraft.site_id"
+                  placeholder="All lines"
                 />
               </div>
-              <div class="grid gap-3 sm:grid-cols-2">
-                <label class="block space-y-1.5 text-sm font-medium">
-                  <span>Refresh every (seconds)</span>
-                  <input
-                    v-model.number="sourceDraft.refresh_interval"
-                    type="number"
-                    min="5"
-                    max="3600"
-                    required
-                    :class="fieldClass"
-                  />
+              <div class="space-y-1.5 sm:col-span-2">
+                <label for="directions" class="text-sm font-medium">
+                  Directions (optional)
                 </label>
-                <label class="block space-y-1.5 text-sm font-medium">
-                  <span>Lines (optional)</span>
-                  <input
-                    v-model="lines"
-                    :class="fieldClass"
-                    placeholder="All or 17, 18"
-                  />
-                </label>
-                <label class="block space-y-1.5 text-sm font-medium">
-                  <span>Directions (optional)</span>
-                  <input
-                    v-model="directions"
-                    :class="fieldClass"
-                    placeholder="All or Hagsätra"
-                  />
-                </label>
-                <label class="block space-y-1.5 text-sm font-medium">
-                  <span>Transport modes (optional)</span>
-                  <input
-                    v-model="modes"
-                    :class="fieldClass"
-                    placeholder="All or METRO, BUS"
-                  />
-                </label>
+                <FilterPicker
+                  id="directions"
+                  v-model="directions"
+                  :options="availableDirections"
+                  :disabled="!sourceDraft.site_id"
+                  placeholder="All directions"
+                />
               </div>
-              <p class="text-xs text-[var(--muted-text)]">
-                Leave filters empty to include all departures. Separate values
-                with commas.
-              </p>
-            </template>
+            </div>
+            <p class="text-xs text-[var(--muted-text)]">
+              Leave filters empty to include all departures. Line suggestions
+              follow the selected transport modes, and directions follow the
+              selected lines.
+            </p>
             <label class="block space-y-1.5 text-sm font-medium">
               <span>Full-screen visualization</span>
               <select :class="fieldClass" value="departures-list" disabled>
