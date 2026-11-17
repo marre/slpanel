@@ -293,7 +293,8 @@ async function remove() {
       editing.value = false;
       selectedId.value = null;
     }
-    status.value = 'Scene deleted. Its reusable stop configuration was preserved.';
+    status.value =
+      'Scene deleted. Its reusable stop configuration was preserved.';
   } catch (failure) {
     error.value = errorText(failure);
   } finally {
@@ -369,7 +370,11 @@ function description(scene: SceneRecord) {
           No scenes yet. Create one to show departures on your first device.
         </p>
         <div class="space-y-2">
-          <div v-for="scene in scenes" :key="scene.id" class="flex items-stretch gap-2">
+          <div
+            v-for="scene in scenes"
+            :key="scene.id"
+            class="flex items-stretch gap-2"
+          >
             <button
               type="button"
               :aria-pressed="selectedId === scene.id"
@@ -382,7 +387,9 @@ function description(scene: SceneRecord) {
               @click="edit(scene)"
             >
               <span class="block text-sm font-semibold">{{ scene.name }}</span>
-              <span class="mt-1 block text-xs text-[var(--muted-text)]">{{ description(scene) }}</span>
+              <span class="mt-1 block text-xs text-[var(--muted-text)]">{{
+                description(scene)
+              }}</span>
             </button>
             <div class="flex items-center gap-1">
               <button
@@ -400,7 +407,11 @@ function description(scene: SceneRecord) {
                 class="rounded-lg border border-rose-200 p-2.5 text-rose-700 hover:bg-rose-50"
                 @click="pendingDelete = scene"
               >
-                <UIcon name="i-lucide-trash-2" class="size-4" aria-hidden="true" />
+                <UIcon
+                  name="i-lucide-trash-2"
+                  class="size-4"
+                  aria-hidden="true"
+                />
               </button>
             </div>
           </div>
@@ -594,13 +605,15 @@ function description(scene: SceneRecord) {
                 v-if="selectedId"
                 type="button"
                 class="ml-auto text-sm font-semibold text-rose-700 underline"
-                @click="pendingDelete = scenes.find((item) => item.id === selectedId) ?? null"
+                @click="
+                  pendingDelete =
+                    scenes.find((item) => item.id === selectedId) ?? null
+                "
               >
                 Delete…
               </button>
             </div>
           </form>
-
         </template>
       </UCard>
     </div>
