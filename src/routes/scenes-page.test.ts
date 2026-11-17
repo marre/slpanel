@@ -110,7 +110,7 @@ describe('Scenes list actions', () => {
       screen.getByRole('button', { name: 'Delete scene Morning' }),
     );
     await fireEvent.click(
-      await screen.findByRole('button', { name: 'Delete scene', exact: true }),
+      await screen.findByRole('button', { name: 'Delete scene' }),
     );
     await waitFor(() => expect(deleted).toEqual([original.id]));
     expect(
