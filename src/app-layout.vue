@@ -60,6 +60,9 @@ const navigation = computed(() => {
     <header class="bg-[var(--panel-text)] text-white">
       <div class="mx-auto max-w-7xl px-5 md:px-8">
         <div class="relative flex h-24 items-center justify-end md:h-32">
+          <div class="absolute left-0 top-1/2 z-20 -translate-y-1/2">
+            <OwnerWorkspace />
+          </div>
           <RouterLink
             to="/"
             class="absolute left-1/2 top-4 flex -translate-x-1/2 flex-col items-center gap-1 md:top-6"
@@ -100,9 +103,6 @@ const navigation = computed(() => {
               <path v-else d="M3 6h22M3 14h22M3 22h22"></path>
             </svg>
           </UButton>
-        </div>
-        <div class="flex justify-end border-t border-white/20 py-3 md:py-2">
-          <OwnerWorkspace />
         </div>
         <UNavigationMenu
           id="primary-navigation"
