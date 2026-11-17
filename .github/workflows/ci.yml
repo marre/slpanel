@@ -26,6 +26,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Inspect formatting for list actions
+        run: |
+          npx prettier --write src/components/confirm-delete-dialog.vue src/routes/devices-page.vue src/routes/scenes-page.vue src/routes/schedules-page.vue src/routes/devices-page.test.ts src/routes/scenes-page.test.ts src/routes/schedules-page.test.ts
+          git diff -- src/components/confirm-delete-dialog.vue src/routes/devices-page.vue src/routes/scenes-page.vue src/routes/schedules-page.vue src/routes/devices-page.test.ts src/routes/scenes-page.test.ts src/routes/schedules-page.test.ts
+
       - name: Run lint
         run: npm run lint
 
