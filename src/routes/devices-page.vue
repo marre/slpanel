@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import OwnerWorkspace from '@/components/owner-workspace.vue';
 import { useOwnerWorkspace } from '@/composables/use-owner-workspace';
 import type { DisplayRecord } from '@/api/types';
 import type {
@@ -259,7 +258,6 @@ async function removeDevice() {
         the device over USB.
       </p>
     </header>
-    <OwnerWorkspace />
     <p
       v-if="status"
       role="status"
