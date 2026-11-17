@@ -32,8 +32,10 @@
 
 - `owners` table
 - `displays` table with `owner_id` foreign key
-- each physical display has a stable ID; reusable data sources and presentations determine the active stop and full-screen visualization
-- server-side assignment resolution (manual override > weekly schedule > default) and explicit Off state
+- physical devices have permanent display IDs; a device selects exactly one scene or one shared schedule
+- scenes are reusable fullscreen visualizations bound to reusable departure data sources
+- schedules are reusable; each weekday window selects one scene; **Off is the only default** outside windows and cannot be changed
+- the server resolves schedules in an IANA timezone; rules must not overlap
 - Explicit filter tables for line, direction, and mode
 - No generic JSON config blob
 - Prefer one initial migration while nothing is deployed
