@@ -72,6 +72,47 @@ describe('shared scene scheduling', () => {
       parseSchedule({ ...input, rules: [{ ...input.rules[0], mode: 'off' }] }),
     ).toThrow(/only show scenes/);
   });
+  it('matches equal-time 24-hour windows from start time through the next day', () => {
+    const input = {
+      owner_id: 'aB3xZ9kQ',
+      name: 'Full day starting at noon',
+      timezone: 'Europe/Stockholm',
+      rules: [
+        { days: [0], start_time: '12:00', end_time: '12:00', scene_id: 'full-day' },
+        { days: [0], start_time: '00:00', end_time: '10:00', scene_id: 'morning' },
+      ],
+    };
+    const parsed = parseSchedule(input);
+    const schedule: ScheduleRecord = {
+      id: 'all-day',
+      owner_id: parsed.owner_id,
+      name: parsed.name,
+      timezone: parsed.timezone,
+      rules: parsed.rules.map((rule, index) => ({ ...rule, id: String(index) })),
+    };
+    // A full-day window starting Monday at 12:00 lasts until Tuesday 12:00.
+    // Monday morning is correctly available to a separate non-overlapping scene.
+    expect(selectScheduledScene(schedule, new Date('2026-11-16T05:00:00Z'))).toBe('morning');
+    expect(selectScheduledScene(schedule, new Date('2026-11-16T12:00:00Z'))).toBe('full-day');
+    expect(selectScheduledScene(schedule, new Date('2026-11-17T07:00:00Z'))).toBe('full-day');
+    expect(selectScheduledScene(schedule, new Date('2026-11-17T11:00:00Z'))).toBeNull();
+
+    expect(() => parseSchedule({
+      ...input,
+      rules: [
+        input.rules[0],
+        { days: [1], start_time: '08:00', end_time: '10:00', scene_id: 'overlap' },
+      ],
+    })).toThrow(/overlap/);
+    expect(() => parseSchedule({
+      ...input,
+      rules: [
+        { days: [0], start_time: '00:00', end_time: '00:00', scene_id: 'midnight' },
+        { days: [0], start_time: '08:00', end_time: '10:00', scene_id: 'overlap' },
+      ],
+    })).toThrow(/overlap/);
+  });
+
   it('rejects overlapping windows, including a Sunday overnight rollover', () => {
     expect(() =>
       parseSchedule({
