@@ -49,9 +49,9 @@ describe('scene editor helpers', () => {
       departure('4', 'Radiohuset', 'BUS'),
       departure('17', 'Hagsätra', 'METRO'),
     ];
-    expect(lineOptions(departures, ['BUS']).map((option) => option.value)).toEqual(
-      ['4'],
-    );
+    expect(
+      lineOptions(departures, ['BUS']).map((option) => option.value),
+    ).toEqual(['4']);
     expect(
       lineOptions(departures, ['METRO']).map((option) => option.value),
     ).toEqual(['17', '18']);
@@ -87,8 +87,8 @@ describe('scene editor helpers', () => {
       save: true,
       updateId: original.id,
     });
-    expect(
-      sourceSaveDecision(undefined, [], null, { ...original }),
-    ).toEqual({ save: true });
+    expect(sourceSaveDecision(undefined, [], null, { ...original })).toEqual({
+      save: true,
+    });
   });
 });
