@@ -11,15 +11,15 @@
         Real-time SL transit displays
       </h1>
       <p class="mt-5 max-w-2xl text-lg leading-8 text-[var(--muted-text)]">
-        The next departure, at a glance. Choose your stop, personalise your
-        board, and bring live departures to your panel.
+        The next departure, at a glance. Choose a scene, personalise your
+        departures, and bring live departures to your panel.
       </p>
       <div class="mt-8 flex flex-wrap gap-3">
         <RouterLink
-          to="/config"
+          to="/devices"
           class="rounded border border-[var(--panel-text)] bg-[var(--panel-text)] px-6 py-3 font-semibold text-white transition hover:bg-[var(--panel-text-soft)]"
         >
-          Set up a display <span aria-hidden="true">→</span>
+          Set up a device <span aria-hidden="true">→</span>
         </RouterLink>
         <RouterLink
           to="/display/demo-board"
@@ -32,16 +32,15 @@
     <div>
       <h2 class="mb-5 text-2xl font-bold md:text-3xl">Get your panel ready</h2>
       <div class="grid gap-5 md:grid-cols-2">
-        <RouterLink to="/config" class="action-card">
+        <RouterLink to="/devices" class="action-card">
           <span class="text-sm font-semibold text-[var(--panel-text)]">
-            1. Choose your departures
+            1. Manage your panel
           </span>
           <h3 class="mt-3 text-2xl font-bold">
-            My displays <span aria-hidden="true">→</span>
+            Devices <span aria-hidden="true">→</span>
           </h3>
           <p class="mt-3 leading-7 text-[var(--muted-text)]">
-            Find a stop, select lines and directions, and preview your board
-            before saving.
+            Assign a scene or a reusable schedule to each physical panel. Create scenes with a live preview on the Scenes page.
           </p>
         </RouterLink>
         <RouterLink to="/device" class="action-card">
