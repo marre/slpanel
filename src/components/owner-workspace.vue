@@ -21,10 +21,18 @@ function submitOwner() {
       aria-label="Select owner"
       @click="editing = !editing"
     >
-      <UIcon name="i-lucide-user-round" class="size-4 shrink-0" aria-hidden="true" />
+      <UIcon
+        name="i-lucide-user-round"
+        class="size-4 shrink-0"
+        aria-hidden="true"
+      />
       <span class="hidden sm:inline">Owner:</span>
       <span class="min-w-0 truncate">{{ owner || 'Select' }}</span>
-      <UIcon name="i-lucide-chevron-down" class="size-3 shrink-0" aria-hidden="true" />
+      <UIcon
+        name="i-lucide-chevron-down"
+        class="size-3 shrink-0"
+        aria-hidden="true"
+      />
     </button>
     <form
       v-if="editing"
@@ -49,13 +57,21 @@ function submitOwner() {
         {{ ownerError }}
       </p>
       <p id="owner-id-help" class="text-xs leading-5 text-slate-600">
-        Applies across Devices, Scenes and Schedules. Remembered in this browser, but not authentication.
+        Applies across Devices, Scenes and Schedules. Remembered in this
+        browser, but not authentication.
       </p>
       <div class="flex items-center justify-end gap-2">
-        <button type="button" class="rounded-md px-3 py-2 font-medium hover:bg-slate-100" @click="editing = false">
+        <button
+          type="button"
+          class="rounded-md px-3 py-2 font-medium hover:bg-slate-100"
+          @click="editing = false"
+        >
           Cancel
         </button>
-        <button type="submit" class="rounded-md bg-[var(--panel-text)] px-3 py-2 font-semibold text-white">
+        <button
+          type="submit"
+          class="rounded-md bg-[var(--panel-text)] px-3 py-2 font-semibold text-white"
+        >
           {{ owner ? 'Switch owner' : 'Load owner' }}
         </button>
       </div>
