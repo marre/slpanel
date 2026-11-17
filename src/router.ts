@@ -1,7 +1,7 @@
-import { createRouter, createWebHistory } from 'vue-router';
+import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router';
 import AppLayout from './app-layout.vue';
 
-export const routes = [
+export const routes: RouteRecordRaw[] = [
   {
     path: '/',
     component: AppLayout,
@@ -15,14 +15,14 @@ export const routes = [
       },
       {
         path: 'config',
-        redirect: (to: { query: Record<string, unknown> }) => ({
+        redirect: (to) => ({
           path: '/devices',
           query: to.query,
         }),
       },
       {
         path: 'presentations',
-        redirect: (to: { query: Record<string, unknown> }) => ({
+        redirect: (to) => ({
           path: '/scenes',
           query: to.query,
         }),
