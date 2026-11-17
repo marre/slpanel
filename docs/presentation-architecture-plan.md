@@ -1,109 +1,83 @@
-# Panel presentations: target architecture and implementation plan
+# Devices, Scenes and Schedules
 
-> Architecture roadmap and implementation checklist. The slpanel PR implements the backend and Vue workspace; the companion Rust firmware still needs its own implementation.
-> Companion repository: [slpanel](https://github.com/marre/slpanel) / [slpanel-rust](https://github.com/marre/slpanel-rust).
+## Agreed domain model
 
-## Product requirements and decisions
-
-- A physical panel has a stable identity and can change the stop it shows remotely, without USB reprovisioning.
-- A **data source** defines what information is fetched (initially SL departures: site ID, line/direction/mode filters, refresh interval).
-- A **visualization** defines how a normalized data snapshot is rendered (initially the existing departure list; later countdown, timeline, etc.).
-- A **presentation** combines one data source with one visualization and its settings.
-- Exactly **one full-screen visualization** is active on a panel at a time. No split-screen, compositing or layers.
-- A panel can select a default presentation, switch manually, or follow a weekly schedule; schedules can also choose **Off**.
-- Multiple presentations can reuse a data source; switching visualizations must not cause an unnecessary data refetch.
-- Off is a controller/device state, **not** a special visualization or fake stop.
-- Prefer server-resolved schedules (IANA timezone, including DST), so the firmware only consumes effective configuration.
-
-## Conceptual model
+- **Device** = physical SLPanel with a permanent `display_id` already provisioned in firmware.
+- **Scene** = reusable named configuration binding one departure data source to one supported full-screen visualization. A scene may be used directly by many devices or within many schedules.
+- **Schedule** = reusable set of non-overlapping weekday time windows, each pointing to one scene.
+- **Outside all schedule windows the result is always Off.** There is no schedule default scene, configurable fallback, or explicit Off rule.
+- **Device assignment** = exactly one selected scene **or** one selected schedule. A schedule can be assigned to multiple devices, all of which resolve to the same scene or Off at the same moment.
+- The internal reusable `data_sources` table retains normalized stops, lines, directions, transport modes and refresh interval; scenes can share a data source.
+- One full-screen renderer is active per device. No split-screen or composition is required.
+- The worker, not the device, evaluates weekly rules in an IANA timezone, including overnight windows and daylight-saving changes.
 
 ```text
-Physical panel (stable display_id)
-   -> effective assignment resolver (manual override > schedule > default)
-      -> Off
-      -> Presentation
-           -> Data source (departures, future types)
-           -> Visualization type + validated renderer settings
-                -> firmware full-screen renderer -> HUB75
+Devices (physical IDs preserved)
+  ├── fixed Scene
+  └── shared Schedule
+         ├── Mon–Fri 06:00–09:00 → Morning Scene
+         ├── Mon–Fri 17:00–22:00 → Evening Scene
+         └── everything else   → Off (implicit, not configurable)
+
+Scene → Data source (stop + filters) + Visualization (firmware renderer)
 ```
 
-The server owns reusable configuration, assignments and schedule evaluation. Firmware owns fetching/caching data, choosing a built-in renderer, and hardware output. The web app manages profiles, preview, overrides and schedules.
+## UI
 
-## Shared API contract (proposed)
+Three primary workspace pages:
 
-Retain `GET /api/displays/:id` as the device configuration endpoint during migration. Return an effective, flattened configuration so firmware does not have to resolve schedules:
+1. **Devices** (`/devices`): create/rename/remove physical panel configuration; select a direct scene or reusable schedule; open USB configuration and live preview. Identifiers stay stable.
+2. **Scenes** (`/scenes`): save scene names, find a stop, configure filters and refresh interval, choose a supported visualization, preview departures. Data sources can be reused between scenes; changing a shared source affects all referencing scenes.
+3. **Schedules** (`/schedules`): create reusable schedules, set timezone and add scene time windows by day. Off outside windows is displayed prominently and never offered as an editable default. Overlapping intervals are rejected, including across midnight/Sunday.
 
-```json
-{
-  "display_id": "existing-device-id",
-  "output_mode": "presentation",
-  "presentation_id": "presentation-uuid",
-  "data_source": {
-    "id": "source-uuid",
-    "type": "departures",
-    "site_id": 9192,
-    "line_numbers": [],
-    "directions": [],
-    "modes": [],
-    "refresh_interval": 30
-  },
-  "visualization": {
-    "type": "departures-list",
-    "version": 1,
-    "settings": {}
-  },
-  "next_transition_at": "2026-11-16T22:00:00Z"
-}
-```
+Owner ID selection is shared across these pages and restored from browser local storage. The owner ID is **not** authentication.
 
-When Off: `output_mode: "off"`, no active presentation, and an optional next transition timestamp. Field names/IDs are illustrative and must be reconciled with the current device contract. Keep a compatibility path for older firmware; version the effective config contract before introducing incompatible response changes. Validate supported visualization types and settings; never download executable renderer code. Unknown types should fail safely, not display stale data.
+Old `/config` and `/presentations` URLs redirect to the corresponding new pages. The standalone live display preview remains at `/display/:displayId`, and the USB provisioning utility at `/device`.
 
-## Behavioral rules
+## Storage and migration
 
-1. Manual overrides may have an expiry; precedence: active manual override, then matching schedule, then default presentation.
-2. Reject overlapping schedule windows initially; model overnight intervals unambiguously (split at midnight or document explicit semantics). Resolve in configured IANA timezone; test DST gaps/repeated hours.
-3. A visualization-only change with the same data-source identity and compatible settings reuses the current normalized snapshot and polling cadence.
-4. A data-source change invalidates prior departures before showing the new source. Do not show old-stop departures while waiting for new data.
-5. Off clears displayed content, suspends departure polling and disables HUB75 output where supported, while preserving configuration connectivity. Verify actual electrical power savings; blank pixels alone may not reduce panel scan power.
-6. Missing stop, offline/stale data, invalid renderer and intentionally Off are distinct states.
-7. Avoid relying on Cloudflare Cron for recurring transitions: resolve the effective assignment on config reads and return `next_transition_at`; device polls periodically and/or refreshes at transition boundaries. Define clock-skew and offline behavior.
-8. Authorization must protect management operations; a predictable owner/display identifier is not sufficient authentication.
+`migrations/0002_scenes_schedules.sql` creates `data_sources` and normalized source filter tables, `scenes`, `schedules`, `schedule_rules`, and `device_assignments`.
 
-## Delivery sequence across both repositories
+A device assignment has a database CHECK constraint enforcing either exactly one `scene_id` or exactly one `schedule_id`. Rules always have a non-null `scene_id`; the resolver returns Off when no rule matches. The schedule itself has no default field.
 
-1. **Firmware renderer extraction**: preserve existing visuals, introduce a renderer interface and normalized departure snapshot, with one registered `departures-list` renderer.
-2. **Backend data-source/presentation model**: migrate existing display stop/filter fields into reusable data sources and presentations; keep stable display IDs and compatibility.
-3. **Manual selection**: management APIs and Vue UI for changing active presentations; shorten effective-config polling to an acceptable latency (target ~30–60 seconds, subject to measurement).
-4. **Off mode**: server response, explicit firmware state, blank/disable hardware output, polling behavior and power tests.
-5. **Schedules**: weekly rules, Europe/Stockholm and other IANA zones, overrides, next transition, UI preview and boundary tests.
-6. **More renderers**: countdown/timeline/minimal layouts against the same snapshot; no additional fetch when switching renderer.
+Existing devices are migrated into an imported data source and a scene selected directly by the same physical device. All permanent IDs and legacy display fields are preserved. New devices can be provisioned from the Devices page and assigned to a scene or schedule.
 
-Each step should be delivered as reviewable implementation PRs with tests; this document is the shared roadmap, not a single large implementation PR.
+**Deploy order:** run D1 migration **before** deploying the worker. This `0002` schema replaces the unmerged previous proposal, not an already-deployed migration. If a local database already applied the experimental `0002_presentations.sql`, recreate that local D1 database before applying the renamed migration.
 
-## Cross-project acceptance criteria
+## API contract
 
-- Existing configured panels continue to function throughout migration.
-- A user changes the stop/presentation in the web UI without reprovisioning USB.
-- Same-source renderer switching does not trigger an extra departure request.
-- Different-source switching never renders cached departures from the previous stop.
-- Exactly one full-screen renderer runs at a time.
-- Off is distinguishable from errors and reduces hardware activity where feasible.
-- Schedules transition correctly across midnight, DST, reconnect and manual-override expiry.
-- Server, firmware (including streaming JSON decoder), UI preview and tests agree on the effective configuration contract.
+- Existing `GET /api/displays/:id` remains available for firmware. It returns a flattened effective `display` with the stop and filters selected by either the fixed scene or active schedule window.
+- An additional `effective` object gives `mode: 'scene' | 'off' | 'legacy'`, selected scene, source, reason and optional next transition timestamp.
+- When Off, the effective flat display has `site_id: null` for older firmware compatibility.
+- Configuration management endpoints:
+  - `GET/POST /api/scenes`, `PUT/DELETE /api/scenes/:id`
+  - `GET/POST /api/schedules`, `PUT/DELETE /api/schedules/:id`
+  - `GET/PUT /api/displays/:id/assignment`
+  - Reusable source management: `/api/data-sources` and `/api/data-sources/:id`.
 
-## slpanel-specific implementation notes
+Schedule rules are end-exclusive HH:mm ranges with weekdays 0=Monday through 6=Sunday. Same start/end means a full day; end earlier than start crosses midnight. Inputs reject overlaps, unknown scene references, invalid timezones, and attempts to configure any other default than Off. Multiple devices can reference the same schedule without copying its rules.
 
-Current code points: `migrations/0001_initial.sql` stores stop and filters directly on `displays`; `src/api/types.ts` exposes `DisplayRecord`; `src/api/display-store.ts` with D1/memory implementations; `src/api/app.ts` serves `/api/displays/:id`, `/api/stops/search` and `/api/departures/:siteId`; `src/routes/config-page.vue` edits the stop directly and `src/routes/display-page.vue` loads configuration only on initial page load.
+The resolver uses an injectable clock for deterministic tests. `next_transition_at` is advisory: clients must still poll configuration periodically.
 
-### Proposed backend work
+## Firmware integration and limitations
 
-1. Add `data_sources` (type + typed departures config), source-specific filter tables, `presentations` (source FK, renderer ID, version, settings JSON), `display_assignments` (default + expiring manual override), and `display_schedule_rules` (timezone, weekdays, local start/end, action, presentation FK). Keep `displays` as physical identity.
-2. Migrate each existing display's site, filters and refresh interval into a data source and default presentation transactionally; avoid orphaning existing records. Define referential delete behavior for active presentations and schedules.
-3. Implement an effective-configuration resolver with injectable clock for deterministic schedule tests; enforce ownership, schema validation, overlap detection, and override precedence.
-4. Preserve the device endpoint and rollout compatibility; add authenticated CRUD for data sources/presentations, assignment and schedule management. Ensure device-facing response never exposes unrelated owner configuration.
-5. Update Vue config UI to edit reusable sources and presentations, choose active/default presentation, manage weekly schedule and Off periods, and preview the _effective_ result. Refresh the browser preview when assignment changes.
-6. Tests: migration, D1/memory parity, authorization, invalid renderer/settings, deleted source references, timezone/DST boundaries, overnight windows, override expiry and backward-compatible device reads.
+Firmware still calls the old config endpoint with its permanent physical display ID. Scene-only switches work on old firmware on its existing configuration polling cadence. Hardware blanking, departure polling suspension and fast wake-up when a schedule switches to Off still require the separate slpanel-rust implementation. Legacy firmware may display a missing-stop state rather than fully blanking the HUB75 panel.
 
-### Ownership boundary
+The firmware should consume only the *effective* scene/mode; it must not implement local timezone or recurrence logic. Renderers receive normalized departure snapshots; switching renderers with the same source must not trigger unnecessary network fetches. A new data source invalidates stale previous-stop data before rendering.
 
-This repository owns schedule evaluation and the authoritative effective configuration. It must not implement firmware rendering. Coordinate API contract and rollout with the companion firmware plan.
+## Acceptance criteria
+
+- Three focused, mobile-friendly management pages; keyboard-operable controls and clear validation/confirmation.
+- One schedule can be shared by at least two devices.
+- A device can select a direct scene instead of a schedule.
+- A schedule cannot select multiple scenes simultaneously; gaps are unconditionally Off.
+- Migration retains current display identities and cached legacy stop/filter settings.
+- Existing device firmware continues to read the flat config.
+- Test regular weekdays, overnight windows, cross-Sunday rollover, Swedish DST changes, cross-owner references, schedule deletion while assigned, and frontend workflows.
+- `npm run lint`, `npm run test`, `npm run format`, and `npm run build` pass.
+
+## Security and rollout
+
+The project currently uses an unauthenticated eight-character owner ID. Ownership checks prevent accidental cross-owner assignment in the stores, but **do not establish authorization**. The entire write API should be placed behind genuine authentication/access controls before public multi-user use. Do not expose ownership IDs as secrets or rely on them as a security boundary.
+
+No backwards compatibility is promised for the unmerged experimental presentation schema. Firmware compatibility, however, remains a requirement.
