@@ -387,7 +387,9 @@ function description(scene: SceneRecord) {
               @click="edit(scene)"
             >
               <span class="block text-sm font-semibold">{{ scene.name }}</span>
-              <span class="mt-1 block text-xs text-[var(--muted-text)]">{{ description(scene) }}</span>
+              <span class="mt-1 block text-xs text-[var(--muted-text)]">{{
+                description(scene)
+              }}</span>
             </button>
             <button
               type="button"
@@ -404,7 +406,11 @@ function description(scene: SceneRecord) {
               class="shrink-0 rounded-md p-2.5 text-rose-700 hover:bg-rose-100 focus-visible:outline-2 focus-visible:outline-rose-700"
               @click="pendingDelete = scene"
             >
-              <UIcon name="i-lucide-trash-2" class="size-4" aria-hidden="true" />
+              <UIcon
+                name="i-lucide-trash-2"
+                class="size-4"
+                aria-hidden="true"
+              />
             </button>
           </div>
         </div>
