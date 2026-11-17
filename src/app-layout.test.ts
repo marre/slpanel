@@ -73,7 +73,9 @@ describe('AppLayout', () => {
 
   it('exposes persistent navigation at desktop widths without a hamburger', async () => {
     await renderLayout();
-    expect(screen.getByRole('button', { name: 'Menu' })).toHaveClass('lg:hidden');
+    expect(screen.getByRole('button', { name: 'Menu' })).toHaveClass(
+      'lg:hidden',
+    );
     expect(screen.getByRole('navigation')).toHaveClass('lg:flex');
   });
 
