@@ -220,6 +220,10 @@ export function createD1SceneStore(db: D1Database): SceneStore {
       id = id ?? crypto.randomUUID();
       await executeBatch(db, [
         {
+          sql: 'INSERT OR IGNORE INTO owners(id) VALUES (?)',
+          params: [input.owner_id],
+        },
+        {
           sql: 'INSERT INTO data_sources(id,owner_id,name,site_id,site_name,refresh_interval) VALUES (?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET name=excluded.name,site_id=excluded.site_id,site_name=excluded.site_name,refresh_interval=excluded.refresh_interval',
           params: [id, ...sourceParams(input)],
         },
