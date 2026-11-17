@@ -87,3 +87,123 @@ describe('Schedules page', () => {
     expect(Object.keys(saved!)).not.toContain('default_scene_id');
   });
 });
+
+describe('Schedule list actions', () => {
+  const fetchMock = vi.fn<typeof fetch>();
+  const schedule = {
+    id: 'schedule-one',
+    owner_id: owner,
+    name: 'Weekdays',
+    timezone: 'Europe/Stockholm',
+    rules: [
+      {
+        id: 'rule-one',
+        days: [0, 1, 2, 3, 4],
+        start_time: '07:00',
+        end_time: '09:00',
+        scene_id: scene.id,
+      },
+    ],
+  };
+  let schedules: typeof schedule[];
+  let copied: Record<string, unknown> | null;
+  let deleted: string[];
+
+  beforeEach(() => {
+    window.localStorage.clear();
+    schedules = [schedule];
+    copied = null;
+    deleted = [];
+    fetchMock.mockImplementation(async (input, init) => {
+      const path = String(input);
+      if (path.startsWith('/api/schedules?')) {
+        return Response.json({ schedules });
+      }
+      if (path.startsWith('/api/scenes?')) {
+        return Response.json({ scenes: [scene] });
+      }
+      if (path === '/api/schedules' && init?.method === 'POST') {
+        copied = JSON.parse(String(init.body)) as Record<string, unknown>;
+        const next = {
+          id: 'schedule-copy',
+          ...copied,
+          rules: (copied.rules as (typeof schedule.rules)[number][]).map(
+            (rule) => ({ ...rule, id: 'rule-copy' }),
+          ),
+        } as typeof schedule;
+        schedules = [...schedules, next];
+        return Response.json({ schedule: next }, { status: 201 });
+      }
+      if (path.startsWith('/api/schedules/') && init?.method === 'DELETE') {
+        const id = path.slice('/api/schedules/'.length).split('?')[0];
+        deleted.push(id);
+        schedules = schedules.filter((item) => item.id !== id);
+        return new Response(null, { status: 204 });
+      }
+      throw new Error('Unexpected request ' + path);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    fetchMock.mockReset();
+  });
+
+  async function renderList() {
+    await render(
+      routerFixture(
+        ['/schedules?owner=' + owner],
+        [[{ path: '/schedules', element: h(SchedulesPage), children: [] }]],
+      ),
+    );
+    await screen.findByRole('button', { name: 'Copy schedule Weekdays' });
+  }
+
+  it('copies time windows as a new schedule with no inherited rule IDs', async () => {
+    await renderList();
+    await fireEvent.click(
+      screen.getByRole('button', { name: 'Copy schedule Weekdays' }),
+    );
+    await waitFor(() =>
+      expect(copied).toMatchObject({
+        owner_id: owner,
+        name: 'Copy of Weekdays',
+        timezone: schedule.timezone,
+        rules: [
+          {
+            days: [0, 1, 2, 3, 4],
+            start_time: '07:00',
+            end_time: '09:00',
+            scene_id: scene.id,
+          },
+        ],
+      }),
+    );
+    expect(
+      (copied?.rules as Record<string, unknown>[])[0],
+    ).not.toHaveProperty('id');
+    expect(
+      await screen.findByRole('button', {
+        name: 'Copy schedule Copy of Weekdays',
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('cancels then confirms list deletion', async () => {
+    await renderList();
+    await fireEvent.click(
+      screen.getByRole('button', { name: 'Delete schedule Weekdays' }),
+    );
+    expect(await screen.findByText('Delete schedule?')).toBeInTheDocument();
+    expect(deleted).toEqual([]);
+    await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(deleted).toEqual([]);
+    await fireEvent.click(
+      screen.getByRole('button', { name: 'Delete schedule Weekdays' }),
+    );
+    await fireEvent.click(
+      await screen.findByRole('button', { name: 'Delete schedule', exact: true }),
+    );
+    await waitFor(() => expect(deleted).toEqual([schedule.id]));
+  });
+});
