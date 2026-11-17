@@ -182,7 +182,7 @@ export function createApp(options: AppOptions = {}) {
     }
 
     context.header('Cache-Control', 'no-store');
-    if (hasPresentations(context)) {
+    if (hasScenes(context)) {
       const result = await resolve(
         display,
         createSceneStore(getBindings(context).DB),
@@ -207,7 +207,7 @@ export function createApp(options: AppOptions = {}) {
       throw new ApiError(404, 'display_not_found', 'Display not found.');
     }
 
-    if (hasPresentations(context)) {
+    if (hasScenes(context)) {
       await createSceneStore(getBindings(context).DB).syncLegacy(
         display,
       );
