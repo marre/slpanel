@@ -32,6 +32,9 @@ jobs:
       - name: Run tests
         run: npm run test
 
+      - name: Verify D1 migration against existing data
+        run: python3 scripts/test_d1_migration.py
+
       - name: Check formatting
         run: npm run format
 
