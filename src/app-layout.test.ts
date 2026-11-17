@@ -50,7 +50,7 @@ describe('AppLayout', () => {
     expect(button).toHaveAttribute('aria-expanded', 'false');
     expect(
       screen.getByRole('link', {
-        name: 'My displays',
+        name: 'Devices',
       }),
     ).toHaveAttribute('aria-current', 'page');
   });
