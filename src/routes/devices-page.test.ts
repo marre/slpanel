@@ -185,7 +185,7 @@ describe('Device list deletion', () => {
     expect(deleted).toEqual([]);
     await fireEvent.click(deleteButton);
     await fireEvent.click(
-      await screen.findByRole('button', { name: 'Delete device', exact: true }),
+      await screen.findByRole('button', { name: 'Delete device' }),
     );
     await waitFor(() => expect(deleted).toEqual([display.id]));
     expect(
