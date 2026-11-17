@@ -105,7 +105,7 @@ describe('Schedule list actions', () => {
       },
     ],
   };
-  let schedules: typeof schedule[];
+  let schedules: (typeof schedule)[];
   let copied: Record<string, unknown> | null;
   let deleted: string[];
 
@@ -179,9 +179,9 @@ describe('Schedule list actions', () => {
         ],
       }),
     );
-    expect(
-      (copied?.rules as Record<string, unknown>[])[0],
-    ).not.toHaveProperty('id');
+    expect((copied?.rules as Record<string, unknown>[])[0]).not.toHaveProperty(
+      'id',
+    );
     expect(
       await screen.findByRole('button', {
         name: 'Copy schedule Copy of Weekdays',
@@ -205,7 +205,10 @@ describe('Schedule list actions', () => {
       screen.getByRole('button', { name: 'Delete schedule Weekdays' }),
     );
     await fireEvent.click(
-      await screen.findByRole('button', { name: 'Delete schedule', exact: true }),
+      await screen.findByRole('button', {
+        name: 'Delete schedule',
+        exact: true,
+      }),
     );
     await waitFor(() => expect(deleted).toEqual([schedule.id]));
   });
