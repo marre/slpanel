@@ -164,10 +164,8 @@ export function createApp(options: AppOptions = {}) {
     const display = await createDisplayStore(getBindings(context).DB).create(
       input,
     );
-    if (hasScenes(context)) {
-      await createSceneStore(getBindings(context).DB).syncLegacy(
-        display,
-      );
+    if (hasScenes(context) && display.site_id) {
+      await createSceneStore(getBindings(context).DB).syncLegacy(display);
     }
 
     return context.json({ display }, 201);
