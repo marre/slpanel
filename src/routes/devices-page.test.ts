@@ -179,6 +179,9 @@ describe('Device list deletion', () => {
     expect(await screen.findByText('Delete device?')).toBeInTheDocument();
     expect(deleted).toEqual([]);
     await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    );
     expect(deleted).toEqual([]);
     await fireEvent.click(deleteButton);
     await fireEvent.click(
