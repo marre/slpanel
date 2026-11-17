@@ -17,7 +17,7 @@ async function renderLayout() {
                 children: [],
               },
               {
-                path: '/config',
+                path: '/devices',
                 element: h('h1', {}, ['Display settings']),
                 children: [],
               },
@@ -39,7 +39,7 @@ describe('AppLayout', () => {
     expect(button).toHaveAttribute('aria-expanded', 'true');
     await fireEvent.click(
       screen.getByRole('link', {
-        name: 'My displays',
+        name: 'Devices',
       }),
     );
     expect(
