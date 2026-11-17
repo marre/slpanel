@@ -1,4 +1,8 @@
-import type { DataSourceInput, DataSourceRecord, SceneRecord } from '@/api/scene-types';
+import type {
+  DataSourceInput,
+  DataSourceRecord,
+  SceneRecord,
+} from '@/api/scene-types';
 import type { DepartureRecord } from '@/api/types';
 
 type FilterOption = {
@@ -23,7 +27,9 @@ export function lineOptions(
   const seen = new Map<string, Set<string>>();
   for (const departure of departures) {
     if (modes.length && !modes.includes(departure.transport_mode)) continue;
-    if (!seen.has(departure.line_number)) seen.set(departure.line_number, new Set());
+    if (!seen.has(departure.line_number)) {
+      seen.set(departure.line_number, new Set());
+    }
     seen.get(departure.line_number)!.add(departure.transport_mode);
   }
   return [...seen.entries()]
@@ -32,7 +38,9 @@ export function lineOptions(
       label: value,
       transportMode: [...types].join(', '),
     }))
-    .sort((a, b) => a.value.localeCompare(b.value, undefined, { numeric: true }));
+    .sort((a, b) =>
+      a.value.localeCompare(b.value, undefined, { numeric: true }),
+    );
 }
 
 export function directionOptions(
@@ -40,7 +48,10 @@ export function directionOptions(
   lines: string[],
   modes: string[],
 ): FilterOption[] {
-  const seen = new Map<string, { lineNumber: string; transportMode: string }>();
+  const seen = new Map<
+    string,
+    { lineNumber: string; transportMode: string }
+  >();
   for (const departure of departures) {
     if (modes.length && !modes.includes(departure.transport_mode)) continue;
     if (lines.length && !lines.includes(departure.line_number)) continue;
@@ -76,10 +87,16 @@ export function sourceSaveDecision(
     equalValues(current.line_numbers, draft.line_numbers) &&
     equalValues(current.directions, draft.directions) &&
     equalValues(current.modes, draft.modes)
-  ) return { save: false, updateId: current.id };
+  ) {
+    return { save: false, updateId: current.id };
+  }
 
   // Do not overwrite configuration used by another scene.
-  if (scenes.some((scene) => scene.id !== sceneId && scene.data_source_id === current.id)) {
+  if (
+    scenes.some(
+      (scene) => scene.id !== sceneId && scene.data_source_id === current.id,
+    )
+  ) {
     return { save: true };
   }
   return { save: true, updateId: current.id };
