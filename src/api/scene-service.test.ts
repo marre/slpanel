@@ -36,7 +36,7 @@ describe('shared scene scheduling',()=>{
   });
   it('supports overnight windows and Swedish DST gaps and repetitions',()=>{
     const schedule: ScheduleRecord={
-      ...workdays, rules:[{id:'night',days:[6],start_time:'22:00',end_time:'03:00',scene_id:'night'}],
+      ...workdays, rules:[{id:'night',days:[5],start_time:'22:00',end_time:'03:00',scene_id:'night'}],
     };
     expect(selectScheduledScene(schedule,new Date('2026-10-25T00:30:00Z'))).toBe('night');
     expect(selectScheduledScene(schedule,new Date('2026-10-25T01:30:00Z'))).toBe('night');
