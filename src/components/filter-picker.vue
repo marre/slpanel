@@ -31,13 +31,14 @@ function create(value: string) {
 }
 </script>
 <template>
-  <UInputMenu
+  <USelectMenu
     :id="id"
     v-model="model"
     v-model:search-term="search"
     :items="items"
     value-key="value"
     multiple
+    :search-input="{ placeholder: 'Search or add a value…' }"
     create-item
     :disabled="disabled"
     :placeholder="placeholder"
@@ -51,5 +52,5 @@ function create(value: string) {
         {{ item.transportMode }}</span
       >
     </template>
-  </UInputMenu>
+  </USelectMenu>
 </template>
