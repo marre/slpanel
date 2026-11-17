@@ -1,35 +1,46 @@
 <script setup lang="ts">
 import { useOwnerWorkspace } from '@/composables/use-owner-workspace';
+
 const { owner, ownerInput, ownerError, loadOwner } = useOwnerWorkspace();
 </script>
+
 <template>
   <form
-    class="flex flex-wrap items-end gap-3 rounded-xl border border-[var(--panel-border)] bg-white p-4"
+    class="flex w-full flex-wrap items-center gap-2 text-sm md:w-auto"
+    aria-label="Choose workspace owner"
     @submit.prevent="loadOwner"
   >
-    <label class="flex min-w-44 flex-1 flex-col gap-1.5 text-sm font-medium">
-      <span>Owner ID</span>
-      <input
-        v-model="ownerInput"
-        maxlength="8"
-        autocomplete="off"
-        class="w-full rounded-lg border border-[var(--panel-border)] px-3 py-2.5 focus-visible:outline-2 focus-visible:outline-sky-700"
-        aria-label="Owner ID"
-        placeholder="8 letters or digits"
-      />
+    <label for="header-owner-id" class="shrink-0 font-semibold text-white">
+      Owner ID
     </label>
+    <input
+      id="header-owner-id"
+      v-model="ownerInput"
+      maxlength="8"
+      autocomplete="off"
+      spellcheck="false"
+      inputmode="text"
+      class="min-w-0 flex-1 rounded-md border border-white/40 bg-white px-3 py-2 text-slate-950 placeholder:text-slate-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white sm:w-36 sm:flex-none"
+      aria-label="Owner ID"
+      aria-describedby="owner-id-help"
+      placeholder="8 letters or digits"
+    />
     <button
       type="submit"
-      class="rounded-lg bg-[var(--panel-text)] px-4 py-2.5 text-sm font-semibold text-white"
+      class="rounded-md border border-white/60 px-3 py-2 font-semibold text-white transition hover:bg-white/15 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
     >
-      {{ owner ? 'Switch owner' : 'Load workspace' }}
+      {{ owner ? 'Switch' : 'Load' }}
     </button>
-    <p v-if="ownerError" role="alert" class="w-full text-sm text-rose-700">
+    <p
+      v-if="ownerError"
+      role="alert"
+      class="w-full text-sm text-amber-100"
+    >
       {{ ownerError }}
     </p>
-    <p class="w-full text-xs text-[var(--muted-text)]">
-      Your last owner ID is remembered in this browser. It does not provide
-      account security.
+    <p id="owner-id-help" class="sr-only">
+      The selected owner applies across Devices, Scenes and Schedules. It is
+      remembered in this browser, but it is not authentication.
     </p>
   </form>
 </template>
