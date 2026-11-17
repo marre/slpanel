@@ -312,40 +312,33 @@ async function removeDevice() {
           <div
             v-for="device in displays"
             :key="device.id"
-            class="flex items-stretch gap-2"
+            class="flex items-center gap-1 rounded-lg border p-1.5 transition"
+            :class="
+              selectedId === device.id
+                ? 'border-[var(--panel-text)] bg-sky-50'
+                : 'border-[var(--panel-border)] bg-white hover:border-slate-400'
+            "
           >
             <button
               type="button"
               :aria-pressed="selectedId === device.id"
-              class="min-w-0 flex-1 rounded-lg border px-4 py-3 text-left text-sm transition"
-              :class="
-                selectedId === device.id
-                  ? 'border-[var(--panel-text)] bg-sky-50'
-                  : 'border-[var(--panel-border)] bg-white hover:border-slate-400'
-              "
+              class="min-w-0 flex-1 rounded-md px-3 py-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-sky-700"
               @click="selectDevice(device)"
             >
               <span class="block font-semibold">{{
                 device.name || device.display_id
               }}</span>
-              <span
-                class="mt-1 block font-mono text-xs text-[var(--muted-text)]"
-                >{{ device.display_id }}</span
-              >
+              <span class="mt-1 block font-mono text-xs text-[var(--muted-text)]">{{
+                device.display_id
+              }}</span>
             </button>
             <button
               type="button"
-              :aria-label="
-                'Delete device ' + (device.name || device.display_id)
-              "
-              class="self-center rounded-lg border border-rose-200 p-2.5 text-rose-700 hover:bg-rose-50"
+              :aria-label="'Delete device ' + (device.name || device.display_id)"
+              class="shrink-0 rounded-md p-2.5 text-rose-700 hover:bg-rose-100 focus-visible:outline-2 focus-visible:outline-rose-700"
               @click="pendingDelete = device"
             >
-              <UIcon
-                name="i-lucide-trash-2"
-                class="size-4"
-                aria-hidden="true"
-              />
+              <UIcon name="i-lucide-trash-2" class="size-4" aria-hidden="true" />
             </button>
           </div>
         </div>
