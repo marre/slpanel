@@ -26,11 +26,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Inspect formatting for compact filters
-        run: |
-          npx prettier --write src/components/filter-picker.test.ts src/routes/devices-page.vue src/routes/scenes-page.vue src/routes/schedules-page.vue
-          git diff -- src/components/filter-picker.test.ts src/routes/devices-page.vue src/routes/scenes-page.vue src/routes/schedules-page.vue
-
       - name: Run lint
         run: npm run lint
 
