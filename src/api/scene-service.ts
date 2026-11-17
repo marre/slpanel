@@ -85,6 +85,8 @@ function minute(time: string): number {
 }
 export function parseSchedule(value: unknown): ScheduleInput {
   const input = object(value);
+  if ('default_scene_id' in input || 'default_action' in input || 'default' in input)
+    bad('The schedule default is always Off and cannot be configured.');
   const timezone = required(input.timezone,'timezone');
   if (timezone.length > 80) bad('Timezone is too long.');
   try { new Intl.DateTimeFormat('en-US', { timeZone: timezone }); }
@@ -93,6 +95,7 @@ export function parseSchedule(value: unknown): ScheduleInput {
     bad('Add at least one scene time window (maximum 64). Outside all windows the device is Off.');
   const rules: ScheduleRuleInput[] = input.rules.map((item) => {
     const entry = object(item);
+    if ('mode' in entry && entry.mode !== 'scene') bad('Schedule rules can only show scenes; Off is the implicit default.');
     if (!Array.isArray(entry.days) || entry.days.length < 1 || entry.days.length > 7 ||
         entry.days.some((day) => !Number.isInteger(day) || day < 0 || day > 6))
       bad('Every time window must have one or more weekdays.');
