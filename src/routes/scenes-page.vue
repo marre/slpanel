@@ -609,7 +609,7 @@ function description(scene: SceneRecord) {
       kind="scene"
       :name="pendingDelete?.name || ''"
       :loading="deleting"
-      @update:open="if (!$event) pendingDelete = null"
+      @update:open="pendingDelete = $event ? pendingDelete : null"
       @confirm="remove"
     />
   </section>
