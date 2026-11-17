@@ -511,7 +511,7 @@ async function removeDevice() {
       kind="device"
       :name="pendingDelete?.name || pendingDelete?.display_id || ''"
       :loading="deleting"
-      @update:open="if (!$event) pendingDelete = null"
+      @update:open="pendingDelete = $event ? pendingDelete : null"
       @confirm="removeDevice"
     />
   </section>
