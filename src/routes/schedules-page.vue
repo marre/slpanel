@@ -306,10 +306,13 @@ async function remove() {
               class="min-w-0 flex-1 rounded-md px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-sky-700"
               @click="edit(schedule)"
             >
-              <span class="block text-sm font-semibold">{{ schedule.name }}</span>
+              <span class="block text-sm font-semibold">{{
+                schedule.name
+              }}</span>
               <span class="mt-1 block text-xs text-[var(--muted-text)]">
                 {{ schedule.rules.length }} time
-                {{ schedule.rules.length === 1 ? 'window' : 'windows' }} · Off otherwise
+                {{ schedule.rules.length === 1 ? 'window' : 'windows' }} · Off
+                otherwise
               </span>
             </button>
             <button
@@ -327,7 +330,11 @@ async function remove() {
               class="shrink-0 rounded-md p-2.5 text-rose-700 hover:bg-rose-100 focus-visible:outline-2 focus-visible:outline-rose-700"
               @click="pendingDelete = schedule"
             >
-              <UIcon name="i-lucide-trash-2" class="size-4" aria-hidden="true" />
+              <UIcon
+                name="i-lucide-trash-2"
+                class="size-4"
+                aria-hidden="true"
+              />
             </button>
           </div>
         </div>
