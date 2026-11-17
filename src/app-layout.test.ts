@@ -32,9 +32,10 @@ describe('AppLayout', () => {
   beforeEach(() => window.localStorage.clear());
   it('shows one owner selector in the header and retains the owner between pages', async () => {
     await renderLayout('/?owner=Ab12Cd34');
-    expect(screen.getAllByRole('textbox', { name: 'Owner ID' })).toHaveLength(
+    expect(screen.getAllByRole('button', { name: 'Select owner' })).toHaveLength(
       1,
     );
+    await fireEvent.click(screen.getByRole('button', { name: 'Select owner' }));
     expect(screen.getByRole('textbox', { name: 'Owner ID' })).toHaveValue(
       'Ab12Cd34',
     );
@@ -47,19 +48,18 @@ describe('AppLayout', () => {
     expect(
       await screen.findByRole('heading', { name: 'Display settings' }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'Owner ID' })).toHaveValue(
-      'Ab12Cd34',
-    );
+    expect(screen.getByRole('button', { name: 'Select owner' })).toHaveTextContent('Ab12Cd34');
     expect(window.localStorage.getItem('slpanel.owner-id')).toBe('Ab12Cd34');
   });
 
   it('updates workspace selection from the global header', async () => {
     await renderLayout('/?owner=Ab12Cd34');
+    await fireEvent.click(screen.getByRole('button', { name: 'Select owner' }));
     await fireEvent.update(
       screen.getByRole('textbox', { name: 'Owner ID' }),
       'Cd56Ef78',
     );
-    await fireEvent.click(screen.getByRole('button', { name: 'Switch' }));
+    await fireEvent.click(screen.getByRole('button', { name: 'Switch owner' }));
     await waitFor(() => {
       expect(screen.getByRole('link', { name: 'Scenes' })).toHaveAttribute(
         'href',
