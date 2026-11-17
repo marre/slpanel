@@ -84,7 +84,7 @@ const navigation = computed(() => {
             variant="ghost"
             color="neutral"
             type="button"
-            class="flex items-center gap-3 rounded px-2 py-3 text-lg text-white transition hover:bg-white/10 hover:text-white active:text-white md:text-xl"
+            class="flex items-center gap-3 rounded px-2 py-3 text-lg text-white transition hover:bg-white/10 hover:text-white active:text-white md:text-xl lg:hidden"
             :aria-expanded="menuOpen"
             aria-controls="primary-navigation"
             @click="menuOpen = !menuOpen"
@@ -110,12 +110,12 @@ const navigation = computed(() => {
           :items="navigation"
           :class="[
             menuOpen ? 'flex' : 'hidden',
-            'w-full border-t border-white/30 py-3 [&>div]:w-full',
+            'w-full border-t border-white/30 py-3 lg:flex [&>div]:w-full',
           ]"
           :ui="{
-            list: 'w-full flex-col gap-1 md:flex-row md:justify-center md:gap-4',
-            item: 'w-full md:w-auto',
-            link: 'w-full md:w-auto rounded-none border-b-4 border-transparent px-3 py-3 text-lg font-semibold text-white hover:bg-white/10 hover:text-white data-[active]:border-white data-[active]:text-white before:hidden after:hidden',
+            list: 'w-full flex-col gap-1 lg:flex-row lg:justify-center lg:gap-4',
+            item: 'w-full lg:w-auto',
+            link: 'w-full lg:w-auto rounded-none border-b-4 border-transparent px-3 py-3 text-lg font-semibold text-white hover:bg-white/10 hover:text-white data-[active]:border-white data-[active]:text-white before:hidden after:hidden',
             linkLabel: 'whitespace-normal',
           }"
           @keydown.esc="
