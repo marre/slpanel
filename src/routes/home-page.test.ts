@@ -34,9 +34,9 @@ describe('HomePage', () => {
     ).toBeInTheDocument();
     expect(
       screen.getByRole('link', {
-        name: /set up a display/i,
+        name: /set up a device/i,
       }),
-    ).toHaveAttribute('href', '/config');
+    ).toHaveAttribute('href', '/devices');
     expect(
       screen.getByRole('link', {
         name: /connect USB device/i,
