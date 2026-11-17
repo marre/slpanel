@@ -1,14 +1,22 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRoute } from 'vue-router';
+import OwnerWorkspace from '@/components/owner-workspace.vue';
+import { useOwnerWorkspace } from '@/composables/use-owner-workspace';
 
 const route = useRoute();
 const isHome = computed(() => route.path === '/');
+const { owner } = useOwnerWorkspace();
 const menuOpen = ref(false);
 const menuButton = ref<{ $el: HTMLButtonElement } | null>(null);
-const navigation = [
+const navigation = computed(() => {
+  // Keep workspace selection while moving between the main sections.
+  const query = /^[A-Za-z0-9]{8}$/.test(owner.value)
+    ? `?owner=${encodeURIComponent(owner.value)}`
+    : '';
+  return [
   {
-    to: '/',
+    to: '/' + query,
     label: 'Overview',
     exact: true,
     onSelect: () => {
@@ -16,34 +24,35 @@ const navigation = [
     },
   },
   {
-    to: '/devices',
+    to: '/devices' + query,
     label: 'Devices',
     onSelect: () => {
       menuOpen.value = false;
     },
   },
   {
-    to: '/scenes',
+    to: '/scenes' + query,
     label: 'Scenes',
     onSelect: () => {
       menuOpen.value = false;
     },
   },
   {
-    to: '/schedules',
+    to: '/schedules' + query,
     label: 'Schedules',
     onSelect: () => {
       menuOpen.value = false;
     },
   },
   {
-    to: '/device',
+    to: '/device' + query,
     label: 'USB device',
     onSelect: () => {
       menuOpen.value = false;
     },
   },
-];
+  ];
+});
 </script>
 <template>
   <div class="min-h-screen bg-[var(--app-bg)] text-[var(--app-text)]">
@@ -91,6 +100,9 @@ const navigation = [
               <path v-else d="M3 6h22M3 14h22M3 22h22"></path>
             </svg>
           </UButton>
+        </div>
+        <div class="flex justify-end border-t border-white/20 py-3 md:py-2">
+          <OwnerWorkspace />
         </div>
         <UNavigationMenu
           id="primary-navigation"
