@@ -7,20 +7,14 @@ export const routes = [
     component: AppLayout,
     children: [
       { path: '', component: () => import('./routes/home-page.vue') },
-      { path: 'config', component: () => import('./routes/config-page.vue') },
+      { path: 'devices', component: () => import('./routes/devices-page.vue') },
+      { path: 'scenes', component: () => import('./routes/scenes-page.vue') },
+      { path: 'schedules', component: () => import('./routes/schedules-page.vue') },
+      { path: 'config', redirect: (to: { query: Record<string, unknown> }) => ({ path: '/devices', query: to.query }) },
+      { path: 'presentations', redirect: (to: { query: Record<string, unknown> }) => ({ path: '/scenes', query: to.query }) },
       { path: 'device', component: () => import('./routes/device-page.vue') },
-      {
-        path: 'presentations',
-        component: () => import('./routes/presentations-page.vue'),
-      },
-      {
-        path: 'display/:displayId',
-        component: () => import('./routes/display-page.vue'),
-      },
-      {
-        path: ':pathMatch(.*)*',
-        component: () => import('./routes/not-found-page.vue'),
-      },
+      { path: 'display/:displayId', component: () => import('./routes/display-page.vue') },
+      { path: ':pathMatch(.*)*', component: () => import('./routes/not-found-page.vue') },
     ],
   },
 ];
