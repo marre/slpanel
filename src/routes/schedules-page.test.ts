@@ -207,7 +207,6 @@ describe('Schedule list actions', () => {
     await fireEvent.click(
       await screen.findByRole('button', {
         name: 'Delete schedule',
-        exact: true,
       }),
     );
     await waitFor(() => expect(deleted).toEqual([schedule.id]));
