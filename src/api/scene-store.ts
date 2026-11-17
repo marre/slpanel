@@ -3,7 +3,7 @@ import { ApiError } from './errors';
 import type { DisplayRecord } from './types';
 import type {
   DataSourceInput, DataSourceRecord, DeviceAssignment, DeviceAssignmentInput,
-  SceneInput, SceneRecord, ScheduleInput, ScheduleRecord, ScheduleRule,
+  SceneInput, SceneRecord, ScheduleInput, ScheduleRecord,
 } from './scene-types';
 
 export interface SceneStore {
