@@ -293,51 +293,42 @@ async function remove() {
           <div
             v-for="schedule in schedules"
             :key="schedule.id"
-            class="flex items-stretch gap-2"
+            class="flex items-center gap-1 rounded-lg border p-1.5 transition"
+            :class="
+              selectedId === schedule.id
+                ? 'border-[var(--panel-text)] bg-sky-50'
+                : 'border-[var(--panel-border)] bg-white hover:border-slate-400'
+            "
           >
             <button
               type="button"
               :aria-pressed="selectedId === schedule.id"
-              class="min-w-0 flex-1 rounded-lg border px-4 py-3 text-left transition"
-              :class="
-                selectedId === schedule.id
-                  ? 'border-[var(--panel-text)] bg-sky-50'
-                  : 'border-[var(--panel-border)] bg-white hover:border-slate-400'
-              "
+              class="min-w-0 flex-1 rounded-md px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-sky-700"
               @click="edit(schedule)"
             >
-              <span class="block text-sm font-semibold">{{
-                schedule.name
-              }}</span>
+              <span class="block text-sm font-semibold">{{ schedule.name }}</span>
               <span class="mt-1 block text-xs text-[var(--muted-text)]">
                 {{ schedule.rules.length }} time
-                {{ schedule.rules.length === 1 ? 'window' : 'windows' }} · Off
-                otherwise
+                {{ schedule.rules.length === 1 ? 'window' : 'windows' }} · Off otherwise
               </span>
             </button>
-            <div class="flex items-center gap-1">
-              <button
-                type="button"
-                :aria-label="'Copy schedule ' + schedule.name"
-                :disabled="!!copyingId || saving || deleting"
-                class="rounded-lg border border-[var(--panel-border)] p-2.5 hover:bg-slate-50 disabled:opacity-50"
-                @click="copySchedule(schedule)"
-              >
-                <UIcon name="i-lucide-copy" class="size-4" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                :aria-label="'Delete schedule ' + schedule.name"
-                class="rounded-lg border border-rose-200 p-2.5 text-rose-700 hover:bg-rose-50"
-                @click="pendingDelete = schedule"
-              >
-                <UIcon
-                  name="i-lucide-trash-2"
-                  class="size-4"
-                  aria-hidden="true"
-                />
-              </button>
-            </div>
+            <button
+              type="button"
+              :aria-label="'Copy schedule ' + schedule.name"
+              :disabled="!!copyingId || saving || deleting"
+              class="shrink-0 rounded-md p-2.5 text-[var(--app-text)] hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-sky-700 disabled:opacity-50"
+              @click="copySchedule(schedule)"
+            >
+              <UIcon name="i-lucide-copy" class="size-4" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              :aria-label="'Delete schedule ' + schedule.name"
+              class="shrink-0 rounded-md p-2.5 text-rose-700 hover:bg-rose-100 focus-visible:outline-2 focus-visible:outline-rose-700"
+              @click="pendingDelete = schedule"
+            >
+              <UIcon name="i-lucide-trash-2" class="size-4" aria-hidden="true" />
+            </button>
           </div>
         </div>
         <p class="text-xs text-[var(--muted-text)]">
