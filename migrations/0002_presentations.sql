@@ -1,5 +1,5 @@
--- Reusable departure sources, full-screen presentations, device assignments, and weekly schedule.
--- Keep the legacy display stop/filter columns for older devices and the existing editor.
+-- Reusable scenes and schedules. Devices retain their permanent display IDs.
+-- This migration replaces the unmerged original 0002 presentation proposal.
 CREATE TABLE data_sources (
   id TEXT PRIMARY KEY,
   owner_id TEXT NOT NULL REFERENCES owners(id) ON DELETE CASCADE,
@@ -27,7 +27,7 @@ CREATE TABLE data_source_mode_filters (
   PRIMARY KEY (data_source_id, mode)
 );
 
-CREATE TABLE presentations (
+CREATE TABLE scenes (
   id TEXT PRIMARY KEY,
   owner_id TEXT NOT NULL REFERENCES owners(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
@@ -35,49 +35,57 @@ CREATE TABLE presentations (
   visualization TEXT NOT NULL DEFAULT 'departures-list',
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
-CREATE INDEX idx_presentations_owner ON presentations(owner_id);
+CREATE INDEX idx_scenes_owner ON scenes(owner_id);
 
-CREATE TABLE display_controls (
-  display_id TEXT PRIMARY KEY REFERENCES displays(id) ON DELETE CASCADE,
-  timezone TEXT NOT NULL DEFAULT 'Europe/Stockholm',
-  default_presentation_id TEXT REFERENCES presentations(id) ON DELETE RESTRICT,
-  manual_mode TEXT CHECK (manual_mode IN ('presentation', 'off')),
-  manual_presentation_id TEXT REFERENCES presentations(id) ON DELETE RESTRICT,
-  manual_until TEXT,
-  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
-
-CREATE TABLE display_schedule_rules (
+CREATE TABLE schedules (
   id TEXT PRIMARY KEY,
-  display_id TEXT NOT NULL REFERENCES displays(id) ON DELETE CASCADE,
+  owner_id TEXT NOT NULL REFERENCES owners(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  timezone TEXT NOT NULL DEFAULT 'Europe/Stockholm',
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX idx_schedules_owner ON schedules(owner_id);
+
+CREATE TABLE schedule_rules (
+  id TEXT PRIMARY KEY,
+  schedule_id TEXT NOT NULL REFERENCES schedules(id) ON DELETE CASCADE,
   days TEXT NOT NULL,
   start_time TEXT NOT NULL,
   end_time TEXT NOT NULL,
-  mode TEXT NOT NULL CHECK (mode IN ('presentation', 'off')),
-  presentation_id TEXT REFERENCES presentations(id) ON DELETE RESTRICT
+  scene_id TEXT NOT NULL REFERENCES scenes(id) ON DELETE RESTRICT
 );
-CREATE INDEX idx_schedule_display ON display_schedule_rules(display_id);
+CREATE INDEX idx_schedule_rules_schedule ON schedule_rules(schedule_id);
 
--- Migrate current stop configurations without changing stable physical display IDs.
-INSERT INTO data_sources (
-  id, owner_id, name, site_id, site_name, refresh_interval
-)
+CREATE TABLE device_assignments (
+  display_id TEXT PRIMARY KEY REFERENCES displays(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL CHECK (kind IN ('scene', 'schedule')),
+  scene_id TEXT REFERENCES scenes(id) ON DELETE RESTRICT,
+  schedule_id TEXT REFERENCES schedules(id) ON DELETE RESTRICT,
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  CHECK (
+    (kind = 'scene' AND scene_id IS NOT NULL AND schedule_id IS NULL)
+    OR (kind = 'schedule' AND schedule_id IS NOT NULL AND scene_id IS NULL)
+  )
+);
+
+-- Preserve currently configured devices: one reusable scene for each old display.
+INSERT INTO data_sources (id,owner_id,name,site_id,site_name,refresh_interval)
 SELECT 'legacy-source:' || id, owner_id,
   COALESCE(NULLIF(site_name, ''), NULLIF(name, ''), 'Existing stop'),
   site_id, site_name, refresh_interval
 FROM displays;
 
-INSERT INTO data_source_line_filters (data_source_id, line_number)
+INSERT INTO data_source_line_filters (data_source_id,line_number)
 SELECT 'legacy-source:' || display_id, line_number FROM display_line_filters;
-INSERT INTO data_source_direction_filters (data_source_id, direction)
+INSERT INTO data_source_direction_filters (data_source_id,direction)
 SELECT 'legacy-source:' || display_id, direction FROM display_direction_filters;
-INSERT INTO data_source_mode_filters (data_source_id, mode)
+INSERT INTO data_source_mode_filters (data_source_id,mode)
 SELECT 'legacy-source:' || display_id, mode FROM display_mode_filters;
 
-INSERT INTO presentations (id, owner_id, name, data_source_id, visualization)
-SELECT 'legacy-presentation:' || id, owner_id,
-  COALESCE(NULLIF(name, ''), 'Existing display'), 'legacy-source:' || id, 'departures-list'
+INSERT INTO scenes (id,owner_id,name,data_source_id,visualization)
+SELECT 'legacy-scene:' || id, owner_id, COALESCE(NULLIF(name, ''), 'Existing display'),
+  'legacy-source:' || id, 'departures-list'
 FROM displays;
 
-INSERT INTO display_controls (display_id, default_presentation_id)
-SELECT id, 'legacy-presentation:' || id FROM displays;
+INSERT INTO device_assignments (display_id,kind,scene_id)
+SELECT id,'scene','legacy-scene:' || id FROM displays;
