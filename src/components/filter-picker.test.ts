@@ -34,3 +34,33 @@ it('creates and removes a custom filter through Nuxt UI SelectMenu', async () =>
   await fireEvent.click(await screen.findByRole('option', { name: /99/ }));
   await waitFor(() => expect(update).toHaveBeenCalledWith([]));
 });
+
+it('keeps selected directions compact without losing their full labels', async () => {
+  const values = [
+    'Hagsätra via Skanstull and Gullmarsplan',
+    'Farsta strand',
+    'Norsborg via Liljeholmen',
+  ];
+  await render(
+    h(FilterPicker, {
+      id: 'directions',
+      modelValue: values,
+      options: values.map((value) => ({
+        value,
+        label: value,
+        transportMode: 'METRO',
+      })),
+      disabled: false,
+      placeholder: 'All directions',
+    }),
+  );
+
+  const trigger = screen.getByRole('combobox');
+  expect(trigger).toHaveClass('h-10', 'min-h-10');
+  expect(
+    screen.getByText('Hagsätra via Skanstull and Gullmarsplan +2 more'),
+  ).toHaveClass('truncate');
+  expect(
+    screen.getByTitle(values.join(', ')),
+  ).toBeInTheDocument();
+});
