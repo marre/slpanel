@@ -241,7 +241,17 @@ export function createApp(options: AppOptions = {}) {
       throw new ApiError(404, 'display_not_found', 'Display not found.');
     }
 
-    if (hasScenes(context)) {
+    // Rename-only edits must not copy stale legacy stop/filter values over
+    // a shared scene data source that may have been edited independently.
+    const legacyConfigChanged = [
+      'site_id',
+      'site_name',
+      'refresh_interval',
+      'line_numbers',
+      'directions',
+      'modes',
+    ].some((field) => Object.prototype.hasOwnProperty.call(input, field));
+    if (hasScenes(context) && legacyConfigChanged) {
       await createSceneStore(getBindings(context).DB).syncLegacy(display);
     }
     return context.json({ display });
