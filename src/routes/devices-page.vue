@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import ConfirmDeleteDialog from '@/components/confirm-delete-dialog.vue';
 import { useOwnerWorkspace } from '@/composables/use-owner-workspace';
 import type { DisplayRecord } from '@/api/types';
 import type {
@@ -38,7 +39,7 @@ const loading = ref(false);
 const loadingDevice = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
-const confirmDelete = ref(false);
+const pendingDelete = ref<DisplayRecord | null>(null);
 const status = ref('');
 const error = ref('');
 const selected = computed(
@@ -90,13 +91,13 @@ function beginCreate() {
   chooseTarget(scenes.value.length ? 'scene' : 'schedule');
   assignment.value = null;
   effective.value = null;
-  confirmDelete.value = false;
+  pendingDelete.value = null;
   clearMessages();
 }
 function selectDevice(device: DisplayRecord) {
   selectedId.value = device.id;
   name.value = device.name;
-  confirmDelete.value = false;
+  pendingDelete.value = null;
   clearMessages();
 }
 watch(
@@ -113,6 +114,7 @@ watch(
     name.value = '';
     assignment.value = null;
     effective.value = null;
+    pendingDelete.value = null;
     clearMessages();
     if (!value) return;
     loading.value = true;
@@ -222,24 +224,31 @@ async function saveDevice() {
   }
 }
 async function removeDevice() {
-  if (!selected.value || !confirmDelete.value || deleting.value) return;
+  const device = pendingDelete.value;
+  if (!device || deleting.value) return;
   deleting.value = true;
   clearMessages();
   try {
-    await deleteDisplay(selected.value.id);
-    displays.value = displays.value.filter(
-      (item) => item.id !== selectedId.value,
-    );
-    const next = displays.value[0];
-    if (next) selectDevice(next);
-    else beginCreate();
+    await deleteDisplay(device.id);
+    if (owner.value !== device.owner_id) return;
+    displays.value = displays.value.filter((item) => item.id !== device.id);
+    pendingDelete.value = null;
+    if (selectedId.value === device.id) {
+      const next = displays.value[0];
+      if (next) selectDevice(next);
+      else {
+        beginCreate();
+        const query = { ...route.query };
+        delete query.device;
+        void router.replace({ query });
+      }
+    }
     status.value =
       'Device deleted. Reusable scenes and schedules were preserved.';
   } catch (failure) {
     error.value = errorText(failure);
   } finally {
     deleting.value = false;
-    confirmDelete.value = false;
   }
 }
 </script>
@@ -300,27 +309,30 @@ async function removeDevice() {
           No devices yet. Save a scene first, then add your panel.
         </p>
         <div class="space-y-2">
-          <button
-            v-for="device in displays"
-            :key="device.id"
-            type="button"
-            :aria-pressed="selectedId === device.id"
-            class="w-full rounded-lg border px-4 py-3 text-left text-sm transition"
-            :class="
-              selectedId === device.id
-                ? 'border-[var(--panel-text)] bg-sky-50'
-                : 'border-[var(--panel-border)] bg-white hover:border-slate-400'
-            "
-            @click="selectDevice(device)"
-          >
-            <span class="block font-semibold">{{
-              device.name || device.display_id
-            }}</span>
-            <span
-              class="mt-1 block font-mono text-xs text-[var(--muted-text)]"
-              >{{ device.display_id }}</span
+          <div v-for="device in displays" :key="device.id" class="flex items-stretch gap-2">
+            <button
+              type="button"
+              :aria-pressed="selectedId === device.id"
+              class="min-w-0 flex-1 rounded-lg border px-4 py-3 text-left text-sm transition"
+              :class="
+                selectedId === device.id
+                  ? 'border-[var(--panel-text)] bg-sky-50'
+                  : 'border-[var(--panel-border)] bg-white hover:border-slate-400'
+              "
+              @click="selectDevice(device)"
             >
-          </button>
+              <span class="block font-semibold">{{ device.name || device.display_id }}</span>
+              <span class="mt-1 block font-mono text-xs text-[var(--muted-text)]">{{ device.display_id }}</span>
+            </button>
+            <button
+              type="button"
+              :aria-label="'Delete device ' + (device.name || device.display_id)"
+              class="self-center rounded-lg border border-rose-200 p-2.5 text-rose-700 hover:bg-rose-50"
+              @click="pendingDelete = device"
+            >
+              <UIcon name="i-lucide-trash-2" class="size-4" aria-hidden="true" />
+            </button>
+          </div>
         </div>
       </UCard>
       <UCard :ui="{ body: 'space-y-5 p-5 sm:p-6' }">
@@ -485,39 +497,22 @@ async function removeDevice() {
             >. This ID is permanent and remains in the firmware.
           </p>
           <button
-            v-if="!confirmDelete"
             type="button"
             class="text-sm font-medium text-rose-700 underline"
-            @click="confirmDelete = true"
+            @click="pendingDelete = selected"
           >
             Delete device…
           </button>
-          <div
-            v-else
-            class="space-y-3 rounded-lg border border-rose-300 bg-rose-50 p-4 text-sm"
-          >
-            <p>
-              Delete this device configuration? The physical hardware will not
-              be erased. Scenes and schedules will remain.
-            </p>
-            <button
-              type="button"
-              :disabled="deleting"
-              class="rounded bg-rose-700 px-3 py-2 font-semibold text-white"
-              @click="removeDevice"
-            >
-              Confirm delete
-            </button>
-            <button
-              type="button"
-              class="ml-3 underline"
-              @click="confirmDelete = false"
-            >
-              Cancel
-            </button>
-          </div>
         </div>
       </UCard>
     </div>
+    <ConfirmDeleteDialog
+      :open="!!pendingDelete"
+      kind="device"
+      :name="pendingDelete?.name || pendingDelete?.display_id || ''"
+      :loading="deleting"
+      @update:open="if (!$event) pendingDelete = null"
+      @confirm="removeDevice"
+    />
   </section>
 </template>
