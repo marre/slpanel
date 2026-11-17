@@ -9,8 +9,12 @@ import type { SceneStore } from './scene-store';
 import type { DisplayRecord } from './types';
 import type { DeviceAssignment, EffectiveScene } from './scene-types';
 import {
-  parseDataSource, parseScene, parseDeviceAssignment, parseSchedule,
-  selectScheduledScene, nextScheduleTransition,
+  parseDataSource,
+  parseScene,
+  parseDeviceAssignment,
+  parseSchedule,
+  selectScheduledScene,
+  nextScheduleTransition,
 } from './scene-service';
 import { ApiError, isApiError } from './errors';
 import { createTrafiklabProvider } from './trafiklab-provider';
@@ -54,7 +58,10 @@ export function createApp(options: AppOptions = {}) {
     Boolean(getBindings(context).DB || options.createSceneStore);
   const now = options.now ?? (() => new Date());
 
-  async function resolve(display: DisplayRecord, store: SceneStore): Promise<{
+  async function resolve(
+    display: DisplayRecord,
+    store: SceneStore,
+  ): Promise<{
     display: DisplayRecord;
     effective: EffectiveScene;
     assignment: DeviceAssignment | null;
@@ -69,36 +76,63 @@ export function createApp(options: AppOptions = {}) {
       mode = 'scene';
       reason = 'direct';
     } else if (assignment?.kind === 'schedule' && assignment.schedule_id) {
-      const schedule = await store.getSchedule(display.owner_id, assignment.schedule_id);
+      const schedule = await store.getSchedule(
+        display.owner_id,
+        assignment.schedule_id,
+      );
       if (schedule) {
-        sceneId = selectScheduledScene(schedule,now());
+        sceneId = selectScheduledScene(schedule, now());
         mode = sceneId ? 'scene' : 'off';
         reason = 'schedule';
-        nextTransition = nextScheduleTransition(schedule,now());
+        nextTransition = nextScheduleTransition(schedule, now());
       }
     }
-    const scene = sceneId ? await store.getScene(display.owner_id,sceneId) : null;
-    const source = scene ? await store.getSource(display.owner_id,scene.data_source_id) : null;
+    const scene = sceneId
+      ? await store.getScene(display.owner_id, sceneId)
+      : null;
+    const source = scene
+      ? await store.getSource(display.owner_id, scene.data_source_id)
+      : null;
     const effective: EffectiveScene = {
-      mode, reason, scene, data_source: source,
-      schedule_id: assignment?.kind === 'schedule' ? assignment.schedule_id : null,
+      mode,
+      reason,
+      scene,
+      data_source: source,
+      schedule_id:
+        assignment?.kind === 'schedule' ? assignment.schedule_id : null,
       next_transition_at: nextTransition,
     };
-    const resolved = mode === 'off'
-      ? { ...display, site_id: null, site_name: null,
-          line_numbers: [], directions: [], modes: [] }
-      : source
-        ? { ...display, site_id: source.site_id, site_name: source.site_name,
-            refresh_interval: source.refresh_interval, line_numbers: source.line_numbers,
-            directions: source.directions, modes: source.modes }
-        : display;
+    const resolved =
+      mode === 'off'
+        ? {
+            ...display,
+            site_id: null,
+            site_name: null,
+            line_numbers: [],
+            directions: [],
+            modes: [],
+          }
+        : source
+          ? {
+              ...display,
+              site_id: source.site_id,
+              site_name: source.site_name,
+              refresh_interval: source.refresh_interval,
+              line_numbers: source.line_numbers,
+              directions: source.directions,
+              modes: source.modes,
+            }
+          : display;
     return { display: resolved, effective, assignment };
   }
 
   async function requireDisplay(context: ApiContext): Promise<DisplayRecord> {
     const id = validateDisplayResourceId(context.req.param('id') ?? '');
-    const display = await createDisplayStore(getBindings(context).DB).getById(id);
-    if (!display) throw new ApiError(404,'display_not_found','Display not found.');
+    const display = await createDisplayStore(getBindings(context).DB).getById(
+      id,
+    );
+    if (!display)
+      throw new ApiError(404, 'display_not_found', 'Display not found.');
     return display;
   }
 
@@ -208,9 +242,7 @@ export function createApp(options: AppOptions = {}) {
     }
 
     if (hasScenes(context)) {
-      await createSceneStore(getBindings(context).DB).syncLegacy(
-        display,
-      );
+      await createSceneStore(getBindings(context).DB).syncLegacy(display);
     }
     return context.json({ display });
   });
@@ -232,70 +264,131 @@ export function createApp(options: AppOptions = {}) {
   // deployments with a proper access layer before exposing writes publicly.
   api.get('/data-sources', async (context) => {
     const owner = parseOwnerQuery(context.req.query('owner'));
-    return context.json({ data_sources: await createSceneStore(getBindings(context).DB).listSources(owner) });
+    return context.json({
+      data_sources: await createSceneStore(getBindings(context).DB).listSources(
+        owner,
+      ),
+    });
   });
   api.post('/data-sources', async (context) => {
     const input = parseDataSource(await readJsonBody(context));
-    return context.json({ data_source: await createSceneStore(getBindings(context).DB).saveSource(input) },201);
+    return context.json(
+      {
+        data_source: await createSceneStore(getBindings(context).DB).saveSource(
+          input,
+        ),
+      },
+      201,
+    );
   });
   api.put('/data-sources/:sourceId', async (context) => {
     const input = parseDataSource(await readJsonBody(context));
-    return context.json({ data_source: await createSceneStore(getBindings(context).DB).saveSource(input,context.req.param('sourceId')) });
+    return context.json({
+      data_source: await createSceneStore(getBindings(context).DB).saveSource(
+        input,
+        context.req.param('sourceId'),
+      ),
+    });
   });
   api.delete('/data-sources/:sourceId', async (context) => {
     const owner = parseOwnerQuery(context.req.query('owner'));
-    if (!await createSceneStore(getBindings(context).DB).deleteSource(owner,context.req.param('sourceId')))
-      throw new ApiError(404,'source_not_found','Data source not found.');
-    return context.body(null,204);
+    if (
+      !(await createSceneStore(getBindings(context).DB).deleteSource(
+        owner,
+        context.req.param('sourceId'),
+      ))
+    )
+      throw new ApiError(404, 'source_not_found', 'Data source not found.');
+    return context.body(null, 204);
   });
   api.get('/scenes', async (context) => {
     const owner = parseOwnerQuery(context.req.query('owner'));
-    return context.json({ scenes: await createSceneStore(getBindings(context).DB).listScenes(owner) });
+    return context.json({
+      scenes: await createSceneStore(getBindings(context).DB).listScenes(owner),
+    });
   });
   api.post('/scenes', async (context) => {
     const input = parseScene(await readJsonBody(context));
-    return context.json({ scene: await createSceneStore(getBindings(context).DB).saveScene(input) },201);
+    return context.json(
+      {
+        scene: await createSceneStore(getBindings(context).DB).saveScene(input),
+      },
+      201,
+    );
   });
   api.put('/scenes/:sceneId', async (context) => {
     const input = parseScene(await readJsonBody(context));
-    return context.json({ scene: await createSceneStore(getBindings(context).DB).saveScene(input,context.req.param('sceneId')) });
+    return context.json({
+      scene: await createSceneStore(getBindings(context).DB).saveScene(
+        input,
+        context.req.param('sceneId'),
+      ),
+    });
   });
   api.delete('/scenes/:sceneId', async (context) => {
     const owner = parseOwnerQuery(context.req.query('owner'));
-    if (!await createSceneStore(getBindings(context).DB).deleteScene(owner,context.req.param('sceneId')))
-      throw new ApiError(404,'scene_not_found','Scene not found.');
-    return context.body(null,204);
+    if (
+      !(await createSceneStore(getBindings(context).DB).deleteScene(
+        owner,
+        context.req.param('sceneId'),
+      ))
+    )
+      throw new ApiError(404, 'scene_not_found', 'Scene not found.');
+    return context.body(null, 204);
   });
   api.get('/schedules', async (context) => {
     const owner = parseOwnerQuery(context.req.query('owner'));
-    return context.json({ schedules: await createSceneStore(getBindings(context).DB).listSchedules(owner) });
+    return context.json({
+      schedules: await createSceneStore(getBindings(context).DB).listSchedules(
+        owner,
+      ),
+    });
   });
   api.post('/schedules', async (context) => {
     const input = parseSchedule(await readJsonBody(context));
-    return context.json({ schedule: await createSceneStore(getBindings(context).DB).saveSchedule(input) },201);
+    return context.json(
+      {
+        schedule: await createSceneStore(getBindings(context).DB).saveSchedule(
+          input,
+        ),
+      },
+      201,
+    );
   });
   api.put('/schedules/:scheduleId', async (context) => {
     const input = parseSchedule(await readJsonBody(context));
-    return context.json({ schedule: await createSceneStore(getBindings(context).DB).saveSchedule(input,context.req.param('scheduleId')) });
+    return context.json({
+      schedule: await createSceneStore(getBindings(context).DB).saveSchedule(
+        input,
+        context.req.param('scheduleId'),
+      ),
+    });
   });
   api.delete('/schedules/:scheduleId', async (context) => {
     const owner = parseOwnerQuery(context.req.query('owner'));
-    if (!await createSceneStore(getBindings(context).DB).deleteSchedule(owner,context.req.param('scheduleId')))
-      throw new ApiError(404,'schedule_not_found','Schedule not found.');
-    return context.body(null,204);
+    if (
+      !(await createSceneStore(getBindings(context).DB).deleteSchedule(
+        owner,
+        context.req.param('scheduleId'),
+      ))
+    )
+      throw new ApiError(404, 'schedule_not_found', 'Schedule not found.');
+    return context.body(null, 204);
   });
   api.get('/displays/:id/assignment', async (context) => {
     const display = await requireDisplay(context);
-    context.header('Cache-Control','no-store');
-    return context.json(await resolve(display,createSceneStore(getBindings(context).DB)));
+    context.header('Cache-Control', 'no-store');
+    return context.json(
+      await resolve(display, createSceneStore(getBindings(context).DB)),
+    );
   });
   api.put('/displays/:id/assignment', async (context) => {
     const display = await requireDisplay(context);
     const input = parseDeviceAssignment(await readJsonBody(context));
     const store = createSceneStore(getBindings(context).DB);
-    await store.saveAssignment(display.id,display.owner_id,input);
-    context.header('Cache-Control','no-store');
-    return context.json(await resolve(display,store));
+    await store.saveAssignment(display.id, display.owner_id, input);
+    context.header('Cache-Control', 'no-store');
+    return context.json(await resolve(display, store));
   });
 
   api.get('/stops/search', async (context) => {

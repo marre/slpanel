@@ -29,7 +29,9 @@ export interface ScheduleRuleInput {
   end_time: string;
   scene_id: string;
 }
-export interface ScheduleRule extends ScheduleRuleInput { id: string }
+export interface ScheduleRule extends ScheduleRuleInput {
+  id: string;
+}
 export interface ScheduleRecord {
   id: string;
   owner_id: string;

@@ -8,14 +8,21 @@ const STORAGE_KEY = 'slpanel.owner-id';
 export function useOwnerWorkspace() {
   const route = useRoute();
   const router = useRouter();
-  const owner = computed(() => typeof route.query.owner === 'string' ? route.query.owner : '');
+  const owner = computed(() =>
+    typeof route.query.owner === 'string' ? route.query.owner : '',
+  );
   const ownerInput = ref(owner.value);
   const ownerError = ref('');
-  watch(owner, (value) => {
-    ownerInput.value = value;
-    ownerError.value = '';
-    if (VALID_OWNER.test(value)) window.localStorage.setItem(STORAGE_KEY,value);
-  }, { immediate: true });
+  watch(
+    owner,
+    (value) => {
+      ownerInput.value = value;
+      ownerError.value = '';
+      if (VALID_OWNER.test(value))
+        window.localStorage.setItem(STORAGE_KEY, value);
+    },
+    { immediate: true },
+  );
   onMounted(() => {
     if (owner.value) return;
     const stored = window.localStorage.getItem(STORAGE_KEY);

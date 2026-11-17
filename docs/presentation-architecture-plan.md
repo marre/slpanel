@@ -63,7 +63,7 @@ The resolver uses an injectable clock for deterministic tests. `next_transition_
 
 Firmware still calls the old config endpoint with its permanent physical display ID. Scene-only switches work on old firmware on its existing configuration polling cadence. Hardware blanking, departure polling suspension and fast wake-up when a schedule switches to Off still require the separate slpanel-rust implementation. Legacy firmware may display a missing-stop state rather than fully blanking the HUB75 panel.
 
-The firmware should consume only the *effective* scene/mode; it must not implement local timezone or recurrence logic. Renderers receive normalized departure snapshots; switching renderers with the same source must not trigger unnecessary network fetches. A new data source invalidates stale previous-stop data before rendering.
+The firmware should consume only the _effective_ scene/mode; it must not implement local timezone or recurrence logic. Renderers receive normalized departure snapshots; switching renderers with the same source must not trigger unnecessary network fetches. A new data source invalidates stale previous-stop data before rendering.
 
 ## Acceptance criteria
 

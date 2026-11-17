@@ -40,7 +40,8 @@
             Devices <span aria-hidden="true">→</span>
           </h3>
           <p class="mt-3 leading-7 text-[var(--muted-text)]">
-            Assign a scene or a reusable schedule to each physical panel. Create scenes with a live preview on the Scenes page.
+            Assign a scene or a reusable schedule to each physical panel. Create
+            scenes with a live preview on the Scenes page.
           </p>
         </RouterLink>
         <RouterLink to="/device" class="action-card">
