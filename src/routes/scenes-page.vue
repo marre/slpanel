@@ -12,7 +12,12 @@ import type {
   SceneRecord,
 } from '@/api/scene-types';
 import { listDepartures } from '@/lib/config-api';
-import { directionOptions, lineOptions, sourceSaveDecision, transportModeOptions } from '@/lib/scene-editor';
+import {
+  directionOptions,
+  lineOptions,
+  sourceSaveDecision,
+  transportModeOptions,
+} from '@/lib/scene-editor';
 import {
   listScenes,
   listSources,
@@ -68,7 +73,11 @@ function filtersText(source: DataSourceInput) {
   modes.value = [...source.modes];
 }
 function modesChanged(values: string[]) {
-  modes.value = [...new Set(values.map((value) => value.trim().toUpperCase()).filter(Boolean))];
+  modes.value = [
+    ...new Set(
+      values.map((value) => value.trim().toUpperCase()).filter(Boolean),
+    ),
+  ];
 }
 function edit(scene: SceneRecord) {
   selectedId.value = scene.id;
@@ -154,14 +163,19 @@ const previewPoll = usePolling<DepartureRecord[]>(
 const departureHints = computed(() => previewPoll.data.value ?? []);
 const availableModes = computed(() => {
   const options = [...transportModeOptions];
-  for (const mode of [...modes.value, ...departureHints.value.map((d) => d.transport_mode)]) {
+  for (const mode of [
+    ...modes.value,
+    ...departureHints.value.map((d) => d.transport_mode),
+  ]) {
     if (!options.some((option) => option.value === mode)) {
       options.push({ value: mode, label: mode, transportMode: '' });
     }
   }
   return options;
 });
-const availableLines = computed(() => lineOptions(departureHints.value, modes.value));
+const availableLines = computed(() =>
+  lineOptions(departureHints.value, modes.value),
+);
 const availableDirections = computed(() =>
   directionOptions(departureHints.value, lines.value, modes.value),
 );
@@ -169,7 +183,8 @@ const filteredDepartures = computed(() =>
   departureHints.value.filter(
     (departure) =>
       (!lines.value.length || lines.value.includes(departure.line_number)) &&
-      (!directions.value.length || directions.value.includes(departure.destination)) &&
+      (!directions.value.length ||
+        directions.value.includes(departure.destination)) &&
       (!modes.value.length || modes.value.includes(departure.transport_mode)),
   ),
 );
@@ -195,20 +210,31 @@ async function persist() {
     const data: DataSourceInput = {
       ...sourceDraft.value,
       owner_id: owner.value,
-      name: sourceDraft.value.name.trim() || sourceDraft.value.site_name || name.value.trim(),
+      name:
+        sourceDraft.value.name.trim() ||
+        sourceDraft.value.site_name ||
+        name.value.trim(),
       line_numbers: [...lines.value],
       directions: [...directions.value],
       modes: [...modes.value],
     };
     const scene = scenes.value.find((item) => item.id === selectedId.value);
-    const source = sources.value.find((item) => item.id === scene?.data_source_id);
-    const decision = sourceSaveDecision(source, scenes.value, selectedId.value, data);
+    const source = sources.value.find(
+      (item) => item.id === scene?.data_source_id,
+    );
+    const decision = sourceSaveDecision(
+      source,
+      scenes.value,
+      selectedId.value,
+      data,
+    );
     let selectedSourceId = source?.id;
     if (decision.save) {
       const savedSource = await saveSource(data, decision.updateId);
       selectedSourceId = savedSource.id;
     }
-    if (!selectedSourceId) throw new Error('Could not save stop configuration.');
+    if (!selectedSourceId)
+      throw new Error('Could not save stop configuration.');
     const saved = await saveScene(
       {
         owner_id: owner.value,
@@ -422,7 +448,9 @@ function description(scene: SceneRecord) {
               />
             </label>
             <div class="space-y-1.5">
-              <label for="stop-search" class="text-sm font-medium">Search stop</label>
+              <label for="stop-search" class="text-sm font-medium"
+                >Search stop</label
+              >
               <StopPicker
                 :site-id="sourceDraft.site_id"
                 :site-name="sourceDraft.site_name"
