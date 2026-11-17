@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import OwnerWorkspace from '@/components/owner-workspace.vue';
 import StopPicker from '@/components/stop-picker.vue';
 import DisplayBoard from '@/components/display-board.vue';
 import { useOwnerWorkspace } from '@/composables/use-owner-workspace';
@@ -299,7 +298,6 @@ function description(scene: SceneRecord) {
         schedules.
       </p>
     </header>
-    <OwnerWorkspace />
     <p
       v-if="status"
       role="status"
