@@ -43,7 +43,12 @@ const description = computed(() => {
       >
         Cancel
       </UButton>
-      <UButton color="error" :loading="loading" :disabled="loading" @click="emit('confirm')">
+      <UButton
+        color="error"
+        :loading="loading"
+        :disabled="loading"
+        @click="emit('confirm')"
+      >
         Delete {{ kind }}
       </UButton>
     </template>
