@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useOwnerWorkspace } from '@/composables/use-owner-workspace';
+import ConfirmDeleteDialog from '@/components/confirm-delete-dialog.vue';
 import type {
   SceneRecord,
   ScheduleInput,
@@ -26,7 +27,8 @@ const rules = ref<EditableRule[]>([]);
 const loading = ref(false);
 const saving = ref(false);
 const deleting = ref(false);
-const confirmDelete = ref(false);
+const pendingDelete = ref<ScheduleRecord | null>(null);
+const copyingId = ref<string | null>(null);
 const status = ref('');
 const error = ref('');
 const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -59,7 +61,7 @@ function edit(schedule: ScheduleRecord) {
   timezone.value = schedule.timezone;
   rules.value = schedule.rules.map(toEditable);
   editing.value = true;
-  confirmDelete.value = false;
+  pendingDelete.value = null;
   clearMessages();
 }
 function beginNew() {
@@ -68,7 +70,7 @@ function beginNew() {
   timezone.value = 'Europe/Stockholm';
   rules.value = [];
   editing.value = true;
-  confirmDelete.value = false;
+  pendingDelete.value = null;
   clearMessages();
 }
 function appendRule() {
@@ -110,6 +112,7 @@ watch(
     scenes.value = [];
     selectedId.value = null;
     editing.value = false;
+    pendingDelete.value = null;
     clearMessages();
     if (!id) return;
     loading.value = true;
@@ -164,16 +167,47 @@ async function persist() {
     saving.value = false;
   }
 }
+async function copySchedule(schedule: ScheduleRecord) {
+  if (copyingId.value || saving.value || deleting.value) return;
+  copyingId.value = schedule.id;
+  clearMessages();
+  try {
+    const copy = await saveSchedule({
+      owner_id: owner.value,
+      name: ('Copy of ' + schedule.name).slice(0, 120),
+      timezone: schedule.timezone,
+      rules: schedule.rules.map(({ days, start_time, end_time, scene_id }) => ({
+        days: [...days],
+        start_time,
+        end_time,
+        scene_id,
+      })),
+    });
+    if (owner.value !== schedule.owner_id) return;
+    await refreshSchedules();
+    edit(copy);
+    status.value = 'Schedule copied. The original schedule is unchanged.';
+  } catch (failure) {
+    error.value = err(failure);
+  } finally {
+    copyingId.value = null;
+  }
+}
+
 async function remove() {
-  if (!selectedId.value || !confirmDelete.value || deleting.value) return;
+  const schedule = pendingDelete.value;
+  if (!schedule || deleting.value) return;
   deleting.value = true;
   clearMessages();
   try {
-    await removeSchedule(owner.value, selectedId.value);
+    await removeSchedule(schedule.owner_id, schedule.id);
+    if (owner.value !== schedule.owner_id) return;
     await refreshSchedules();
-    editing.value = false;
-    selectedId.value = null;
-    confirmDelete.value = false;
+    pendingDelete.value = null;
+    if (selectedId.value === schedule.id) {
+      editing.value = false;
+      selectedId.value = null;
+    }
     status.value = 'Schedule deleted. Scenes are unchanged.';
   } catch (failure) {
     error.value = err(failure);
@@ -256,26 +290,44 @@ async function remove() {
           No schedules yet. Define a few scene windows to get started.
         </div>
         <div class="space-y-2">
-          <button
-            v-for="schedule in schedules"
-            :key="schedule.id"
-            type="button"
-            :aria-pressed="selectedId === schedule.id"
-            class="w-full rounded-lg border px-4 py-3 text-left transition"
-            :class="
-              selectedId === schedule.id
-                ? 'border-[var(--panel-text)] bg-sky-50'
-                : 'border-[var(--panel-border)] bg-white hover:border-slate-400'
-            "
-            @click="edit(schedule)"
-          >
-            <span class="block text-sm font-semibold">{{ schedule.name }}</span>
-            <span class="mt-1 block text-xs text-[var(--muted-text)]"
-              >{{ schedule.rules.length }} time
-              {{ schedule.rules.length === 1 ? 'window' : 'windows' }} · Off
-              otherwise</span
+          <div v-for="schedule in schedules" :key="schedule.id" class="flex items-stretch gap-2">
+            <button
+              type="button"
+              :aria-pressed="selectedId === schedule.id"
+              class="min-w-0 flex-1 rounded-lg border px-4 py-3 text-left transition"
+              :class="
+                selectedId === schedule.id
+                  ? 'border-[var(--panel-text)] bg-sky-50'
+                  : 'border-[var(--panel-border)] bg-white hover:border-slate-400'
+              "
+              @click="edit(schedule)"
             >
-          </button>
+              <span class="block text-sm font-semibold">{{ schedule.name }}</span>
+              <span class="mt-1 block text-xs text-[var(--muted-text)]">
+                {{ schedule.rules.length }} time
+                {{ schedule.rules.length === 1 ? 'window' : 'windows' }} · Off otherwise
+              </span>
+            </button>
+            <div class="flex items-center gap-1">
+              <button
+                type="button"
+                :aria-label="'Copy schedule ' + schedule.name"
+                :disabled="!!copyingId || saving || deleting"
+                class="rounded-lg border border-[var(--panel-border)] p-2.5 hover:bg-slate-50 disabled:opacity-50"
+                @click="copySchedule(schedule)"
+              >
+                <UIcon name="i-lucide-copy" class="size-4" aria-hidden="true" />
+              </button>
+              <button
+                type="button"
+                :aria-label="'Delete schedule ' + schedule.name"
+                class="rounded-lg border border-rose-200 p-2.5 text-rose-700 hover:bg-rose-50"
+                @click="pendingDelete = schedule"
+              >
+                <UIcon name="i-lucide-trash-2" class="size-4" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
         </div>
         <p class="text-xs text-[var(--muted-text)]">
           A schedule does not belong to a single device. Assign it on the
@@ -490,38 +542,23 @@ async function remove() {
                 v-if="selectedId"
                 type="button"
                 class="ml-auto text-sm font-semibold text-rose-700 underline"
-                @click="confirmDelete = true"
+                @click="pendingDelete = selected ?? null"
               >
                 Delete…
               </button>
             </div>
           </form>
-          <div
-            v-if="confirmDelete"
-            class="space-y-3 rounded-lg border border-rose-300 bg-rose-50 p-4 text-sm"
-          >
-            <p>
-              Delete this schedule? Devices using it must be switched to another
-              scene or schedule first.
-            </p>
-            <button
-              type="button"
-              :disabled="deleting"
-              class="rounded-lg bg-rose-700 px-3 py-2 font-semibold text-white"
-              @click="remove"
-            >
-              Confirm delete
-            </button>
-            <button
-              type="button"
-              class="ml-3 underline"
-              @click="confirmDelete = false"
-            >
-              Cancel
-            </button>
-          </div>
+
         </template>
       </UCard>
     </div>
+    <ConfirmDeleteDialog
+      :open="!!pendingDelete"
+      kind="schedule"
+      :name="pendingDelete?.name || ''"
+      :loading="deleting"
+      @update:open="if (!$event) pendingDelete = null"
+      @confirm="remove"
+    />
   </section>
 </template>
