@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
-import OwnerWorkspace from '@/components/owner-workspace.vue';
 import { useOwnerWorkspace } from '@/composables/use-owner-workspace';
 import type {
   SceneRecord,
@@ -200,7 +199,6 @@ async function remove() {
         can share one schedule, so a single change updates all of them.
       </p>
     </header>
-    <OwnerWorkspace />
     <div
       class="flex items-start gap-3 rounded-xl border border-[var(--panel-border)] bg-slate-50 p-4"
     >
