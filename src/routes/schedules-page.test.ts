@@ -197,6 +197,9 @@ describe('Schedule list actions', () => {
     expect(await screen.findByText('Delete schedule?')).toBeInTheDocument();
     expect(deleted).toEqual([]);
     await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    );
     expect(deleted).toEqual([]);
     await fireEvent.click(
       screen.getByRole('button', { name: 'Delete schedule Weekdays' }),
