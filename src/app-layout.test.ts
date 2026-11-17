@@ -71,6 +71,12 @@ describe('AppLayout', () => {
     expect(window.localStorage.getItem('slpanel.owner-id')).toBe('Cd56Ef78');
   });
 
+  it('exposes persistent navigation at desktop widths without a hamburger', async () => {
+    await renderLayout();
+    expect(screen.getByRole('button', { name: 'Menu' })).toHaveClass('lg:hidden');
+    expect(screen.getByRole('navigation')).toHaveClass('lg:flex');
+  });
+
   it('opens the mobile menu, navigates and closes it', async () => {
     await renderLayout();
     const button = screen.getByRole('button', {
