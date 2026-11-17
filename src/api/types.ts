@@ -10,7 +10,7 @@ export interface DisplayRecord {
   directions: string[];
   modes: string[];
   // Client-side effective output mode; absent in legacy configurations.
-  output_mode?: 'legacy' | 'presentation' | 'off';
+  output_mode?: 'legacy' | 'scene' | 'off';
 }
 
 export interface CreateDisplayInput {
