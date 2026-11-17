@@ -26,7 +26,7 @@ const original = {
 
 describe('Scenes list actions', () => {
   const fetchMock = vi.fn<typeof fetch>();
-  let scenes: typeof original[];
+  let scenes: (typeof original)[];
   let copied: Record<string, unknown> | null;
   let deleted: string[];
   beforeEach(() => {
@@ -75,7 +75,9 @@ describe('Scenes list actions', () => {
 
   it('copies a scene with its existing source and selects the copy', async () => {
     await renderList();
-    await fireEvent.click(screen.getByRole('button', { name: 'Copy scene Morning' }));
+    await fireEvent.click(
+      screen.getByRole('button', { name: 'Copy scene Morning' }),
+    );
     await waitFor(() =>
       expect(copied).toMatchObject({
         owner_id: owner,
@@ -84,13 +86,19 @@ describe('Scenes list actions', () => {
         visualization: 'departures-list',
       }),
     );
-    expect(await screen.findByRole('button', { name: 'Copy scene Copy of Morning' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Copy of Morning' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Copy scene Copy of Morning' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Copy of Morning' }),
+    ).toBeInTheDocument();
   });
 
   it('only deletes a scene after confirming its modal', async () => {
     await renderList();
-    await fireEvent.click(screen.getByRole('button', { name: 'Delete scene Morning' }));
+    await fireEvent.click(
+      screen.getByRole('button', { name: 'Delete scene Morning' }),
+    );
     expect(await screen.findByText('Delete scene?')).toBeInTheDocument();
     expect(deleted).toEqual([]);
     await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -98,9 +106,15 @@ describe('Scenes list actions', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
     );
     expect(deleted).toEqual([]);
-    await fireEvent.click(screen.getByRole('button', { name: 'Delete scene Morning' }));
-    await fireEvent.click(await screen.findByRole('button', { name: 'Delete scene', exact: true }));
+    await fireEvent.click(
+      screen.getByRole('button', { name: 'Delete scene Morning' }),
+    );
+    await fireEvent.click(
+      await screen.findByRole('button', { name: 'Delete scene', exact: true }),
+    );
     await waitFor(() => expect(deleted).toEqual([original.id]));
-    expect(screen.queryByRole('button', { name: 'Copy scene Morning' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Copy scene Morning' }),
+    ).not.toBeInTheDocument();
   });
 });
