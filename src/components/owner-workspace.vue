@@ -31,11 +31,7 @@ const { owner, ownerInput, ownerError, loadOwner } = useOwnerWorkspace();
     >
       {{ owner ? 'Switch' : 'Load' }}
     </button>
-    <p
-      v-if="ownerError"
-      role="alert"
-      class="w-full text-sm text-amber-100"
-    >
+    <p v-if="ownerError" role="alert" class="w-full text-sm text-amber-100">
       {{ ownerError }}
     </p>
     <p id="owner-id-help" class="sr-only">

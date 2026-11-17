@@ -15,42 +15,42 @@ const navigation = computed(() => {
     ? `?owner=${encodeURIComponent(owner.value)}`
     : '';
   return [
-  {
-    to: '/' + query,
-    label: 'Overview',
-    exact: true,
-    onSelect: () => {
-      menuOpen.value = false;
+    {
+      to: '/' + query,
+      label: 'Overview',
+      exact: true,
+      onSelect: () => {
+        menuOpen.value = false;
+      },
     },
-  },
-  {
-    to: '/devices' + query,
-    label: 'Devices',
-    onSelect: () => {
-      menuOpen.value = false;
+    {
+      to: '/devices' + query,
+      label: 'Devices',
+      onSelect: () => {
+        menuOpen.value = false;
+      },
     },
-  },
-  {
-    to: '/scenes' + query,
-    label: 'Scenes',
-    onSelect: () => {
-      menuOpen.value = false;
+    {
+      to: '/scenes' + query,
+      label: 'Scenes',
+      onSelect: () => {
+        menuOpen.value = false;
+      },
     },
-  },
-  {
-    to: '/schedules' + query,
-    label: 'Schedules',
-    onSelect: () => {
-      menuOpen.value = false;
+    {
+      to: '/schedules' + query,
+      label: 'Schedules',
+      onSelect: () => {
+        menuOpen.value = false;
+      },
     },
-  },
-  {
-    to: '/device' + query,
-    label: 'USB device',
-    onSelect: () => {
-      menuOpen.value = false;
+    {
+      to: '/device' + query,
+      label: 'USB device',
+      onSelect: () => {
+        menuOpen.value = false;
+      },
     },
-  },
   ];
 });
 </script>
