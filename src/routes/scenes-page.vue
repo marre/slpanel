@@ -373,47 +373,39 @@ function description(scene: SceneRecord) {
           <div
             v-for="scene in scenes"
             :key="scene.id"
-            class="flex items-stretch gap-2"
+            class="flex items-center gap-1 rounded-lg border p-1.5 transition"
+            :class="
+              selectedId === scene.id
+                ? 'border-[var(--panel-text)] bg-sky-50'
+                : 'border-[var(--panel-border)] bg-white hover:border-slate-400'
+            "
           >
             <button
               type="button"
               :aria-pressed="selectedId === scene.id"
-              class="min-w-0 flex-1 rounded-lg border px-4 py-3 text-left transition"
-              :class="
-                selectedId === scene.id
-                  ? 'border-[var(--panel-text)] bg-sky-50'
-                  : 'border-[var(--panel-border)] bg-white hover:border-slate-400'
-              "
+              class="min-w-0 flex-1 rounded-md px-3 py-2 text-left focus-visible:outline-2 focus-visible:outline-sky-700"
               @click="edit(scene)"
             >
               <span class="block text-sm font-semibold">{{ scene.name }}</span>
-              <span class="mt-1 block text-xs text-[var(--muted-text)]">{{
-                description(scene)
-              }}</span>
+              <span class="mt-1 block text-xs text-[var(--muted-text)]">{{ description(scene) }}</span>
             </button>
-            <div class="flex items-center gap-1">
-              <button
-                type="button"
-                :aria-label="'Copy scene ' + scene.name"
-                :disabled="!!copyingId || saving || deleting"
-                class="rounded-lg border border-[var(--panel-border)] p-2.5 hover:bg-slate-50 disabled:opacity-50"
-                @click="copyScene(scene)"
-              >
-                <UIcon name="i-lucide-copy" class="size-4" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                :aria-label="'Delete scene ' + scene.name"
-                class="rounded-lg border border-rose-200 p-2.5 text-rose-700 hover:bg-rose-50"
-                @click="pendingDelete = scene"
-              >
-                <UIcon
-                  name="i-lucide-trash-2"
-                  class="size-4"
-                  aria-hidden="true"
-                />
-              </button>
-            </div>
+            <button
+              type="button"
+              :aria-label="'Copy scene ' + scene.name"
+              :disabled="!!copyingId || saving || deleting"
+              class="shrink-0 rounded-md p-2.5 text-[var(--app-text)] hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-sky-700 disabled:opacity-50"
+              @click="copyScene(scene)"
+            >
+              <UIcon name="i-lucide-copy" class="size-4" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              :aria-label="'Delete scene ' + scene.name"
+              class="shrink-0 rounded-md p-2.5 text-rose-700 hover:bg-rose-100 focus-visible:outline-2 focus-visible:outline-rose-700"
+              @click="pendingDelete = scene"
+            >
+              <UIcon name="i-lucide-trash-2" class="size-4" aria-hidden="true" />
+            </button>
           </div>
         </div>
         <p class="text-xs text-[var(--muted-text)]">
