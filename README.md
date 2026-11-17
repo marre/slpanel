@@ -63,7 +63,7 @@ When you are ready to update the remote database too:
 npm run db:migrate:remote
 ```
 
-The migrations live in `migrations/0001_initial.sql` and `migrations/0002_presentations.sql`. Apply both **before deploying a Worker that uses the presentation API**. The initial migration creates:
+The migrations live in `migrations/0001_initial.sql` and `migrations/0002_scenes_schedules.sql`. Apply both **before deploying a Worker that uses the scene and schedule APIs**. The initial migration creates:
 
 - `owners`
 - `displays`
@@ -71,21 +71,24 @@ The migrations live in `migrations/0001_initial.sql` and `migrations/0002_presen
 - `display_direction_filters`
 - `display_mode_filters`
 
-The second migration creates `data_sources` with normalized line/direction/mode filter tables, `presentations`, `display_controls` and `display_schedule_rules`. Existing displays are imported as a default reusable presentation without changing their permanent device IDs. Run `npm run db:migrate:remote` before deploying this branch.
+The second migration creates reusable `data_sources` with normalized filters, `scenes`, `schedules`, `schedule_rules`, and exclusive `device_assignments`. Existing devices are migrated to direct scenes without changing their permanent IDs. Run `npm run db:migrate:remote` before deploying this branch.
 
 ## Current routes
 
 - `/` landing page with links into config and display flows
-- `/config` owner-based config workspace with a preview of unsaved filters
-- `/presentations` reusable full-screen presentation library, assignments and weekly schedules
+- `/devices` physical panel administration and scene/schedule assignment
+- `/scenes` reusable screen content and visualization editor with live preview
+- `/schedules` reusable weekly time windows; Off is implicit outside windows
+- `/config` redirects to `/devices` and `/presentations` redirects to `/scenes`
 - `/device` USB device configuration with automatic live logs, clipboard copy, and download using Web Serial
 - `/display/:displayId` public display board with live departures and auto-refresh
 - `/api/health` Worker health endpoint
 - `/api/displays` display CRUD root
 - `/api/displays/:id` effective device configuration (legacy flat `display` plus an `effective` block) and display CRUD
-- `/api/displays/:id/control` assignment, manual overrides and schedule management
+- `/api/displays/:id/assignment` direct scene or schedule selection
 - `/api/data-sources` and `/api/data-sources/:sourceId` reusable departure source CRUD
-- `/api/presentations` and `/api/presentations/:presentationId` presentation CRUD
+- `/api/scenes` and `/api/scenes/:sceneId` reusable scene CRUD
+- `/api/schedules` and `/api/schedules/:scheduleId` shared schedule CRUD
 - `/api/stops/search` stop search adapter
 - `/api/departures/:siteId` normalized departures adapter
 
@@ -312,65 +315,25 @@ the same shape:
 }
 ```
 
-## Config workflow
+## Devices, Scenes and Schedules
 
-The `/config` route now supports:
+The configuration workspace has three separate pages:
 
-- entering or recalling an owner ID
-- listing existing displays for that owner
-- creating, editing, and deleting displays
-- binding a single stop via search
-- configuring line, direction, and transport-mode filters
-- opening a saved display URL directly from the config screen
+- **Devices** (`/devices`) administers physical panels and selects either one fixed scene or one reusable schedule.
+- **Scenes** (`/scenes`) defines named fullscreen views of stops and filters; source data can be shared.
+- **Schedules** (`/schedules`) binds one or more scenes to non-overlapping weekly time windows. **Outside every window the device is Off.** This default is permanent and not configurable.
 
-## Reusable presentations and schedules
+One schedule can be linked to multiple devices, which will all resolve to the same scene or Off at the same moment. Weekly rules use an IANA timezone (default `Europe/Stockholm`), permit overnight windows, and are evaluated by the server on each configuration read. No background cron is required.
 
-The physical display ID remains fixed on the device. The Worker now resolves which
-reusable **presentation** it should show. Each presentation references a
-**data source** (stop, filters and refresh interval) plus a registered
-**full-screen visualization**. Only `departures-list` is accepted until a
-matching Rust renderer is released, avoiding unsupported layout configurations.
+`GET /api/displays/:id` remains backward compatible for existing firmware: the `display` object contains flat stop/refresh/filter values for the currently selected scene and a null stop when Off. Its `effective` object describes the selected scene, mode and optional next transition. The web preview rechecks configuration every 30 seconds.
 
-In **Presentations** (available in the main navigation and from each display
-in **My displays**), select a panel and:
+**Firmware limitation:** old firmware can switch stops at its existing configuration-check interval (~5 minutes) but does not guarantee hardware blanking or power saving for Off. True Off, faster switching, and future visualizations require a companion `slpanel-rust` update. The browser preview labels scheduled Off separately from missing stop.
 
-1. Create a presentation from a new stop or reuse an existing data source.
-2. Choose **Show now**, **Turn off now**, or **Resume schedule**. Manual
-   overrides can expire after 1, 3 or 12 hours, or remain active until cleared.
-3. Choose the default presentation and add weekly time windows, including
-   overnight windows and Off periods. Weekdays use the chosen IANA timezone
-   (default `Europe/Stockholm`). Overlapping windows are rejected.
+Run `npm run db:migrate:remote` **before** deploying this Worker. The second migration is `migrations/0002_scenes_schedules.sql` and replaces the unmerged experimental presentation schema.
 
-Server-side precedence is **manual override > matching schedule > default**.
-A schedule is evaluated on every device configuration read, so no background
-Cron Trigger is needed. The response includes a best-effort
-`next_transition_at` hint. The device must still periodically refetch
-configuration to handle clock skew and network interruptions.
+**Access control:** the eight-character owner ID is not authentication. As in the original v1 API, management endpoints are not protected. A real access-control layer is required before exposing these write APIs to untrusted users.
 
-`GET /api/displays/:id` remains backwards compatible for older firmware:
-`display` continues to contain the flat stop/refresh/filter configuration,
-but it is resolved from the active presentation. The response also contains
-`effective` with the mode (`presentation`, `off`, or `legacy`),
-presentation, data source, reason and transition hint. The browser preview
-checks effective configuration every 30 seconds.
-
-**Firmware rollout limitation:** changing stops works on old firmware at its
-existing configuration-check interval (~5 minutes). `Off` resolves to an
-empty legacy stop while exposing the explicit mode in `effective`, but **does
-not guarantee a black or powered-down physical panel** on old firmware.
-True Off behavior, faster switching and additional renderers require the
-companion `slpanel-rust` implementation. The web preview explicitly labels
-the Off state.
-
-The original My displays editor continues to edit the imported legacy
-configuration. If a panel is assigned to a different presentation, edits to
-that original configuration do not change the active selection. Use the
-presentation workspace for shared sources and schedules.
-
-**Access control:** the existing owner ID is not an authentication token.
-The v1 API does not authenticate writes, including the new presentation
-endpoints. Deploy the management API behind suitable access controls before
-exposing it to untrusted users; avoid treating predictable IDs as secrets.
+For the full architecture and rollout decisions, see [Devices, Scenes and Schedules](docs/presentation-architecture-plan.md).
 
 ## USB device workflow
 
@@ -383,7 +346,7 @@ connection button that cannot work.
 
 The page automatically loads the saved Wi-Fi name, service URL, and display ID
 from the device. **Reload settings** discards form edits and reads them again.
-From a saved display in `/config`, **Configure USB device** prefills that display
+From a saved device in `/devices`, **Configure over USB** prefills that display
 ID for binding it to the panel. The device reports whether a Wi-Fi password is
 saved, but never exports its value. Leave **Update Wi-Fi password** unchecked to
 preserve the durable password while changing the other settings. Check it to
