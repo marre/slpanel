@@ -48,10 +48,7 @@ export function directionOptions(
   lines: string[],
   modes: string[],
 ): FilterOption[] {
-  const seen = new Map<
-    string,
-    { lineNumber: string; transportMode: string }
-  >();
+  const seen = new Map<string, { lineNumber: string; transportMode: string }>();
   for (const departure of departures) {
     if (modes.length && !modes.includes(departure.transport_mode)) continue;
     if (lines.length && !lines.includes(departure.line_number)) continue;
