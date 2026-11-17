@@ -26,6 +26,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Show exact scene editor formatting patch
+        run: |
+          npx prettier --write src/lib/scene-editor.ts src/lib/scene-editor.test.ts
+          git diff -- src/lib/scene-editor.ts src/lib/scene-editor.test.ts
+
       - name: Run lint
         run: npm run lint
 
