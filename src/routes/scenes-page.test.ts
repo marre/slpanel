@@ -94,6 +94,9 @@ describe('Scenes list actions', () => {
     expect(await screen.findByText('Delete scene?')).toBeInTheDocument();
     expect(deleted).toEqual([]);
     await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    );
     expect(deleted).toEqual([]);
     await fireEvent.click(screen.getByRole('button', { name: 'Delete scene Morning' }));
     await fireEvent.click(await screen.findByRole('button', { name: 'Delete scene', exact: true }));
