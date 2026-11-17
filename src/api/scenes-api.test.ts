@@ -180,4 +180,81 @@ describe('scene and shared schedule API', () => {
     expect(data.assignment.scene_id).toContain('legacy-scene:');
     expect(data.effective.mode).toBe('scene');
   });
+  it('does not overwrite edited scene data when a migrated device is renamed', async () => {
+    const displays = createMemoryDisplayStore();
+    const scenes = createMemorySceneStore();
+    const app = createApp({
+      createDisplayStore: () => displays,
+      createSceneStore: () => scenes,
+    });
+
+    const created = await app.request(
+      '/api/displays',
+      json({
+        owner_id: OWNER,
+        name: 'Hallway',
+        site_id: '1011',
+        site_name: 'Original stop',
+        refresh_interval: 30,
+        line_numbers: ['17'],
+        directions: [],
+        modes: ['METRO'],
+      }),
+    );
+    expect(created.status).toBe(201);
+    const display = (await created.json()) as { display: { id: string } };
+    const id = display.display.id;
+    const sourceId = 'legacy-source:' + id;
+
+    const editedSource = await app.request(
+      '/api/data-sources/' + encodeURIComponent(sourceId),
+      json({
+        owner_id: OWNER,
+        name: 'Edited source',
+        site_id: '9192',
+        site_name: 'Updated stop',
+        refresh_interval: 60,
+        line_numbers: ['18'],
+        directions: ['Northbound'],
+        modes: ['BUS'],
+      }, 'PUT'),
+    );
+    expect(editedSource.status).toBe(200);
+
+    const renamed = await app.request(
+      '/api/displays/' + encodeURIComponent(id),
+      json({ name: 'Renamed hallway' }, 'PUT'),
+    );
+    expect(renamed.status).toBe(200);
+    const sourceAfterRename = await scenes.getSource(OWNER, sourceId);
+    expect(sourceAfterRename).toMatchObject({
+      name: 'Edited source',
+      site_id: '9192',
+      site_name: 'Updated stop',
+      refresh_interval: 60,
+      line_numbers: ['18'],
+      directions: ['Northbound'],
+      modes: ['BUS'],
+    });
+    const effective = await app.request('/api/displays/' + encodeURIComponent(id));
+    const effectiveBody = (await effective.json()) as {
+      display: { name: string; site_id: string | null };
+    };
+    expect(effectiveBody.display.name).toBe('Renamed hallway');
+    expect(effectiveBody.display.site_id).toBe('9192');
+
+    // Legacy firmware configuration edits still intentionally sync its
+    // compatibility stop/filter fields into the imported reusable source.
+    const legacyUpdate = await app.request(
+      '/api/displays/' + encodeURIComponent(id),
+      json({ site_id: '2022', site_name: 'Legacy update', line_numbers: ['21'] }, 'PUT'),
+    );
+    expect(legacyUpdate.status).toBe(200);
+    expect(await scenes.getSource(OWNER, sourceId)).toMatchObject({
+      site_id: '2022',
+      site_name: 'Legacy update',
+      line_numbers: ['21'],
+    });
+  });
+
 });
