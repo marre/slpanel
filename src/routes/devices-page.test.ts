@@ -115,3 +115,78 @@ describe('Devices page', () => {
     ).toBeInTheDocument();
   });
 });
+
+describe('Device list deletion', () => {
+  const fetchMock = vi.fn<typeof fetch>();
+  const deleted: string[] = [];
+  beforeEach(() => {
+    window.localStorage.clear();
+    deleted.length = 0;
+    fetchMock.mockImplementation(async (input, init) => {
+      const path = String(input);
+      if (path.startsWith('/api/displays?')) {
+        return Response.json({ displays: deleted.length ? [] : [display] });
+      }
+      if (path.startsWith('/api/scenes?')) {
+        return Response.json({ scenes: [scene] });
+      }
+      if (path.startsWith('/api/schedules?')) {
+        return Response.json({ schedules: [] });
+      }
+      if (path.endsWith('/assignment')) {
+        return Response.json({
+          display,
+          assignment: {
+            display_id: display.id,
+            kind: 'scene',
+            scene_id: scene.id,
+            schedule_id: null,
+          },
+          effective: {
+            mode: 'scene',
+            reason: 'direct',
+            scene,
+            data_source: null,
+            schedule_id: null,
+            next_transition_at: null,
+          },
+        });
+      }
+      if (path.startsWith('/api/displays/') && init?.method === 'DELETE') {
+        deleted.push(path.slice('/api/displays/'.length));
+        return new Response(null, { status: 204 });
+      }
+      throw new Error('Unexpected request ' + path);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    fetchMock.mockReset();
+  });
+
+  it('does not delete the device without modal confirmation', async () => {
+    await render(
+      routerFixture(
+        ['/devices?owner=' + owner],
+        [[{ path: '/devices', element: h(DevicesPage), children: [] }]],
+      ),
+    );
+    const deleteButton = await screen.findByRole('button', {
+      name: 'Delete device Hallway panel',
+    });
+    await fireEvent.click(deleteButton);
+    expect(await screen.findByText('Delete device?')).toBeInTheDocument();
+    expect(deleted).toEqual([]);
+    await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(deleted).toEqual([]);
+    await fireEvent.click(deleteButton);
+    await fireEvent.click(
+      await screen.findByRole('button', { name: 'Delete device', exact: true }),
+    );
+    await waitFor(() => expect(deleted).toEqual([display.id]));
+    expect(
+      screen.queryByRole('button', { name: 'Delete device Hallway panel' }),
+    ).not.toBeInTheDocument();
+  });
+});
