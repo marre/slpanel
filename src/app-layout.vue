@@ -7,36 +7,12 @@ const isHome = computed(() => route.path === '/');
 const menuOpen = ref(false);
 const menuButton = ref<{ $el: HTMLButtonElement } | null>(null);
 const navigation = [
-  {
-    to: '/',
-    label: 'Overview',
-    exact: true,
-    onSelect: () => {
-      menuOpen.value = false;
-    },
-  },
-  {
-    to: '/config',
-    label: 'My displays',
-    onSelect: () => {
-      menuOpen.value = false;
-    },
-  },
-  {
-    to: '/presentations',
-    label: 'Presentations',
-    onSelect: () => {
-      menuOpen.value = false;
-    },
-  },
-  {
-    to: '/device',
-    label: 'USB device',
-    onSelect: () => {
-      menuOpen.value = false;
-    },
-  },
-];
+  { to: '/', label: 'Overview', exact: true, onSelect: () => { menuOpen.value = false; } },
+  { to: '/devices', label: 'Devices', onSelect: () => { menuOpen.value = false; } },
+  { to: '/scenes', label: 'Scenes', onSelect: () => { menuOpen.value = false; } },
+  { to: '/schedules', label: 'Schedules', onSelect: () => { menuOpen.value = false; } },
+  { to: '/device', label: 'USB device', onSelect: () => { menuOpen.value = false; } },
+]
 </script>
 <template>
   <div class="min-h-screen bg-[var(--app-bg)] text-[var(--app-text)]">
