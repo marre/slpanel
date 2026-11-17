@@ -68,7 +68,7 @@ export async function getDisplay(
 ): Promise<DisplayRecord> {
   const response = await requestJson<{
     display: DisplayRecord;
-    effective?: { mode: 'legacy' | 'presentation' | 'off' };
+    effective?: { mode: 'legacy' | 'scene' | 'off' };
   }>(`/api/displays/${encodeURIComponent(displayId)}`, {
     signal,
   });
