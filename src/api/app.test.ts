@@ -111,13 +111,30 @@ describe('createApp', () => {
     expect(getResponse.status).toBe(200);
     expect(getPayload.display.id).toBe(displayId);
 
-    const snapshot = await app.request(`/api/v1/devices/${displayId}/snapshot`);
-    expect(snapshot.status).toBe(200);
-    expect(snapshot.headers.get('Cache-Control')).toBe('no-store');
-    expect(await snapshot.json()).toMatchObject({
+    const configResponse = await app.request(`/api/v1/devices/${displayId}/config`);
+    expect(configResponse.status).toBe(200);
+    expect(configResponse.headers.get('Cache-Control')).toBe('no-store');
+    const config = (await configResponse.json()) as {
+      version: number;
+      mode: string;
+      refresh_after_seconds: number;
+      data_refresh_seconds: number;
+      data_path: string;
+      departures: unknown[];
+    };
+    expect(config).toMatchObject({
       version: 1,
       mode: 'departures-list',
-      refresh_after_seconds: 45,
+      refresh_after_seconds: 30,
+      data_refresh_seconds: 45,
+      departures: [],
+    });
+    expect(config.data_path).toBe(`/api/v1/devices/${displayId}/data`);
+    const dataResponse = await app.request(config.data_path);
+    expect(dataResponse.status).toBe(200);
+    expect(await dataResponse.json()).toMatchObject({
+      version: 1,
+      mode: 'departures-list',
       departures: [{ line_number: '19' }],
     });
 
