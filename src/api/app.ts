@@ -238,19 +238,16 @@ export function createApp(options: AppOptions = {}) {
       ? await resolve(display, createSceneStore(getBindings(context).DB))
       : null;
     const active = resolved?.display ?? display;
-    const mode =
-      resolved?.effective.mode === 'off'
-        ? 'off'
-        : active.site_id
-          ? 'departures-list'
-          : 'unconfigured';
+    let mode: 'off' | 'departures-list' | 'unconfigured' = 'unconfigured';
+    if (resolved?.effective.mode === 'off') mode = 'off';
+    else if (active.site_id) mode = 'departures-list';
     const source = resolved?.effective.data_source;
-    const dataPath =
-      mode === 'departures-list'
-        ? source
-          ? `/api/v1/data/${encodeURIComponent(display.owner_id)}/${encodeURIComponent(source.id)}`
-          : `/api/v1/devices/${encodeURIComponent(display.id)}/data`
-        : null;
+    let dataPath: string | null = null;
+    if (mode === 'departures-list') {
+      dataPath = source
+        ? `/api/v1/data/${encodeURIComponent(display.owner_id)}/${encodeURIComponent(source.id)}`
+        : `/api/v1/devices/${encodeURIComponent(display.id)}/data`;
+    }
     context.header('Cache-Control', 'no-store');
     return context.json({
       version: 1,
@@ -288,10 +285,8 @@ export function createApp(options: AppOptions = {}) {
   // Shared path for all devices referencing the same data source.
   api.get('/v1/data/:owner/:sourceId', async (context) => {
     const owner = parseOwnerQuery(context.req.param('owner'));
-    const source = await createSceneStore(getBindings(context).DB).getSource(
-      owner,
-      context.req.param('sourceId'),
-    );
+    const store = createSceneStore(getBindings(context).DB);
+    const source = await store.getSource(owner, context.req.param('sourceId'));
     if (!source || !source.site_id)
       throw new ApiError(404, 'source_not_found', 'Data source not found.');
     return viewData(context, {
