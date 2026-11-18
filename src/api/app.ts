@@ -253,7 +253,10 @@ export function createApp(options: AppOptions = {}) {
       version: 1,
       mode,
       refresh_after_seconds: 30,
-      data_refresh_seconds: Math.max(15, Math.min(300, active.refresh_interval)),
+      data_refresh_seconds: Math.max(
+        15,
+        Math.min(300, active.refresh_interval),
+      ),
       data_path: dataPath,
       departures: [],
     });
@@ -305,7 +308,11 @@ export function createApp(options: AppOptions = {}) {
       : null;
     const active = resolved?.display ?? display;
     if (!active.site_id || resolved?.effective.mode === 'off')
-      throw new ApiError(409, 'inactive_view', 'Device has no active data view.');
+      throw new ApiError(
+        409,
+        'inactive_view',
+        'Device has no active data view.',
+      );
     return viewData(context, {
       site_id: active.site_id,
       lines: active.line_numbers,
