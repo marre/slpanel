@@ -86,6 +86,38 @@ describe('Schedules page', () => {
     expect(Object.keys(saved!)).not.toContain('default');
     expect(Object.keys(saved!)).not.toContain('default_scene_id');
   });
+
+  it('searches and selects a timezone using the combobox', async () => {
+    await render(
+      routerFixture(
+        ['/schedules?owner=' + owner],
+        [[{ path: '/schedules', element: h(SchedulesPage), children: [] }]],
+      ),
+    );
+    await screen.findByRole('button', { name: /add time window/i });
+    await fireEvent.click(
+      screen.getByRole('button', { name: /Europe\/Stockholm/ }),
+    );
+    await fireEvent.update(
+      screen.getByPlaceholderText('Search timezones…'),
+      'Asia/Tokyo',
+    );
+    await fireEvent.click(
+      await screen.findByRole('option', { name: 'Asia/Tokyo' }),
+    );
+    await fireEvent.input(screen.getByLabelText('Schedule name'), {
+      target: { value: 'Tokyo schedule' },
+    });
+    await fireEvent.click(
+      screen.getByRole('button', { name: /add time window/i }),
+    );
+    await fireEvent.click(
+      screen.getByRole('button', { name: 'Create schedule' }),
+    );
+    await waitFor(() =>
+      expect(saved).toMatchObject({ timezone: 'Asia/Tokyo' }),
+    );
+  });
 });
 
 describe('Schedule list actions', () => {
