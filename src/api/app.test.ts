@@ -111,7 +111,9 @@ describe('createApp', () => {
     expect(getResponse.status).toBe(200);
     expect(getPayload.display.id).toBe(displayId);
 
-    const configResponse = await app.request(`/api/v1/devices/${displayId}/config`);
+    const configResponse = await app.request(
+      `/api/v1/devices/${displayId}/config`,
+    );
     expect(configResponse.status).toBe(200);
     expect(configResponse.headers.get('Cache-Control')).toBe('no-store');
     const config = (await configResponse.json()) as {
