@@ -130,6 +130,14 @@ describe('scene and shared schedule API', () => {
       expect(result.display.site_id).toBeNull();
       expect(result.effective.mode).toBe('off');
       expect(result.effective.scene).toBeNull();
+      const snapshot = await app.request(
+        '/api/v1/devices/' + deviceId + '/snapshot',
+      );
+      expect(snapshot.status).toBe(200);
+      expect(await snapshot.json()).toMatchObject({
+        mode: 'off',
+        departures: [],
+      });
     }
     const deleteInUse = await app.request(
       '/api/schedules/' + schedule.id + '?owner=' + OWNER,
