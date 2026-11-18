@@ -238,17 +238,19 @@ export function createApp(options: AppOptions = {}) {
       ? await resolve(display, createSceneStore(getBindings(context).DB))
       : null;
     const active = resolved?.display ?? display;
-    const mode = resolved?.effective.mode === 'off'
-      ? 'off'
-      : active.site_id
-        ? 'departures-list'
-        : 'unconfigured';
+    const mode =
+      resolved?.effective.mode === 'off'
+        ? 'off'
+        : active.site_id
+          ? 'departures-list'
+          : 'unconfigured';
     const source = resolved?.effective.data_source;
-    const dataPath = mode === 'departures-list'
-      ? source
-        ? `/api/v1/data/${encodeURIComponent(display.owner_id)}/${encodeURIComponent(source.id)}`
-        : `/api/v1/devices/${encodeURIComponent(display.id)}/data`
-      : null;
+    const dataPath =
+      mode === 'departures-list'
+        ? source
+          ? `/api/v1/data/${encodeURIComponent(display.owner_id)}/${encodeURIComponent(source.id)}`
+          : `/api/v1/devices/${encodeURIComponent(display.id)}/data`
+        : null;
     context.header('Cache-Control', 'no-store');
     return context.json({
       version: 1,
@@ -262,9 +264,17 @@ export function createApp(options: AppOptions = {}) {
 
   const viewData = async (
     context: ApiContext,
-    query: { site_id: string; lines: string[]; directions: string[]; modes: string[] },
+    query: {
+      site_id: string;
+      lines: string[];
+      directions: string[];
+      modes: string[];
+    },
   ) => {
-    const departures = await transitProvider.getDepartures({ ...query, forecast: 240 });
+    const departures = await transitProvider.getDepartures({
+      ...query,
+      forecast: 240,
+    });
     // Deliberately uncached until access policy and CDN cache keys are defined.
     context.header('Cache-Control', 'no-store');
     return context.json({
@@ -278,8 +288,10 @@ export function createApp(options: AppOptions = {}) {
   // Shared path for all devices referencing the same data source.
   api.get('/v1/data/:owner/:sourceId', async (context) => {
     const owner = parseOwnerQuery(context.req.param('owner'));
-    const source = await createSceneStore(getBindings(context).DB)
-      .getSource(owner, context.req.param('sourceId'));
+    const source = await createSceneStore(getBindings(context).DB).getSource(
+      owner,
+      context.req.param('sourceId'),
+    );
     if (!source || !source.site_id)
       throw new ApiError(404, 'source_not_found', 'Data source not found.');
     return viewData(context, {
