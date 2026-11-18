@@ -12,32 +12,6 @@ const json = (value: unknown, method: 'POST' | 'PUT' = 'POST') => ({
 });
 
 describe('v1 device snapshots', () => {
-  it('returns bounded, normalized display data in a single request', async () => {
-    const getDepartures = vi.fn<TransitProvider['getDepartures']>(async () =>
-      Array.from({ length: 12 }, (_, i) => ({
-        line_number: '17',
-        destination: 'Hagsätra',
-        display_time: `${i + 1} min`,
-        minutes_until_departure: i + 1,
-        scheduled_at: null,
-        expected_at: null,
-        transport_mode: 'METRO',
-        platform: '2',
-        state: 'EXPECTED' as const,
-      })),
-    );
-    const app = createApp({
-      createDisplayStore: () => createMemoryDisplayStore(),
-      // Test with a persistent store: the display is read on every snapshot.
-      transitProvider: { searchStops: async () => [], getDepartures },
-      now: () => new Date('2026-11-18T08:00:00Z'),
-    });
-    // The store must be shared across requests.
-    // A separate test below exercises the full scheduled scene resolver.
-    const missing = await app.request('/api/v1/devices/bad/snapshot');
-    expect(missing.status).toBe(400);
-  });
-
   it('serves a live scene and scheduled Off without asking the transit provider for Off', async () => {
     const displays = createMemoryDisplayStore();
     const scenes = createMemorySceneStore();
@@ -89,8 +63,9 @@ describe('v1 device snapshots', () => {
         modes: ['METRO'],
       }),
     );
-    const sourceId = ((await sourceResponse.json()) as { data_source: { id: string } })
-      .data_source.id;
+    const sourceId = (
+      (await sourceResponse.json()) as { data_source: { id: string } }
+    ).data_source.id;
     const sceneResponse = await app.request(
       '/api/scenes',
       json({
@@ -100,21 +75,36 @@ describe('v1 device snapshots', () => {
         visualization: 'departures-list',
       }),
     );
-    const sceneId = ((await sceneResponse.json()) as { scene: { id: string } })
-      .scene.id;
+    const sceneId = (
+      (await sceneResponse.json()) as { scene: { id: string } }
+    ).scene.id;
     const scheduleResponse = await app.request(
       '/api/schedules',
       json({
         owner_id: owner,
         name: 'Workdays',
         timezone: 'Europe/Stockholm',
-        rules: [{ days: [0, 1, 2, 3, 4], start_time: '06:00', end_time: '09:00', scene_id: sceneId }],
+        rules: [
+          {
+            days: [0, 1, 2, 3, 4],
+            start_time: '06:00',
+            end_time: '09:00',
+            scene_id: sceneId,
+          },
+        ],
       }),
     );
-    const scheduleId = ((await scheduleResponse.json()) as { schedule: { id: string } })
-      .schedule.id;
-    expect((await app.request('/api/displays/' + id + '/assignment',
-      json({ kind: 'schedule', scene_id: null, schedule_id: scheduleId }, 'PUT'))).status).toBe(200);
+    const scheduleId = (
+      (await scheduleResponse.json()) as { schedule: { id: string } }
+    ).schedule.id;
+    const assigned = await app.request(
+      '/api/displays/' + id + '/assignment',
+      json(
+        { kind: 'schedule', scene_id: null, schedule_id: scheduleId },
+        'PUT',
+      ),
+    );
+    expect(assigned.status).toBe(200);
 
     const path = '/api/v1/devices/' + id + '/snapshot';
     const live = await app.request(path);
@@ -148,7 +138,9 @@ describe('v1 device snapshots', () => {
     const off = await app.request(path);
     expect(off.status).toBe(200);
     expect((await off.json()) as unknown).toMatchObject({
-      mode: 'off', display: { site_id: null }, departures: [],
+      mode: 'off',
+      display: { site_id: null },
+      departures: [],
     });
     expect(getDepartures).toHaveBeenCalledTimes(1);
   });
@@ -156,13 +148,23 @@ describe('v1 device snapshots', () => {
   it('distinguishes an unconfigured device from a scheduled Off state', async () => {
     const displays = createMemoryDisplayStore();
     const app = createApp({ createDisplayStore: () => displays });
-    const create = await app.request('/api/displays', json({ owner_id: owner, name: 'New device' }));
+    const create = await app.request(
+      '/api/displays',
+      json({ owner_id: owner, name: 'New device' }),
+    );
     const id = ((await create.json()) as { display: { id: string } }).display.id;
     const response = await app.request('/api/v1/devices/' + id + '/snapshot');
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
-      mode: 'unconfigured', display: { id, site_id: null }, departures: [],
+      mode: 'unconfigured',
+      display: { id, site_id: null },
+      departures: [],
     });
-    expect((await app.request('/api/v1/devices/' + owner + '-badbadbadbad/snapshot')).status).toBe(404);
+    const notFound = await app.request(
+      '/api/v1/devices/' + owner + '-badbadbadbad/snapshot',
+    );
+    expect(notFound.status).toBe(404);
+    const malformed = await app.request('/api/v1/devices/bad/snapshot');
+    expect(malformed.status).toBe(400);
   });
 });
