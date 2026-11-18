@@ -260,17 +260,10 @@ export function createApp(options: AppOptions = {}) {
     context.header('Cache-Control', 'no-store');
     return context.json({
       version: 1,
-      device_id: display.id,
       mode,
+      refresh_after_seconds: refresh,
       generated_at: now().toISOString(),
       next_transition_at: resolved?.effective.next_transition_at ?? null,
-      display: {
-        id: display.id,
-        name: active.name || active.site_name || 'SLPanel',
-        site_id: mode === 'departures-list' ? active.site_id : null,
-        site_name: mode === 'departures-list' ? active.site_name : null,
-        refresh_interval: refresh,
-      },
       departures: departures.slice(0, 4),
     });
   });

@@ -118,9 +118,8 @@ describe('createApp', () => {
     expect(snapshot.headers.get('Cache-Control')).toBe('no-store');
     expect(await snapshot.json()).toMatchObject({
       version: 1,
-      device_id: displayId,
       mode: 'departures-list',
-      display: { id: displayId, refresh_interval: 45 },
+      refresh_after_seconds: 45,
       departures: [{ line_number: '19' }],
     });
 
