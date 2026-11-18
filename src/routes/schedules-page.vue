@@ -22,6 +22,18 @@ const selectedId = ref<string | null>(null);
 const editing = ref(false);
 const name = ref('');
 const timezone = ref('Europe/Stockholm');
+// Include UTC (not returned by supportedValuesOf) and preserve existing IANA
+// aliases when editing schedules created with a different timezone spelling.
+const supportedTimezones = Intl.supportedValuesOf?.('timeZone') ?? [
+  'Europe/Stockholm',
+  'Europe/London',
+  'Europe/Berlin',
+];
+const timezoneOptions = computed(() =>
+  [...new Set(['UTC', ...supportedTimezones, timezone.value])]
+    .sort((a, b) => a.localeCompare(b))
+    .map((zone) => ({ label: zone, value: zone })),
+);
 type EditableRule = ScheduleRuleInput & { key: string };
 const rules = ref<EditableRule[]>([]);
 const loading = ref(false);
@@ -378,22 +390,19 @@ async function remove() {
                   placeholder="e.g. Workdays"
                 />
               </label>
-              <label class="block space-y-1.5 text-sm font-medium">
-                <span>Timezone</span>
-                <input
+              <div class="space-y-1.5 text-sm font-medium">
+                <label for="schedule-timezone" class="block">Timezone</label>
+                <USelectMenu
+                  id="schedule-timezone"
                   v-model="timezone"
-                  required
-                  list="schedule-timezones"
-                  :class="fieldClass"
-                  placeholder="Europe/Stockholm"
+                  :items="timezoneOptions"
+                  value-key="value"
+                  :search-input="{ placeholder: 'Search timezones…' }"
+                  placeholder="Choose a timezone"
+                  class="w-full"
+                  :ui="{ base: 'h-10 min-h-10' }"
                 />
-                <datalist id="schedule-timezones">
-                  <option value="Europe/Stockholm" />
-                  <option value="Europe/London" />
-                  <option value="Europe/Berlin" />
-                  <option value="UTC" />
-                </datalist>
-              </label>
+              </div>
             </div>
             <div class="space-y-3">
               <div class="flex flex-wrap items-center justify-between gap-2">
