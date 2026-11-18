@@ -96,7 +96,7 @@ describe('Schedules page', () => {
     );
     await screen.findByRole('button', { name: /add time window/i });
     await fireEvent.click(
-      screen.getByRole('button', { name: /Europe\/Stockholm/ }),
+      screen.getByRole('button', { name: 'Timezone' }),
     );
     await fireEvent.update(
       screen.getByPlaceholderText('Search timezones…'),
