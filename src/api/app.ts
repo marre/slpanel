@@ -268,6 +268,7 @@ export function createApp(options: AppOptions = {}) {
         id: display.id,
         name: active.name || active.site_name || 'SLPanel',
         site_id: mode === 'departures-list' ? active.site_id : null,
+        site_name: mode === 'departures-list' ? active.site_name : null,
         refresh_interval: refresh,
       },
       departures: departures.slice(0, 4),
