@@ -229,42 +229,81 @@ export function createApp(options: AppOptions = {}) {
     return context.json({ display });
   });
 
-  // v1 device-facing snapshot. Keeping generation inside the Worker is enough
-  // for the current small fleet. A separate producer/CDN can serve exactly the
-  // same contract later without changing firmware or exposing Trafiklab details.
-  api.get('/v1/devices/:id/snapshot', async (context) => {
+  // Stable device protocol: config identifies the active view, while view data
+  // is independently fetched from a path supplied by the server. The Worker
+  // implements both for now; neither the device nor its protocol knows Trafiklab.
+  api.get('/v1/devices/:id/config', async (context) => {
     const display = await requireDisplay(context);
     const resolved = hasScenes(context)
       ? await resolve(display, createSceneStore(getBindings(context).DB))
       : null;
     const active = resolved?.display ?? display;
-    const off = resolved?.effective.mode === 'off';
-    const mode = off
+    const mode = resolved?.effective.mode === 'off'
       ? 'off'
       : active.site_id
         ? 'departures-list'
         : 'unconfigured';
-    const departures =
-      mode === 'departures-list' && active.site_id
-        ? await transitProvider.getDepartures({
-            site_id: active.site_id,
-            lines: active.line_numbers,
-            directions: active.directions,
-            modes: active.modes,
-            forecast: 240,
-          })
-        : [];
-    // The firmware's 128x32 renderer shows at most four departures. Bound the
-    // response rather than sending a busy stop's entire 240-minute forecast.
-    const refresh = Math.max(15, Math.min(300, active.refresh_interval));
+    const source = resolved?.effective.data_source;
+    const dataPath = mode === 'departures-list'
+      ? source
+        ? `/api/v1/data/${encodeURIComponent(display.owner_id)}/${encodeURIComponent(source.id)}`
+        : `/api/v1/devices/${encodeURIComponent(display.id)}/data`
+      : null;
     context.header('Cache-Control', 'no-store');
     return context.json({
       version: 1,
       mode,
-      refresh_after_seconds: refresh,
-      generated_at: now().toISOString(),
-      next_transition_at: resolved?.effective.next_transition_at ?? null,
+      refresh_after_seconds: 30,
+      data_refresh_seconds: Math.max(15, Math.min(300, active.refresh_interval)),
+      data_path: dataPath,
+      departures: [],
+    });
+  });
+
+  const viewData = async (
+    context: ApiContext,
+    query: { site_id: string; lines: string[]; directions: string[]; modes: string[] },
+  ) => {
+    const departures = await transitProvider.getDepartures({ ...query, forecast: 240 });
+    // Deliberately uncached until access policy and CDN cache keys are defined.
+    context.header('Cache-Control', 'no-store');
+    return context.json({
+      version: 1,
+      mode: 'departures-list',
+      refresh_after_seconds: 30,
       departures: departures.slice(0, 4),
+    });
+  };
+
+  // Shared path for all devices referencing the same data source.
+  api.get('/v1/data/:owner/:sourceId', async (context) => {
+    const owner = parseOwnerQuery(context.req.param('owner'));
+    const source = await createSceneStore(getBindings(context).DB)
+      .getSource(owner, context.req.param('sourceId'));
+    if (!source || !source.site_id)
+      throw new ApiError(404, 'source_not_found', 'Data source not found.');
+    return viewData(context, {
+      site_id: source.site_id,
+      lines: source.line_numbers,
+      directions: source.directions,
+      modes: source.modes,
+    });
+  });
+
+  // Legacy fallback while device configurations are being migrated to Scenes.
+  api.get('/v1/devices/:id/data', async (context) => {
+    const display = await requireDisplay(context);
+    const resolved = hasScenes(context)
+      ? await resolve(display, createSceneStore(getBindings(context).DB))
+      : null;
+    const active = resolved?.display ?? display;
+    if (!active.site_id || resolved?.effective.mode === 'off')
+      throw new ApiError(409, 'inactive_view', 'Device has no active data view.');
+    return viewData(context, {
+      site_id: active.site_id,
+      lines: active.line_numbers,
+      directions: active.directions,
+      modes: active.modes,
     });
   });
 
