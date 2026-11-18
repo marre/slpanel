@@ -43,8 +43,8 @@ A successful response looks like:
 `mode` is `departures-list`, `off`, or `unconfigured`. Off is produced only
 when a schedule has no active rule; unconfigured means there is no selected
 stop and is not equivalent to blanking a scheduled display. For Off and
-unconfigured, departures are empty. The response
-returns at most four rows, matching the current 128x32 rendering capacity.
+unconfigured, departures are empty. The response returns at most four rows,
+matching the current 128x32 rendering capacity.
 
 `refresh_after_seconds` is clamped to 15–300 seconds. Firmware should honor it,
 use local monotonic deadlines/retries, and never write configuration to flash
@@ -54,8 +54,8 @@ retain its previously rendered content only within the existing stale-data
 limit; never reinterpret a transport failure as Off.
 
 The snapshot body contains no unique device ID, device-specific name, stop ID
-or filter configuration: only the display mode, refresh interval and ready-to-
-render departures. Multiple devices can eventually consume identical shared
+or filter configuration: only the display mode, refresh interval and ready-to-render
+departures. Multiple devices can eventually consume identical shared
 snapshot bytes.
 
 The endpoint emits `Cache-Control: no-store` for now. Generation, per-device
@@ -63,7 +63,6 @@ lookups and request timestamps are fine for a few panels, not thousands.
 A future CDN layer must resolve each device to a shared, time-versioned
 scene/schedule payload without an uncached Worker call per refresh. The current
 *URL* is device-specific and must not be treated as a shared cache key.
-
 
 ## Scale migration without device API churn
 

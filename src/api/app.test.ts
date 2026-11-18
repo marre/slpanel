@@ -111,9 +111,7 @@ describe('createApp', () => {
     expect(getResponse.status).toBe(200);
     expect(getPayload.display.id).toBe(displayId);
 
-    const snapshot = await app.request(
-      `/api/v1/devices/${displayId}/snapshot`,
-    );
+    const snapshot = await app.request(`/api/v1/devices/${displayId}/snapshot`);
     expect(snapshot.status).toBe(200);
     expect(snapshot.headers.get('Cache-Control')).toBe('no-store');
     expect(await snapshot.json()).toMatchObject({
