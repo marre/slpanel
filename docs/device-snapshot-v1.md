@@ -1,44 +1,61 @@
-# Device snapshot API v1
+# Device protocol v1: configuration and view data
 
-## Current deployment
+## Simple deployment
 
-The existing Cloudflare Worker generates snapshots on demand. It resolves the assigned Scene or Schedule from D1 and uses the current Trafiklab provider to fetch normalized departures. For our small fleet this does not require a separate server, R2, a queue, scheduled ingestion or a CDN publication pipeline.
+Both endpoints run inside the existing Cloudflare Worker, using D1 for device, Scene and Schedule configuration and the existing Trafiklab provider for departures. No queue, R2, central GTFS worker or external server is needed for the small fleet. Firmware continues using the same provisioned HTTPS origin and permanent device ID.
 
-The device's existing HTTPS origin and stable ID remain provisioned over USB. Previously deployed firmware can continue using `/api/displays/:id` and `/api/departures/:siteId`.
+## Configuration
 
-## Device contract
-
-New firmware requests `GET /api/v1/devices/{deviceId}/snapshot`.
-
-The response is a versioned view: `version` is `1`, `mode` is `departures-list`, `off` or `unconfigured`, and `refresh_after_seconds` is within 15–300. The optional `generated_at` and `next_transition_at` fields are informational. `departures` contains at most four ready-to-render normalized records with the same fields as the legacy departure provider.
-
-A minimal scheduled-Off response is:
+`GET /api/v1/devices/{deviceId}/config` returns the currently effective mode and a server-selected relative data path:
 
 ```json
 {
   "version": 1,
-  "mode": "off",
+  "mode": "departures-list",
   "refresh_after_seconds": 30,
-  "generated_at": "2026-11-18T08:00:00.000Z",
-  "next_transition_at": null,
+  "data_refresh_seconds": 30,
+  "data_path": "/api/v1/data/aB3xZ9kQ/source-id",
   "departures": []
 }
 ```
 
-Off is selected only when the schedule has no active window. Unconfigured means there is no stop to show; it is not an instruction to blank a scheduled device. The panel never evaluates schedules or GTFS feeds locally. Network errors must not be interpreted as Off. Firmware retains usable live data only within its established stale-data limit and performs all retries using a monotonic clock.
+`mode` is `departures-list`, `off` or `unconfigured`. An Off/unconfigured config has `data_path: null` and the device must not request departures. The Worker evaluates weekly schedules, DST and shared Scenes. The panel knows none of those concepts. Config is refreshed every 30 seconds, so schedule changes have up to one polling interval plus network latency of delay.
 
-The body deliberately excludes device ID, owner ID, stop ID, filters and schedule details. Two devices using the same scene can therefore consume the same future precomputed snapshot without changing the firmware schema.
+The v1 config retains the bounded `departures: []` envelope for reuse of the firmware's incremental view decoder; config never carries live departures. `refresh_after_seconds` is the config poll interval and `data_refresh_seconds` is the separate data poll interval, both 15–300 seconds. The client validates relative paths on the configured origin, without redirects or arbitrary cross-origin URLs.
 
-For now the Worker sets `Cache-Control: no-store`. The request path is still per-device; do not assume that identical snapshot bodies make these URLs safe or efficient to share through a CDN today.
+## View data
 
-## Future scaling
+`GET {data_path}` returns a versioned, ready-to-render view:
 
-A small Go or Rust service may later ingest the shared SL real-time feed, calculate departures for commonly used Scenes and publish versioned shared snapshots. The server and routing layer must map each device to an active shared snapshot without doing an uncached Worker request for every device refresh. The firmware HTTPS implementation currently does not follow redirects, so the migration must preserve the response endpoint or explicitly add supported redirection before relying on it.
+```json
+{
+  "version": 1,
+  "mode": "departures-list",
+  "refresh_after_seconds": 30,
+  "departures": [
+    {
+      "line_number": "17",
+      "destination": "Hagsätra",
+      "display_time": "5 min",
+      "minutes_until_departure": 5,
+      "scheduled_at": null,
+      "expected_at": null,
+      "transport_mode": "METRO",
+      "platform": "1",
+      "state": "EXPECTED"
+    }
+  ]
+}
+```
 
-Measure the Worker requests, D1 reads, upstream API requests, cache hit rate and snapshot sizes before scaling beyond the current small fleet. A future producer must preserve the v1 response schema.
+The current Worker filters, normalizes and sorts departures before returning at most four rows, preserving the firmware's bounded 8 KiB JSON stream. A data source shared by multiple Scenes/devices yields the same `data_path` for all of them. Unmigrated legacy displays use a device-specific fallback route.
 
-## Security and rollout
+Both responses currently use `Cache-Control: no-store`; this is intentional until access controls and correct CDN cache behavior are designed. Device IDs and owner IDs are not authentication.
 
-The eight-character owner ID and public device ID are not authentication. Introduce authorization before exposing multi-tenant administrative writes or private device data. Shared cache mappings must not leak data between owners.
+## Firmware transitions and future backend
 
-Deploy the new Worker endpoint before flashing new firmware from the companion SLPanel Rust PR. Keep the existing endpoints available to previously flashed devices. Verify Scene changes, scheduled Off, network loss, invalid JSON and reconnection on real hardware before rollout.
+Firmware reads config first, then polls view data independently. A new `data_path` or a change to Off invalidates old departures; stale in-flight replies cannot be applied to a newer request. On transient errors, firmware retries and retains bounded stale data while appropriate; Off never lights the display due to a transport failure.
+
+In a larger deployment the same origin can route shared `data_path` objects to a CDN or static store, while device config can be published/cached separately. The firmware contract and relative paths stay stable; CDN publication, cache invalidation, access control and central GTFS aggregation can all be implemented later behind these endpoints. Because firmware does not follow redirects, routing must happen server-side at the stable origin.
+
+Keep the old `/api/displays/:id` and `/api/departures/:siteId` endpoints available for already deployed firmware. Deploy the new Worker endpoints before flashing companion firmware. Smoke-test Scene switching, scheduled Off, network loss, JSON rejection and reconnect on hardware.
