@@ -229,6 +229,51 @@ export function createApp(options: AppOptions = {}) {
     return context.json({ display });
   });
 
+  // v1 device-facing snapshot. Keeping generation inside the Worker is enough
+  // for the current small fleet. A separate producer/CDN can serve exactly the
+  // same contract later without changing firmware or exposing Trafiklab details.
+  api.get('/v1/devices/:id/snapshot', async (context) => {
+    const display = await requireDisplay(context);
+    const resolved = hasScenes(context)
+      ? await resolve(display, createSceneStore(getBindings(context).DB))
+      : null;
+    const active = resolved?.display ?? display;
+    const off = resolved?.effective.mode === 'off';
+    const mode = off
+      ? 'off'
+      : active.site_id
+        ? 'departures-list'
+        : 'unconfigured';
+    const departures =
+      mode === 'departures-list' && active.site_id
+        ? await transitProvider.getDepartures({
+            site_id: active.site_id,
+            lines: active.line_numbers,
+            directions: active.directions,
+            modes: active.modes,
+            forecast: 240,
+          })
+        : [];
+    // The firmware's 128x32 renderer shows at most four departures. Bound the
+    // response rather than sending a busy stop's entire 240-minute forecast.
+    const refresh = Math.max(15, Math.min(300, active.refresh_interval));
+    context.header('Cache-Control', 'no-store');
+    return context.json({
+      version: 1,
+      device_id: display.id,
+      mode,
+      generated_at: now().toISOString(),
+      next_transition_at: resolved?.effective.next_transition_at ?? null,
+      display: {
+        id: display.id,
+        name: active.name || active.site_name || 'SLPanel',
+        site_id: mode === 'departures-list' ? active.site_id : null,
+        refresh_interval: refresh,
+      },
+      departures: departures.slice(0, 4),
+    });
+  });
+
   api.put('/displays/:id', async (context) => {
     const id = validateDisplayResourceId(context.req.param('id'));
     const input = parseDisplayUpdateInput(await readJsonBody(context));
