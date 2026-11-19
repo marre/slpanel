@@ -412,9 +412,16 @@ discovery is cached for five minutes. Users can also select a release's
 compatibility, SHA-256 and metadata before uploading. The panel and bootloader
 verify Ed25519 against their embedded public key.
 
-Hold the blank-output button (GPIO22) for two seconds, then choose Update within
-60 seconds. Upload progress stops normal device actions. The panel verifies and
-restarts; reconnect the same panel to obtain the durable result. Success requires
+On firmware advertising `signed-usb-update-v1`, select the signed release,
+choose **Update firmware**, and confirm in the browser. No physical button is
+needed; USB access authorizes only the signed update, not unrestricted ROM
+recovery. Earlier staged-update firmware still requires holding the blank-output
+button (GPIO22) for two seconds before confirming, within 60 seconds. The web
+interface detects the capability and displays the appropriate instructions.
+An already-installed older firmware cannot gain button-free support from a web
+change alone: its first upgrade must use the old GPIO22 authorization or a
+separate recovery/flashing route. Upload progress stops normal device actions.
+The panel verifies and restarts; reconnect the same panel to obtain the durable result. Success requires
 the expected image and exact attempt to be confirmed. Trial failure reports
 restoration of the previous image. Settings survive upgrades. Physical ROM UF2
 recovery handles initial bootloader installation and unbootable firmware.
