@@ -171,9 +171,12 @@ describe('createTrafiklabProvider', () => {
     });
     const error = await provider.getDepartures({
       site_id: '1011', lines: [], directions: [], modes: [], forecast: 240,
-    }).catch((reason: unknown) => reason as { retryAfterSeconds: number });
-    expect(error.retryAfterSeconds).toBeGreaterThanOrEqual(88);
-    expect(error.retryAfterSeconds).toBeLessThanOrEqual(90);
+    }).then(
+      () => null,
+      (reason: unknown) => reason as { retryAfterSeconds: number },
+    );
+    expect(error?.retryAfterSeconds).toBeGreaterThanOrEqual(88);
+    expect(error?.retryAfterSeconds).toBeLessThanOrEqual(90);
   });
 
   it('maps non-429 upstream failures to 502', async () => {
