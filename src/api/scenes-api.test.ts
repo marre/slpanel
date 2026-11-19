@@ -119,6 +119,20 @@ describe('scene and shared schedule API', () => {
       expect(payload.effective.scene.id).toBe(scene.id);
       expect(payload.effective.reason).toBe('schedule');
       expect(device.headers.get('Cache-Control')).toBe('no-store');
+      const configResponse = await app.request(
+        '/api/v1/devices/' + deviceId + '/config',
+      );
+      expect(configResponse.status).toBe(200);
+      const config = (await configResponse.json()) as {
+        mode: string;
+        data_path: string;
+        departures: unknown[];
+      };
+      expect(config.mode).toBe('departures-list');
+      expect(config.data_path).toBe(
+        '/api/v1/data/' + OWNER + '/' + encodeURIComponent(source.id),
+      );
+      expect(config.departures).toEqual([]);
     }
     clock = new Date('2026-11-16T13:00:00Z');
     for (const deviceId of [first, second]) {
@@ -130,6 +144,15 @@ describe('scene and shared schedule API', () => {
       expect(result.display.site_id).toBeNull();
       expect(result.effective.mode).toBe('off');
       expect(result.effective.scene).toBeNull();
+      const config = await app.request(
+        '/api/v1/devices/' + deviceId + '/config',
+      );
+      expect(config.status).toBe(200);
+      expect(await config.json()).toMatchObject({
+        mode: 'off',
+        data_path: null,
+        departures: [],
+      });
     }
     const deleteInUse = await app.request(
       '/api/schedules/' + schedule.id + '?owner=' + OWNER,

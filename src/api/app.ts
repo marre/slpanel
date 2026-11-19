@@ -229,6 +229,98 @@ export function createApp(options: AppOptions = {}) {
     return context.json({ display });
   });
 
+  // Stable device protocol: config identifies the active view, while view data
+  // is independently fetched from a path supplied by the server. The Worker
+  // implements both for now; neither the device nor its protocol knows Trafiklab.
+  api.get('/v1/devices/:id/config', async (context) => {
+    const display = await requireDisplay(context);
+    const resolved = hasScenes(context)
+      ? await resolve(display, createSceneStore(getBindings(context).DB))
+      : null;
+    const active = resolved?.display ?? display;
+    let mode: 'off' | 'departures-list' | 'unconfigured' = 'unconfigured';
+    if (resolved?.effective.mode === 'off') mode = 'off';
+    else if (active.site_id) mode = 'departures-list';
+    const source = resolved?.effective.data_source;
+    let dataPath: string | null = null;
+    if (mode === 'departures-list') {
+      dataPath = source
+        ? `/api/v1/data/${encodeURIComponent(display.owner_id)}/${encodeURIComponent(source.id)}`
+        : `/api/v1/devices/${encodeURIComponent(display.id)}/data`;
+    }
+    context.header('Cache-Control', 'no-store');
+    return context.json({
+      version: 1,
+      mode,
+      refresh_after_seconds: 30,
+      data_refresh_seconds: Math.max(
+        15,
+        Math.min(300, active.refresh_interval),
+      ),
+      data_path: dataPath,
+      departures: [],
+    });
+  });
+
+  const viewData = async (
+    context: ApiContext,
+    query: {
+      site_id: string;
+      lines: string[];
+      directions: string[];
+      modes: string[];
+    },
+  ) => {
+    const departures = await transitProvider.getDepartures({
+      ...query,
+      forecast: 240,
+    });
+    // Deliberately uncached until access policy and CDN cache keys are defined.
+    context.header('Cache-Control', 'no-store');
+    return context.json({
+      version: 1,
+      mode: 'departures-list',
+      refresh_after_seconds: 30,
+      departures: departures.slice(0, 4),
+    });
+  };
+
+  // Shared path for all devices referencing the same data source.
+  api.get('/v1/data/:owner/:sourceId', async (context) => {
+    const owner = parseOwnerQuery(context.req.param('owner'));
+    const store = createSceneStore(getBindings(context).DB);
+    const source = await store.getSource(owner, context.req.param('sourceId'));
+    if (!source || !source.site_id)
+      throw new ApiError(404, 'source_not_found', 'Data source not found.');
+    return viewData(context, {
+      site_id: source.site_id,
+      lines: source.line_numbers,
+      directions: source.directions,
+      modes: source.modes,
+    });
+  });
+
+  // Legacy fallback while device configurations are being migrated to Scenes.
+  api.get('/v1/devices/:id/data', async (context) => {
+    const display = await requireDisplay(context);
+    const resolved = hasScenes(context)
+      ? await resolve(display, createSceneStore(getBindings(context).DB))
+      : null;
+    const active = resolved?.display ?? display;
+    if (!active.site_id || resolved?.effective.mode === 'off')
+      throw new ApiError(
+        409,
+        'inactive_view',
+        'Device has no active data view.',
+      );
+    return viewData(context, {
+      site_id: active.site_id,
+      lines: active.line_numbers,
+      directions: active.directions,
+      modes: active.modes,
+    });
+  });
+
   api.put('/displays/:id', async (context) => {
     const id = validateDisplayResourceId(context.req.param('id'));
     const input = parseDisplayUpdateInput(await readJsonBody(context));
