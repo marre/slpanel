@@ -146,4 +146,45 @@ describe('createTrafiklabProvider', () => {
       },
     ]);
   });
+
+  it('preserves upstream 429 and its Retry-After value', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('rate limited', { status: 429, headers: { 'retry-after': '45' } }),
+    );
+    const provider = createTrafiklabProvider({
+      fetch: fetchMock, baseUrl: 'https://example.com/v1',
+    });
+    await expect(provider.getDepartures({
+      site_id: '1011', lines: [], directions: [], modes: [], forecast: 240,
+    })).rejects.toMatchObject({
+      status: 429, code: 'provider_rate_limited', retryAfterSeconds: 45,
+    });
+  });
+
+  it('normalizes Retry-After HTTP dates', async () => {
+    const future = new Date(Date.now() + 90_000).toUTCString();
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('', { status: 429, headers: { 'retry-after': future } }),
+    );
+    const provider = createTrafiklabProvider({
+      fetch: fetchMock, baseUrl: 'https://example.com/v1',
+    });
+    const error = await provider.getDepartures({
+      site_id: '1011', lines: [], directions: [], modes: [], forecast: 240,
+    }).catch((reason: unknown) => reason as { retryAfterSeconds: number });
+    expect(error.retryAfterSeconds).toBeGreaterThanOrEqual(88);
+    expect(error.retryAfterSeconds).toBeLessThanOrEqual(90);
+  });
+
+  it('maps non-429 upstream failures to 502', async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('', { status: 503, headers: { 'retry-after': '20' } }),
+    );
+    const provider = createTrafiklabProvider({
+      fetch: fetchMock, baseUrl: 'https://example.com/v1',
+    });
+    await expect(provider.getDepartures({
+      site_id: '1011', lines: [], directions: [], modes: [], forecast: 240,
+    })).rejects.toMatchObject({ status: 502, code: 'provider_error' });
+  });
 });
