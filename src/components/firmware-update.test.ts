@@ -1,6 +1,6 @@
 import { h } from 'vue';
 import { describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen } from '@testing-library/vue';
+import { fireEvent, screen, waitFor } from '@testing-library/vue';
 import { render } from '@/test/render';
 import FirmwareUpdate from './firmware-update.vue';
 import type { DeviceInfo } from '@/lib/firmware-protocol';
@@ -47,10 +47,13 @@ async function ready(infoToUse: DeviceInfo, onUpdate = vi.fn()) {
     }),
   );
   await screen.findByRole('option', { name: release.version });
-  await fireEvent.change(screen.getByRole('combobox', { name: 'Compatible release' }), {
-    target: { value: imageId },
-  });
-  await fireEvent.click(screen.getByRole('button', { name: 'Download release' }));
+  await fireEvent.change(
+    screen.getByRole('combobox', { name: 'Compatible release' }),
+    { target: { value: imageId } },
+  );
+  await fireEvent.click(
+    screen.getByRole('button', { name: 'Download release' }),
+  );
   await screen.findByText(/Ready to install 0\.0\.6/);
   return onUpdate;
 }
@@ -58,20 +61,37 @@ async function ready(infoToUse: DeviceInfo, onUpdate = vi.fn()) {
 describe('signed firmware installation confirmation', () => {
   it('updates without a GPIO press on capable firmware only after explicit confirmation', async () => {
     const update = await ready(info);
-    expect(screen.getByText(/No physical button is needed/)).toBeInTheDocument();
-    await fireEvent.click(screen.getByRole('button', { name: 'Update firmware' }));
-    expect(await screen.findByText('Install firmware update?')).toBeInTheDocument();
+    expect(
+      screen.getByText(/No physical button is needed/),
+    ).toBeInTheDocument();
+    await fireEvent.click(
+      screen.getByRole('button', { name: 'Update firmware' }),
+    );
+    expect(
+      await screen.findByText('Install firmware update?'),
+    ).toBeInTheDocument();
     expect(update).not.toHaveBeenCalled();
     await fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument(),
+    );
     expect(update).not.toHaveBeenCalled();
-    await fireEvent.click(screen.getByRole('button', { name: 'Update firmware' }));
-    await fireEvent.click(await screen.findByRole('button', { name: 'Install firmware' }));
+    await fireEvent.click(
+      screen.getByRole('button', { name: 'Update firmware' }),
+    );
+    await fireEvent.click(
+      await screen.findByRole('button', { name: 'Install firmware' }),
+    );
     expect(update).toHaveBeenCalledTimes(1);
   });
 
   it('still instructs a physical press for older installed firmware', async () => {
     await ready({ ...info, capabilities: ['staged-update-v1'] });
-    expect(screen.getByText(/still requires holding the blank-output/)).toBeInTheDocument();
-    expect(screen.queryByText(/No physical button is needed/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/still requires holding the blank-output/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(/No physical button is needed/),
+    ).not.toBeInTheDocument();
   });
 });
