@@ -177,9 +177,11 @@ describe('createTrafiklabProvider', () => {
 
   it('normalizes Retry-After HTTP dates', async () => {
     const future = new Date(Date.now() + 90_000).toUTCString();
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response('', { status: 429, headers: { 'retry-after': future } }),
-    );
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        new Response('', { status: 429, headers: { 'retry-after': future } }),
+      );
     const provider = createTrafiklabProvider({
       fetch: fetchMock,
       baseUrl: 'https://example.com/v1',
@@ -202,9 +204,11 @@ describe('createTrafiklabProvider', () => {
   });
 
   it('maps non-429 upstream failures to 502', async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
-      new Response('', { status: 503, headers: { 'retry-after': '20' } }),
-    );
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        new Response('', { status: 503, headers: { 'retry-after': '20' } }),
+      );
     const provider = createTrafiklabProvider({
       fetch: fetchMock,
       baseUrl: 'https://example.com/v1',
