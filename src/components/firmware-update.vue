@@ -17,9 +17,15 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ update: [pkg: Package]; cancel: []; check: [] }>();
 const confirmOpen = ref(false);
-const buttonlessUpdate = computed(() =>
-  props.info?.capabilities.includes('signed-usb-update-v1') ?? false,
+const buttonlessUpdate = computed(
+  () => props.info?.capabilities.includes('signed-usb-update-v1') ?? false,
 );
+const confirmationDescription = computed(() => {
+  const summary = `Install firmware ${pkg.value?.manifest.version ?? ''} on the connected panel? The display will go blank and restart. Keep USB connected during upload.`;
+  return buttonlessUpdate.value
+    ? summary
+    : `${summary} This installed firmware requires holding GPIO22 for two seconds just before installation (within 60 seconds).`;
+});
 watch(
   () => [props.info, props.connected],
   () => {
@@ -233,7 +239,7 @@ async function select(event: Event, kind: 'manifest' | 'image') {
   <UModal
     :open="confirmOpen"
     title="Install firmware update?"
-    :description="`Install firmware ${pkg?.manifest.version ?? ''} on the connected panel? It will temporarily blank its display and restart. Keep the USB cable connected during upload.`"
+    :description="confirmationDescription"
     :ui="{ footer: 'justify-end' }"
     @update:open="confirmOpen = $event"
   >
