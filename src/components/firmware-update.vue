@@ -186,10 +186,11 @@ async function select(event: Event, kind: 'manifest' | 'image') {
           No physical button is needed for this signed USB update.
         </template>
         <template v-else>
-          The currently installed firmware still requires holding the blank-output
-          button (GPIO22) for two seconds before starting the update, within
-          60 seconds. Once firmware supporting button-free updates is installed,
-          subsequent signed updates will not require a button.
+          The currently installed firmware still requires holding the
+          blank-output button (GPIO22) for two seconds before starting the
+          update, within 60 seconds. Once firmware supporting button-free
+          updates is installed, subsequent signed updates will not require a
+          button.
         </template>
       </p>
       <UButton
