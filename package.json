@@ -18,7 +18,7 @@
     "typecheck:worker": "node node_modules/@typescript/native/bin/tsc -p tsconfig.worker.json",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier src/api/trafiklab-provider.test.ts | diff -u src/api/trafiklab-provider.test.ts - || true",
+    "format": "prettier --check .",
     "format:fix": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
