@@ -138,6 +138,12 @@ export function createApp(options: AppOptions = {}) {
 
   app.onError((error, context) => {
     if (isApiError(error)) {
+      const headers: Record<string, string> = {
+        'content-type': 'application/json',
+      };
+      if (error.status === 429 && error.retryAfterSeconds !== undefined) {
+        headers['retry-after'] = String(error.retryAfterSeconds);
+      }
       return new Response(
         JSON.stringify({
           error: {
@@ -148,9 +154,7 @@ export function createApp(options: AppOptions = {}) {
         }),
         {
           status: error.status,
-          headers: {
-            'content-type': 'application/json',
-          },
+          headers,
         },
       );
     }

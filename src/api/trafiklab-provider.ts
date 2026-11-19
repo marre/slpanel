@@ -89,6 +89,16 @@ async function fetchJson<T>(fetchImpl: typeof fetch, url: URL): Promise<T> {
   });
 
   if (!response.ok) {
+    // Preserve rate limiting across the Worker/device boundary.
+    if (response.status === 429) {
+      throw new ApiError(
+        429,
+        'provider_rate_limited',
+        'Transit provider is rate limiting requests.',
+        undefined,
+        parseRetryAfter(response.headers.get('retry-after')),
+      );
+    }
     throw new ApiError(
       502,
       'provider_error',
@@ -105,6 +115,17 @@ async function fetchJson<T>(fetchImpl: typeof fetch, url: URL): Promise<T> {
       'Transit provider returned invalid JSON.',
     );
   }
+}
+
+// Normalize Retry-After delta-seconds or HTTP-date for resource-limited devices.
+function parseRetryAfter(value: string | null): number | undefined {
+  if (!value) return undefined;
+  const trimmed = value.trim();
+  const delay = /^\d+$/.test(trimmed)
+    ? Number(trimmed)
+    : (Date.parse(trimmed) - Date.now()) / 1000;
+  if (Number.isNaN(delay)) return undefined;
+  return Math.min(86_400, Math.max(1, Math.ceil(delay)));
 }
 
 function rankSites(sites: RawSite[], query: string): RawSite[] {

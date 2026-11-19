@@ -1,4 +1,5 @@
 import { createApp } from './app';
+import { ApiError } from './errors';
 import { createMemoryDisplayStore } from './memory-display-store';
 import type { TransitProvider } from './transit-provider';
 
@@ -200,5 +201,43 @@ describe('createApp', () => {
     expect(response.status).toBe(400);
     expect(payload.error.code).toBe('validation_error');
     expect(payload.error.message).toMatch(/owner_id/i);
+  });
+
+  it('forwards Retry-After from upstream rate limits to devices', async () => {
+    const store = createMemoryDisplayStore();
+    const app = createApp({
+      transitProvider: {
+        ...createTestProvider(),
+        async getDepartures() {
+          throw new ApiError(
+            429,
+            'provider_rate_limited',
+            'Try later.',
+            undefined,
+            42,
+          );
+        },
+      },
+      createDisplayStore: () => store,
+    });
+    const created = await app.request('/api/displays', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        owner_id: 'aB3xZ9kQ',
+        name: 'Rate limit test',
+        site_id: '1011',
+        site_name: 'Slussen',
+      }),
+    });
+    expect(created.status).toBe(201);
+    const body = (await created.json()) as { display: { id: string } };
+    const response = await app.request(
+      `/api/v1/devices/${body.display.id}/data`,
+    );
+    expect(response.status).toBe(429);
+    expect(response.headers.get('retry-after')).toBe('42');
+    const errorBody = (await response.json()) as { error: { code: string } };
+    expect(errorBody.error.code).toBe('provider_rate_limited');
   });
 });
