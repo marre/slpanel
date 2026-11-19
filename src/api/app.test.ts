@@ -1,4 +1,5 @@
 import { createApp } from './app';
+import { ApiError } from './errors';
 import { createMemoryDisplayStore } from './memory-display-store';
 import type { TransitProvider } from './transit-provider';
 
@@ -208,8 +209,12 @@ describe('createApp', () => {
       transitProvider: {
         ...createTestProvider(),
         async getDepartures() {
-          throw new (await import('./errors')).ApiError(
-            429, 'provider_rate_limited', 'Try later.', undefined, 42,
+          throw new ApiError(
+            429,
+            'provider_rate_limited',
+            'Try later.',
+            undefined,
+            42,
           );
         },
       },
@@ -219,16 +224,20 @@ describe('createApp', () => {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        owner_id: 'aB3xZ9kQ', name: 'Rate limit test',
-        site_id: '1011', site_name: 'Slussen',
+        owner_id: 'aB3xZ9kQ',
+        name: 'Rate limit test',
+        site_id: '1011',
+        site_name: 'Slussen',
       }),
     });
     expect(created.status).toBe(201);
-    const body = await created.json() as { display: { id: string } };
-    const response = await app.request(`/api/v1/devices/${body.display.id}/data`);
+    const body = (await created.json()) as { display: { id: string } };
+    const response = await app.request(
+      `/api/v1/devices/${body.display.id}/data`,
+    );
     expect(response.status).toBe(429);
     expect(response.headers.get('retry-after')).toBe('42');
-    expect((await response.json() as { error: { code: string } }).error.code)
-      .toBe('provider_rate_limited');
+    const errorBody = (await response.json()) as { error: { code: string } };
+    expect(errorBody.error.code).toBe('provider_rate_limited');
   });
 });
