@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { shallowRef, ref, watch } from 'vue';
+import { computed, shallowRef, ref, watch } from 'vue';
 import {
   readPackage,
   listReleases,
@@ -16,6 +16,21 @@ const props = defineProps<{
   outcome: string | null;
 }>();
 const emit = defineEmits<{ update: [pkg: Package]; cancel: []; check: [] }>();
+const confirmOpen = ref(false);
+const buttonlessUpdate = computed(() =>
+  props.info?.capabilities.includes('signed-usb-update-v1') ?? false,
+);
+watch(
+  () => [props.info, props.connected],
+  () => { confirmOpen.value = false; },
+);
+function confirmUpdate() {
+  const selected = pkg.value;
+  if (!selected || !props.connected || props.busy || checking.value || downloading.value)
+    return;
+  confirmOpen.value = false;
+  emit('update', selected);
+}
 const manifest = shallowRef<File | null>(null),
   image = shallowRef<File | null>(null),
   pkg = shallowRef<Package | null>(null),
@@ -45,6 +60,7 @@ async function download() {
   if (!release || props.busy) return;
   downloading.value = true;
   error.value = null;
+  confirmOpen.value = false;
   pkg.value = null;
   try {
     pkg.value = await downloadRelease(release);
@@ -61,6 +77,7 @@ async function select(event: Event, kind: 'manifest' | 'image') {
   else image.value = file;
   pkg.value = null;
   error.value = null;
+  confirmOpen.value = false;
   const m = manifest.value,
     b = image.value;
   if (!m || !b) return;
@@ -150,13 +167,21 @@ async function select(event: Event, kind: 'manifest' | 'image') {
       </div>
       <p v-if="checking" role="status">Checking release files…</p>
       <p v-if="pkg" class="text-sm">
-        Ready to install {{ pkg.manifest.version }}. Hold the blank-output
-        button for two seconds, then choose Update within 60 seconds.
+        Ready to install {{ pkg.manifest.version }}.
+        <template v-if="buttonlessUpdate">
+          No physical button is needed for this signed USB update.
+        </template>
+        <template v-else>
+          The currently installed firmware still requires holding the blank-output
+          button (GPIO22) for two seconds before starting the update, within
+          60 seconds. Once firmware supporting button-free updates is installed,
+          subsequent signed updates will not require a button.
+        </template>
       </p>
       <UButton
         class="mt-4"
         :disabled="!connected || busy || !pkg || checking || downloading"
-        @click="pkg && emit('update', pkg)"
+        @click="confirmOpen = true"
         >Update firmware</UButton
       >
       <UButton
@@ -197,4 +222,20 @@ async function select(event: Event, kind: 'manifest' | 'image') {
     <p v-if="outcome" role="status" class="mt-3">{{ outcome }}</p>
     <p v-if="error" role="alert" class="mt-3 text-red-700">{{ error }}</p>
   </UCard>
+  <UModal
+    :open="confirmOpen"
+    title="Install firmware update?"
+    :description="`Install firmware ${pkg?.manifest.version ?? ''} on the connected panel? It will temporarily blank its display and restart. Keep the USB cable connected during upload.`"
+    :ui="{ footer: 'justify-end' }"
+    @update:open="confirmOpen = $event"
+  >
+    <template #footer>
+      <UButton color="neutral" variant="outline" @click="confirmOpen = false">
+        Cancel
+      </UButton>
+      <UButton :disabled="!connected || busy || !pkg || checking || downloading" @click="confirmUpdate">
+        Install firmware
+      </UButton>
+    </template>
+  </UModal>
 </template>
