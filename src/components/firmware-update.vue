@@ -22,11 +22,19 @@ const buttonlessUpdate = computed(() =>
 );
 watch(
   () => [props.info, props.connected],
-  () => { confirmOpen.value = false; },
+  () => {
+    confirmOpen.value = false;
+  },
 );
 function confirmUpdate() {
   const selected = pkg.value;
-  if (!selected || !props.connected || props.busy || checking.value || downloading.value)
+  if (
+    !selected ||
+    !props.connected ||
+    props.busy ||
+    checking.value ||
+    downloading.value
+  )
     return;
   confirmOpen.value = false;
   emit('update', selected);
@@ -233,7 +241,10 @@ async function select(event: Event, kind: 'manifest' | 'image') {
       <UButton color="neutral" variant="outline" @click="confirmOpen = false">
         Cancel
       </UButton>
-      <UButton :disabled="!connected || busy || !pkg || checking || downloading" @click="confirmUpdate">
+      <UButton
+        :disabled="!connected || busy || !pkg || checking || downloading"
+        @click="confirmUpdate"
+      >
         Install firmware
       </UButton>
     </template>
