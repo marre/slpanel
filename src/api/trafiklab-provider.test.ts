@@ -182,20 +182,21 @@ describe('createTrafiklabProvider', () => {
       fetch: fetchMock,
       baseUrl: 'https://example.com/v1',
     });
-    const error = await provider
-      .getDepartures({
+    let retryAfterSeconds: number | undefined;
+    try {
+      await provider.getDepartures({
         site_id: '1011',
         lines: [],
         directions: [],
         modes: [],
         forecast: 240,
-      })
-      .then(
-        () => null,
-        (reason: unknown) => reason as { retryAfterSeconds: number },
-      );
-    expect(error?.retryAfterSeconds).toBeGreaterThanOrEqual(88);
-    expect(error?.retryAfterSeconds).toBeLessThanOrEqual(90);
+      });
+    } catch (error) {
+      retryAfterSeconds = (error as { retryAfterSeconds?: number })
+        .retryAfterSeconds;
+    }
+    expect(retryAfterSeconds).toBeGreaterThanOrEqual(88);
+    expect(retryAfterSeconds).toBeLessThanOrEqual(90);
   });
 
   it('maps non-429 upstream failures to 502', async () => {
