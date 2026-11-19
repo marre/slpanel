@@ -1,5 +1,7 @@
 import { vi } from 'vitest';
 
+import { ApiError } from './errors';
+
 import { createTrafiklabProvider } from './trafiklab-provider';
 
 describe('createTrafiklabProvider', () => {
@@ -192,8 +194,8 @@ describe('createTrafiklabProvider', () => {
         forecast: 240,
       });
     } catch (error) {
-      retryAfterSeconds = (error as { retryAfterSeconds?: number })
-        .retryAfterSeconds;
+      const providerError = error as ApiError;
+      retryAfterSeconds = providerError.retryAfterSeconds;
     }
     expect(retryAfterSeconds).toBeGreaterThanOrEqual(88);
     expect(retryAfterSeconds).toBeLessThanOrEqual(90);
