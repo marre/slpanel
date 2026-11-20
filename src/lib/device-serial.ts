@@ -264,6 +264,7 @@ export class DeviceSerialClient {
   private ready = false;
   private closed = false;
   private requesting = false;
+  private resetting = true;
 
   constructor(
     private readonly port: DeviceSerialPort,
@@ -285,9 +286,17 @@ export class DeviceSerialClient {
       }
       this.reader = this.port.readable.getReader();
       this.writer = this.port.writable.getWriter();
-      const hello = this.waitForReply();
       this.readTask = this.readReplies();
-      // DTR triggers the firmware greeting; listen before asserting it.
+      // Opening a Linux port can assert DTR before the browser flushes input,
+      // losing the firmware's one-shot greeting (notably in Firefox). Drain
+      // startup bytes with DTR low, then request a fresh session explicitly.
+      await this.port.setSignals({ dataTerminalReady: false });
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      if (this.closed) {
+        throw new Error('Connection cancelled.');
+      }
+      this.resetting = false;
+      const hello = this.waitForReply();
       const [, reply] = await Promise.all([
         this.port.setSignals({ dataTerminalReady: true }),
         hello,
@@ -392,6 +401,10 @@ export class DeviceSerialClient {
             this.fail(new Error('Device disconnected.'));
           }
           break;
+        }
+        if (this.resetting) {
+          bytes = [];
+          continue;
         }
         for (const byte of value) {
           if (byte !== 10) {

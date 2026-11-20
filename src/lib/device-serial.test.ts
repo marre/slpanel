@@ -66,6 +66,54 @@ describe('DeviceSerialClient', () => {
     vi.useRealTimers();
   });
 
+  it.each(['flushed', 'buffered'])(
+    'restarts the handshake when opening asserted DTR and the greeting was %s',
+    async (startup) => {
+      const port = new TestDevicePort();
+      let dtr = true;
+      port.open.mockImplementation(async () => {
+        if (startup === 'buffered') {
+          // Include a partial packet left behind by the browser's input flush.
+          port.sendRaw('version":2}\r\n');
+        }
+      });
+      port.setSignals.mockImplementation(async ({ dataTerminalReady }) => {
+        if (dataTerminalReady && !dtr) {
+          port.send({ reply: 'hello', version: 2 });
+        }
+        dtr = dataTerminalReady;
+      });
+      const client = new DeviceSerialClient(port, vi.fn(), 50);
+      await client.connect();
+      expect(client.protocolVersion).toBe(2);
+      expect(port.setSignals).toHaveBeenNthCalledWith(1, {
+        dataTerminalReady: false,
+      });
+      expect(port.setSignals).toHaveBeenNthCalledWith(2, {
+        dataTerminalReady: true,
+      });
+      await expect(client.request({ op: 'config' })).resolves.toMatchObject({
+        reply: 'config',
+      });
+      await client.disconnect();
+    },
+  );
+
+  it('can disconnect while resetting the handshake without reasserting DTR', async () => {
+    vi.useFakeTimers();
+    const port = new TestDevicePort();
+    const client = new DeviceSerialClient(port, vi.fn());
+    const connecting = expect(client.connect()).rejects.toThrow('cancelled');
+    await vi.advanceTimersByTimeAsync(0);
+    await client.disconnect();
+    await vi.advanceTimersByTimeAsync(100);
+    await connecting;
+    expect(port.setSignals).not.toHaveBeenCalledWith({
+      dataTerminalReady: true,
+    });
+    expect(port.close).toHaveBeenCalledOnce();
+  });
+
   it('handles fragmented UTF-8/CRLF, sets DTR, and sends complete config over USB', async () => {
     const port = new TestDevicePort((request) =>
       request.op === 'configure'
@@ -152,11 +200,11 @@ describe('DeviceSerialClient', () => {
   });
 
   it('invalidates timed-out sessions so late responses cannot satisfy the next request', async () => {
-    vi.useFakeTimers();
     const port = new TestDevicePort();
     const disconnected = vi.fn();
     const client = new DeviceSerialClient(port, disconnected, 50);
     await client.connect();
+    vi.useFakeTimers();
     const failed = expect(client.request({ op: 'status' })).rejects.toThrow(
       'Device response timed out.',
     );
