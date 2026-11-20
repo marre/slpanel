@@ -95,13 +95,27 @@ describe('Schedules page', () => {
       ),
     );
     await screen.findByRole('button', { name: /add time window/i });
-    await fireEvent.click(screen.getByRole('button', { name: /add time window/i }));
+    await fireEvent.click(
+      screen.getByRole('button', { name: /add time window/i }),
+    );
     expect(screen.getByText('Weekly overview')).toBeInTheDocument();
     expect(screen.getByText('Edit selected window')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /edit morning departures on monday/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: /edit morning departures on monday/i,
+      }),
+    ).toBeInTheDocument();
     await fireEvent.click(screen.getByRole('button', { name: 'Weekend' }));
-    expect(screen.queryByRole('button', { name: /edit morning departures on monday/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /edit morning departures on saturday/i })).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', {
+        name: /edit morning departures on monday/i,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: /edit morning departures on saturday/i,
+      }),
+    ).toBeInTheDocument();
   });
 
   it('searches and selects a timezone using the combobox', async () => {

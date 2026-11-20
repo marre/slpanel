@@ -38,25 +38,63 @@ type EditableRule = ScheduleRuleInput & { key: string };
 const rules = ref<EditableRule[]>([]);
 const selectedRuleKey = ref<string | null>(null);
 const selectedDay = ref(0);
-const dayLabels = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const dayLabels = [
+  'Monday',
+  'Tuesday',
+  'Wednesday',
+  'Thursday',
+  'Friday',
+  'Saturday',
+  'Sunday',
+];
 const hours = [0, 6, 12, 18, 24];
 function minute(time: string) {
   const [h, m] = time.split(':').map(Number);
   return h * 60 + m;
 }
 const timeline = computed(() => {
-  const segments: { day: number; start: number; end: number; key: string; name: string }[] = [];
+  const segments: {
+    day: number;
+    start: number;
+    end: number;
+    key: string;
+    name: string;
+  }[] = [];
   for (const rule of rules.value) {
     const start = minute(rule.start_time);
     const end = minute(rule.end_time);
     for (const day of rule.days) {
       if (start === end) {
-        segments.push({ day, start: 0, end: 1440, key: rule.key, name: sceneName(rule.scene_id) });
+        segments.push({
+          day,
+          start: 0,
+          end: 1440,
+          key: rule.key,
+          name: sceneName(rule.scene_id),
+        });
       } else if (start < end) {
-        segments.push({ day, start, end, key: rule.key, name: sceneName(rule.scene_id) });
+        segments.push({
+          day,
+          start,
+          end,
+          key: rule.key,
+          name: sceneName(rule.scene_id),
+        });
       } else {
-        segments.push({ day, start, end: 1440, key: rule.key, name: sceneName(rule.scene_id) });
-        segments.push({ day: (day + 1) % 7, start: 0, end, key: rule.key, name: sceneName(rule.scene_id) });
+        segments.push({
+          day,
+          start,
+          end: 1440,
+          key: rule.key,
+          name: sceneName(rule.scene_id),
+        });
+        segments.push({
+          day: (day + 1) % 7,
+          start: 0,
+          end,
+          key: rule.key,
+          name: sceneName(rule.scene_id),
+        });
       }
     }
   }
@@ -66,15 +104,19 @@ const overlaps = computed(() => {
   const bad = new Set<string>();
   for (let i = 0; i < timeline.value.length; i++) {
     for (let j = i + 1; j < timeline.value.length; j++) {
-      const a = timeline.value[i], b = timeline.value[j];
+      const a = timeline.value[i],
+        b = timeline.value[j];
       if (a.day === b.day && a.start < b.end && b.start < a.end) {
-        bad.add(a.key); bad.add(b.key);
+        bad.add(a.key);
+        bad.add(b.key);
       }
     }
   }
   return bad;
 });
-const selectedRule = computed(() => rules.value.find(rule => rule.key === selectedRuleKey.value));
+const selectedRule = computed(() =>
+  rules.value.find((rule) => rule.key === selectedRuleKey.value),
+);
 function selectRule(key: string, day?: number) {
   selectedRuleKey.value = key;
   if (day !== undefined) selectedDay.value = day;
@@ -85,8 +127,9 @@ function duplicateRule(rule: EditableRule) {
   selectedRuleKey.value = copy.key;
 }
 function removeRule(key: string) {
-  rules.value = rules.value.filter(rule => rule.key !== key);
-  if (selectedRuleKey.value === key) selectedRuleKey.value = rules.value[0]?.key ?? null;
+  rules.value = rules.value.filter((rule) => rule.key !== key);
+  if (selectedRuleKey.value === key)
+    selectedRuleKey.value = rules.value[0]?.key ?? null;
 }
 function setDays(rule: EditableRule, days: number[]) {
   rule.days = [...days];
@@ -150,11 +193,11 @@ function appendRule() {
   const next = (hours + 2) % 24;
   const to = last ? String(next).padStart(2, '0') + from.slice(2) : '09:00';
   const added = toEditable({
-      days: last ? [...last.days] : [0, 1, 2, 3, 4],
-      start_time: from,
-      end_time: to,
-      scene_id: scenes.value[0]?.id ?? '',
-    });
+    days: last ? [...last.days] : [0, 1, 2, 3, 4],
+    start_time: from,
+    end_time: to,
+    scene_id: scenes.value[0]?.id ?? '',
+  });
   rules.value.push(added);
   selectedRuleKey.value = added.key;
 }
@@ -167,9 +210,6 @@ function sceneName(id: string) {
   return (
     scenes.value.find((scene) => scene.id === id)?.name ?? 'Unavailable scene'
   );
-}
-function displayDays(days: number[]) {
-  return days.map((day) => weekdays[day]).join(', ');
 }
 watch(
   owner,
@@ -499,75 +539,217 @@ async function remove() {
                 least one window to save.
               </div>
               <div v-if="rules.length" class="space-y-3">
-                <div class="rounded-xl border border-[var(--panel-border)] bg-white p-3 sm:p-4">
+                <div
+                  class="rounded-xl border border-[var(--panel-border)] bg-white p-3 sm:p-4"
+                >
                   <div class="mb-3 flex items-center justify-between gap-2">
                     <h4 class="text-sm font-semibold">Weekly overview</h4>
-                    <span class="text-xs text-[var(--muted-text)]">Select a block to edit · grey means Off</span>
+                    <span class="text-xs text-[var(--muted-text)]"
+                      >Select a block to edit · grey means Off</span
+                    >
                   </div>
-                  <div class="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-2 gap-y-1.5">
+                  <div
+                    class="grid grid-cols-[3.5rem_minmax(0,1fr)] gap-x-2 gap-y-1.5"
+                  >
                     <div></div>
-                    <div class="flex justify-between text-[10px] text-[var(--muted-text)]">
-                      <span v-for="hour in hours" :key="hour">{{ String(hour).padStart(2, '0') }}</span>
+                    <div
+                      class="flex justify-between text-[10px] text-[var(--muted-text)]"
+                    >
+                      <span v-for="hour in hours" :key="hour">{{
+                        String(hour).padStart(2, '0')
+                      }}</span>
                     </div>
                     <template v-for="(day, dayIndex) in dayLabels" :key="day">
-                      <button type="button" class="text-left text-xs font-medium" :class="selectedDay === dayIndex ? 'text-sky-800' : 'text-[var(--muted-text)]'" @click="selectedDay = dayIndex">{{ day.slice(0, 3) }}</button>
-                      <div class="relative h-9 overflow-hidden rounded-md bg-slate-100" :aria-label="day + ' timeline'">
-                        <div v-for="hour in [6, 12, 18]" :key="hour" class="pointer-events-none absolute inset-y-0 border-l border-white/80" :style="{ left: (hour / 24 * 100) + '%' }"></div>
-                        <button v-for="segment in timeline.filter(item => item.day === dayIndex)" :key="segment.key + '-' + segment.start"
-                          type="button" :title="segment.name + ' · ' + day"
+                      <button
+                        type="button"
+                        class="text-left text-xs font-medium"
+                        :class="
+                          selectedDay === dayIndex
+                            ? 'text-sky-800'
+                            : 'text-[var(--muted-text)]'
+                        "
+                        @click="selectedDay = dayIndex"
+                      >
+                        {{ day.slice(0, 3) }}
+                      </button>
+                      <div
+                        class="relative h-9 overflow-hidden rounded-md bg-slate-100"
+                        :aria-label="day + ' timeline'"
+                      >
+                        <div
+                          v-for="hour in [6, 12, 18]"
+                          :key="hour"
+                          class="pointer-events-none absolute inset-y-0 border-l border-white/80"
+                          :style="{ left: (hour / 24) * 100 + '%' }"
+                        ></div>
+                        <button
+                          v-for="segment in timeline.filter(
+                            (item) => item.day === dayIndex,
+                          )"
+                          :key="segment.key + '-' + segment.start"
+                          type="button"
+                          :title="segment.name + ' · ' + day"
                           :aria-label="'Edit ' + segment.name + ' on ' + day"
                           class="absolute inset-y-1 overflow-hidden rounded px-1 text-left text-[10px] font-medium text-white focus-visible:outline-2 focus-visible:outline-sky-900"
-                          :class="overlaps.has(segment.key) ? 'bg-rose-600' : selectedRuleKey === segment.key ? 'bg-sky-800 ring-2 ring-sky-400' : 'bg-teal-700'"
-                          :style="{ left: (segment.start / 1440 * 100) + '%', width: ((segment.end - segment.start) / 1440 * 100) + '%' }"
-                          @click="selectRule(segment.key, dayIndex)">
+                          :class="
+                            overlaps.has(segment.key)
+                              ? 'bg-rose-600'
+                              : selectedRuleKey === segment.key
+                                ? 'bg-sky-800 ring-2 ring-sky-400'
+                                : 'bg-teal-700'
+                          "
+                          :style="{
+                            left: (segment.start / 1440) * 100 + '%',
+                            width:
+                              ((segment.end - segment.start) / 1440) * 100 +
+                              '%',
+                          }"
+                          @click="selectRule(segment.key, dayIndex)"
+                        >
                           <span class="block truncate">{{ segment.name }}</span>
                         </button>
                       </div>
                     </template>
                   </div>
-                  <p class="mt-3 text-xs text-[var(--muted-text)]">Overnight windows continue onto the next day. Select a window below if it is too short to tap on the timeline.</p>
+                  <p class="mt-3 text-xs text-[var(--muted-text)]">
+                    Overnight windows continue onto the next day. Select a
+                    window below if it is too short to tap on the timeline.
+                  </p>
                 </div>
                 <div class="flex flex-wrap gap-2" aria-label="Time windows">
-                  <button v-for="(rule, index) in rules" :key="rule.key" type="button"
+                  <button
+                    v-for="(rule, index) in rules"
+                    :key="rule.key"
+                    type="button"
                     class="rounded-lg border px-3 py-2 text-left text-xs"
-                    :class="selectedRuleKey === rule.key ? 'border-sky-700 bg-sky-50' : 'border-[var(--panel-border)] bg-white'"
-                    :aria-pressed="selectedRuleKey === rule.key" @click="selectRule(rule.key)">
-                    <strong>Window {{ index + 1 }}</strong> · {{ rule.start_time }}–{{ rule.end_time }}
-                    <span class="block text-[var(--muted-text)]">{{ sceneName(rule.scene_id) }}</span>
+                    :class="
+                      selectedRuleKey === rule.key
+                        ? 'border-sky-700 bg-sky-50'
+                        : 'border-[var(--panel-border)] bg-white'
+                    "
+                    :aria-pressed="selectedRuleKey === rule.key"
+                    @click="selectRule(rule.key)"
+                  >
+                    <strong>Window {{ index + 1 }}</strong> ·
+                    {{ rule.start_time }}–{{ rule.end_time }}
+                    <span class="block text-[var(--muted-text)]">{{
+                      sceneName(rule.scene_id)
+                    }}</span>
                   </button>
                 </div>
-                <div v-if="selectedRule" class="space-y-4 rounded-xl border border-sky-200 bg-slate-50 p-4">
-                  <div class="flex flex-wrap items-center justify-between gap-2">
+                <div
+                  v-if="selectedRule"
+                  class="space-y-4 rounded-xl border border-sky-200 bg-slate-50 p-4"
+                >
+                  <div
+                    class="flex flex-wrap items-center justify-between gap-2"
+                  >
                     <h4 class="font-semibold">Edit selected window</h4>
                     <div class="flex gap-3">
-                      <button type="button" class="text-sm font-medium underline" @click="duplicateRule(selectedRule)">Duplicate</button>
-                      <button type="button" class="text-sm font-medium text-rose-700 underline" @click="removeRule(selectedRule.key)">Remove</button>
+                      <button
+                        type="button"
+                        class="text-sm font-medium underline"
+                        @click="duplicateRule(selectedRule)"
+                      >
+                        Duplicate
+                      </button>
+                      <button
+                        type="button"
+                        class="text-sm font-medium text-rose-700 underline"
+                        @click="removeRule(selectedRule.key)"
+                      >
+                        Remove
+                      </button>
                     </div>
                   </div>
                   <fieldset class="space-y-2">
                     <legend class="text-sm font-semibold">Repeat on</legend>
                     <div class="flex flex-wrap gap-2">
-                      <button type="button" class="rounded-md border bg-white px-2 py-1 text-xs" @click="setDays(selectedRule, [0,1,2,3,4])">Weekdays</button>
-                      <button type="button" class="rounded-md border bg-white px-2 py-1 text-xs" @click="setDays(selectedRule, [5,6])">Weekend</button>
-                      <button type="button" class="rounded-md border bg-white px-2 py-1 text-xs" @click="setDays(selectedRule, [0,1,2,3,4,5,6])">Every day</button>
+                      <button
+                        type="button"
+                        class="rounded-md border bg-white px-2 py-1 text-xs"
+                        @click="setDays(selectedRule, [0, 1, 2, 3, 4])"
+                      >
+                        Weekdays
+                      </button>
+                      <button
+                        type="button"
+                        class="rounded-md border bg-white px-2 py-1 text-xs"
+                        @click="setDays(selectedRule, [5, 6])"
+                      >
+                        Weekend
+                      </button>
+                      <button
+                        type="button"
+                        class="rounded-md border bg-white px-2 py-1 text-xs"
+                        @click="setDays(selectedRule, [0, 1, 2, 3, 4, 5, 6])"
+                      >
+                        Every day
+                      </button>
                     </div>
                     <div class="flex flex-wrap gap-2">
-                      <label v-for="(day, dayIndex) in weekdays" :key="day" class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--panel-border)] bg-white px-2.5 py-2 text-xs font-medium has-[:checked]:border-sky-700 has-[:checked]:bg-sky-50">
-                        <input type="checkbox" :checked="selectedRule.days.includes(dayIndex)" @change="toggleDay(selectedRule, dayIndex, ($event.target as HTMLInputElement).checked)" />{{ day }}
+                      <label
+                        v-for="(day, dayIndex) in weekdays"
+                        :key="day"
+                        class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-[var(--panel-border)] bg-white px-2.5 py-2 text-xs font-medium has-[:checked]:border-sky-700 has-[:checked]:bg-sky-50"
+                      >
+                        <input
+                          type="checkbox"
+                          :checked="selectedRule.days.includes(dayIndex)"
+                          @change="
+                            toggleDay(
+                              selectedRule,
+                              dayIndex,
+                              ($event.target as HTMLInputElement).checked,
+                            )
+                          "
+                        />{{ day }}
                       </label>
                     </div>
                   </fieldset>
                   <div class="grid gap-3 sm:grid-cols-3">
-                    <label class="block space-y-1.5 text-sm font-medium"><span>From</span><input v-model="selectedRule.start_time" type="time" required :class="fieldClass" /></label>
-                    <label class="block space-y-1.5 text-sm font-medium"><span>Until</span><input v-model="selectedRule.end_time" type="time" required :class="fieldClass" /></label>
-                    <label class="block space-y-1.5 text-sm font-medium"><span>Scene</span>
-                      <select v-model="selectedRule.scene_id" required :class="fieldClass">
+                    <label class="block space-y-1.5 text-sm font-medium"
+                      ><span>From</span
+                      ><input
+                        v-model="selectedRule.start_time"
+                        type="time"
+                        required
+                        :class="fieldClass"
+                    /></label>
+                    <label class="block space-y-1.5 text-sm font-medium"
+                      ><span>Until</span
+                      ><input
+                        v-model="selectedRule.end_time"
+                        type="time"
+                        required
+                        :class="fieldClass"
+                    /></label>
+                    <label class="block space-y-1.5 text-sm font-medium"
+                      ><span>Scene</span>
+                      <select
+                        v-model="selectedRule.scene_id"
+                        required
+                        :class="fieldClass"
+                      >
                         <option disabled value="">Choose a scene</option>
-                        <option v-for="scene in scenes" :key="scene.id" :value="scene.id">{{ scene.name }}</option>
+                        <option
+                          v-for="scene in scenes"
+                          :key="scene.id"
+                          :value="scene.id"
+                        >
+                          {{ scene.name }}
+                        </option>
                       </select>
                     </label>
                   </div>
-                  <p v-if="overlaps.has(selectedRule.key)" role="alert" class="text-sm font-semibold text-rose-700">This window overlaps another window. Adjust the times or days before saving.</p>
+                  <p
+                    v-if="overlaps.has(selectedRule.key)"
+                    role="alert"
+                    class="text-sm font-semibold text-rose-700"
+                  >
+                    This window overlaps another window. Adjust the times or
+                    days before saving.
+                  </p>
                 </div>
               </div>
               <div
