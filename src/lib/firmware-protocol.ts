@@ -50,7 +50,12 @@ export type DeviceInfo = {
     chunk_bytes: number;
     checkpoint_bytes: number;
   };
-  security: { signed_updates: boolean; hardware_secure_boot: boolean };
+  security: {
+    signed_updates: boolean;
+    hardware_secure_boot: boolean;
+    /** Absent on older protocol-v2 firmware. */
+    trusted_key_id?: string;
+  };
 };
 export type UpdateRequest =
   | { op: 'device-info' }
@@ -129,7 +134,10 @@ export function isUpdateReply(v: unknown): v is UpdateReply {
         ) &&
         object(v.security) &&
         typeof v.security.signed_updates === 'boolean' &&
-        typeof v.security.hardware_secure_boot === 'boolean'
+        typeof v.security.hardware_secure_boot === 'boolean' &&
+        (v.security.trusted_key_id === undefined ||
+          (typeof v.security.trusted_key_id === 'string' &&
+            /^[\\x20-\\x7e]{1,16}$/.test(v.security.trusted_key_id)))
       );
     case 'update-status':
       return (
