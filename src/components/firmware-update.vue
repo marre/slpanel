@@ -207,10 +207,7 @@ async function select(event: Event, kind: 'manifest' | 'image') {
           button.
         </template>
       </p>
-      <UButton
-        class="mt-4"
-        :disabled="cannotUpdate"
-        @click="confirmOpen = true"
+      <UButton class="mt-4" :disabled="cannotUpdate" @click="confirmOpen = true"
         >Update firmware</UButton
       >
       <UButton
