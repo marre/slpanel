@@ -44,20 +44,20 @@ const manifest = shallowRef<File | null>(null),
   pkg = shallowRef<Package | null>(null),
   error = ref<string | null>(null),
   checking = ref(false);
-const compatibilityError = computed(() =>
-  pkg.value && props.info
-    ? firmwareCompatibilityError(pkg.value, props.info)
-    : null,
-);
-const cannotUpdate = computed(
-  () =>
+const compatibilityError = computed(() => {
+  if (!pkg.value || !props.info) return null;
+  return firmwareCompatibilityError(pkg.value, props.info);
+});
+const cannotUpdate = computed(() => {
+  return (
     !props.connected ||
     props.busy ||
     !pkg.value ||
     checking.value ||
     downloading.value ||
-    !!compatibilityError.value,
-);
+    !!compatibilityError.value
+  );
+});
 const releases = shallowRef<Release[]>([]),
   selectedRelease = ref(''),
   downloading = ref(false);
@@ -133,8 +133,7 @@ async function select(event: Event, kind: 'manifest' | 'image') {
       Connect a panel to check whether it supports signed firmware updates.
     </p>
     <p v-if="info?.security.trusted_key_id" class="text-xs">
-      Trusted firmware signing key ID:
-      <code>{{ info.security.trusted_key_id }}</code>
+      Trusted key ID: <code>{{ info.security.trusted_key_id }}</code>
     </p>
     <p
       v-if="connected && !info?.capabilities.includes('staged-update-v1')"
@@ -192,11 +191,7 @@ async function select(event: Event, kind: 'manifest' | 'image') {
         /></label>
       </div>
       <p v-if="checking" role="status">Checking release files…</p>
-      <p
-        v-if="compatibilityError"
-        role="alert"
-        class="mt-3 text-sm text-red-700"
-      >
+      <p v-if="compatibilityError" role="alert" class="text-sm text-red-700">
         {{ compatibilityError }}
       </p>
       <p v-if="pkg && !compatibilityError" class="text-sm">
