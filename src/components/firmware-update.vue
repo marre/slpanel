@@ -4,6 +4,7 @@ import {
   readPackage,
   listReleases,
   downloadRelease,
+  firmwareCompatibilityError,
 } from '@/lib/firmware-updater';
 import type { Package, Phase, Release } from '@/lib/firmware-updater';
 import type { DeviceInfo } from '@/lib/firmware-protocol';
@@ -39,7 +40,8 @@ function confirmUpdate() {
     !props.connected ||
     props.busy ||
     checking.value ||
-    downloading.value
+    downloading.value ||
+    compatibilityError.value
   )
     return;
   confirmOpen.value = false;
@@ -50,6 +52,11 @@ const manifest = shallowRef<File | null>(null),
   pkg = shallowRef<Package | null>(null),
   error = ref<string | null>(null),
   checking = ref(false);
+const compatibilityError = computed(() =>
+  pkg.value && props.info
+    ? firmwareCompatibilityError(pkg.value, props.info)
+    : null,
+);
 const releases = shallowRef<Release[]>([]),
   selectedRelease = ref(''),
   downloading = ref(false);
@@ -124,6 +131,9 @@ async function select(event: Event, kind: 'manifest' | 'image') {
     <p v-else class="text-sm">
       Connect a panel to check whether it supports signed firmware updates.
     </p>
+    <p v-if="info?.security.trusted_key_id" class="text-xs">
+      Trusted firmware signing key ID: <code>{{ info.security.trusted_key_id }}</code>
+    </p>
     <p
       v-if="connected && !info?.capabilities.includes('staged-update-v1')"
       class="text-sm"
@@ -180,7 +190,10 @@ async function select(event: Event, kind: 'manifest' | 'image') {
         /></label>
       </div>
       <p v-if="checking" role="status">Checking release files…</p>
-      <p v-if="pkg" class="text-sm">
+      <p v-if="compatibilityError" role="alert" class="mt-3 text-sm text-red-700">
+        {{ compatibilityError }}
+      </p>
+      <p v-if="pkg && !compatibilityError" class="text-sm">
         Ready to install {{ pkg.manifest.version }}.
         <template v-if="buttonlessUpdate">
           No physical button is needed for this signed USB update.
@@ -195,7 +208,7 @@ async function select(event: Event, kind: 'manifest' | 'image') {
       </p>
       <UButton
         class="mt-4"
-        :disabled="!connected || busy || !pkg || checking || downloading"
+        :disabled="!connected || busy || !pkg || checking || downloading || !!compatibilityError"
         @click="confirmOpen = true"
         >Update firmware</UButton
       >
@@ -249,7 +262,7 @@ async function select(event: Event, kind: 'manifest' | 'image') {
         Cancel
       </UButton>
       <UButton
-        :disabled="!connected || busy || !pkg || checking || downloading"
+        :disabled="!connected || busy || !pkg || checking || downloading || !!compatibilityError"
         @click="confirmUpdate"
       >
         Install firmware
