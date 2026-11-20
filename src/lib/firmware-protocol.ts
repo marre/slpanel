@@ -113,7 +113,12 @@ const counter = (v: unknown): v is number =>
   typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
 const identity = (v: Record<string, unknown>) =>
   hex(v.image_id, 64) && hex(v.attempt_id, 32);
-const offsets = (v: Record<string, unknown>): v is Record<string, unknown> & { next_offset: number; resume_offset: number } =>
+const offsets = (
+  v: Record<string, unknown>,
+): v is Record<string, unknown> & {
+  next_offset: number;
+  resume_offset: number;
+} =>
   counter(v.next_offset) &&
   counter(v.resume_offset) &&
   v.next_offset <= 1572864 &&
