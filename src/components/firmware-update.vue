@@ -259,10 +259,7 @@ async function select(event: Event, kind: 'manifest' | 'image') {
       <UButton color="neutral" variant="outline" @click="confirmOpen = false">
         Cancel
       </UButton>
-      <UButton
-        :disabled="cannotUpdate"
-        @click="confirmUpdate"
-      >
+      <UButton :disabled="cannotUpdate" @click="confirmUpdate">
         Install firmware
       </UButton>
     </template>
