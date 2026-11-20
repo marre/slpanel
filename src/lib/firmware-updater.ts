@@ -124,6 +124,7 @@ export async function uploadFirmware(
     if (error instanceof Error && error.message === 'unsupported-image')
       throw new Error(
         'The device rejected this firmware (unsupported-image). Its signing key or image format may not match the installed bootloader. If the key IDs match, the public keys could still differ. The installed firmware was not replaced.',
+        { cause: error },
       );
     throw error;
   }
