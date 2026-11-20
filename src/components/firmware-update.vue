@@ -35,15 +35,7 @@ watch(
 );
 function confirmUpdate() {
   const selected = pkg.value;
-  if (
-    !selected ||
-    !props.connected ||
-    props.busy ||
-    checking.value ||
-    downloading.value ||
-    compatibilityError.value
-  )
-    return;
+  if (!selected || cannotUpdate.value) return;
   confirmOpen.value = false;
   emit('update', selected);
 }
@@ -56,6 +48,15 @@ const compatibilityError = computed(() =>
   pkg.value && props.info
     ? firmwareCompatibilityError(pkg.value, props.info)
     : null,
+);
+const cannotUpdate = computed(
+  () =>
+    !props.connected ||
+    props.busy ||
+    !pkg.value ||
+    checking.value ||
+    downloading.value ||
+    !!compatibilityError.value,
 );
 const releases = shallowRef<Release[]>([]),
   selectedRelease = ref(''),
@@ -132,7 +133,8 @@ async function select(event: Event, kind: 'manifest' | 'image') {
       Connect a panel to check whether it supports signed firmware updates.
     </p>
     <p v-if="info?.security.trusted_key_id" class="text-xs">
-      Trusted firmware signing key ID: <code>{{ info.security.trusted_key_id }}</code>
+      Trusted firmware signing key ID:
+      <code>{{ info.security.trusted_key_id }}</code>
     </p>
     <p
       v-if="connected && !info?.capabilities.includes('staged-update-v1')"
@@ -190,7 +192,11 @@ async function select(event: Event, kind: 'manifest' | 'image') {
         /></label>
       </div>
       <p v-if="checking" role="status">Checking release files…</p>
-      <p v-if="compatibilityError" role="alert" class="mt-3 text-sm text-red-700">
+      <p
+        v-if="compatibilityError"
+        role="alert"
+        class="mt-3 text-sm text-red-700"
+      >
         {{ compatibilityError }}
       </p>
       <p v-if="pkg && !compatibilityError" class="text-sm">
@@ -208,7 +214,7 @@ async function select(event: Event, kind: 'manifest' | 'image') {
       </p>
       <UButton
         class="mt-4"
-        :disabled="!connected || busy || !pkg || checking || downloading || !!compatibilityError"
+        :disabled="cannotUpdate"
         @click="confirmOpen = true"
         >Update firmware</UButton
       >
@@ -262,7 +268,7 @@ async function select(event: Event, kind: 'manifest' | 'image') {
         Cancel
       </UButton>
       <UButton
-        :disabled="!connected || busy || !pkg || checking || downloading || !!compatibilityError"
+        :disabled="cannotUpdate"
         @click="confirmUpdate"
       >
         Install firmware
