@@ -12,16 +12,16 @@ vi.mock('@/lib/firmware-updater', async (importOriginal) => {
   return {
     ...actual,
     listReleases: vi.fn(async () => [release]),
-  downloadRelease: vi.fn(async () => ({
-    manifest: {
-      version: '0.0.6',
-      board: 'interstate75w-rp2350',
-      layout: 'slpanel-rp2350-4m-v2',
-      key_id: 'release',
-    },
-    imageId,
-    bytes: new Uint8Array(0),
-  })),
+    downloadRelease: vi.fn(async () => ({
+      manifest: {
+        version: '0.0.6',
+        board: 'interstate75w-rp2350',
+        layout: 'slpanel-rp2350-4m-v2',
+        key_id: 'release',
+      },
+      imageId,
+      bytes: new Uint8Array(0),
+    })),
     readPackage: vi.fn(),
   };
 });
