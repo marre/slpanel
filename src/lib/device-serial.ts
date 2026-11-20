@@ -377,6 +377,55 @@ export class DeviceSerialClient {
     }
   }
 
+  /**
+   * A binary frame contains the ASCII magic SLB1, little-endian byte offset,
+   * and exactly 4096 opaque bytes. The device replies only after full flash
+   * read-back and durable sector checkpoint. JSON is used for control only.
+   */
+  async writeBinaryBlock(offset: number, data: Uint8Array): Promise<DeviceReply> {
+    if (data.length !== 4096 || offset % 4096 !== 0 ||
+        offset < 0 || offset >= 1572864) {
+      throw new Error('Invalid binary firmware block.');
+    }
+    const frame = new Uint8Array(8 + 4096);
+    frame.set([83, 76, 66, 49]);
+    new DataView(frame.buffer).setUint32(4, offset, true);
+    frame.set(data, 8);
+    return this.binaryExchange(frame, 'binary-block-written');
+  }
+
+  async endBinaryTransfer(): Promise<DeviceReply> {
+    const frame = new Uint8Array([83, 76, 66, 49, 255, 255, 255, 255]);
+    return this.binaryExchange(frame, 'binary-transfer-ended');
+  }
+
+  private async binaryExchange(
+    frame: Uint8Array,
+    expected: 'binary-block-written' | 'binary-transfer-ended',
+  ): Promise<DeviceReply> {
+    if (!this.ready || this.closed || !this.writer) {
+      throw new Error('Connect a device first.');
+    }
+    if (this.requesting || this.pending) {
+      throw new Error('A device request is already running.');
+    }
+    this.requesting = true;
+    try {
+      const response = this.waitForReply();
+      const [, reply] = await Promise.all([this.writer.write(frame), response]);
+      if (reply.reply === 'error') return reply;
+      if (reply.reply !== expected) {
+        throw new Error('Unexpected binary transfer response; reconnect.');
+      }
+      return reply;
+    } catch (error) {
+      this.fail(error instanceof Error ? error : new Error('Binary transfer failed.'));
+      throw error;
+    } finally {
+      this.requesting = false;
+    }
+  }
+
   private waitForReply(timeoutMs = this.timeoutMs): Promise<DeviceReply> {
     return new Promise((resolve, reject) => {
       const timer = setTimeout(
