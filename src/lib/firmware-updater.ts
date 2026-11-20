@@ -76,6 +76,10 @@ export async function readPackage(
   return { manifest: m, bytes, imageId: toHex(await digest(message)) };
 }
 export type Exchange = (request: DeviceRequest) => Promise<DeviceReply>;
+export type BinaryExchange = {
+  writeBlock: (offset: number, bytes: Uint8Array) => Promise<DeviceReply>;
+  end: () => Promise<DeviceReply>;
+};
 export type Phase =
   'Uploading' | 'Verifying' | 'Restarting' | 'Checking device';
 export async function uploadFirmware(
@@ -85,6 +89,7 @@ export async function uploadFirmware(
   progress: (phase: Phase, bytes: number) => void,
   beforeActivation: (identity: UpdateIdentity) => void,
   signal?: AbortSignal,
+  binary?: BinaryExchange,
 ): Promise<UpdateIdentity> {
   if (
     !info.capabilities.includes('staged-update-v1') ||
@@ -123,34 +128,85 @@ export async function uploadFirmware(
     )
       throw new Error('Update identity changed. Reconnect the device.');
   };
-  for (let offset = begun.next_offset; offset < IMAGE_BYTES; offset += 256) {
+  if (
+    binary &&
+    info.capabilities.includes('binary-update-4k-v1') &&
+    begun.next_offset % 4096 === 0
+  ) {
+    const ready = await request({ op: 'begin-binary-transfer', ...identity });
+    check(ready);
+    if (
+      ready.reply !== 'binary-transfer-ready' ||
+      ready.block_bytes !== 4096 ||
+      ready.next_offset !== begun.next_offset ||
+      ready.resume_offset !== begun.resume_offset
+    )
+      throw new Error('Invalid binary transfer negotiation.');
+    for (let offset = begun.next_offset; offset < IMAGE_BYTES; offset += 4096) {
+      if (signal?.aborted) {
+        const ended = await binary.end();
+        if (ended.reply !== 'binary-transfer-ended')
+          throw new Error('Could not end binary transfer.');
+        const aborted = await request({ op: 'abort-update', ...identity });
+        check(aborted);
+        throw new Error('Update cancelled. The current firmware is unchanged.');
+      }
+      progress('Uploading', offset);
+      const reply = await binary.writeBlock(
+        offset,
+        pkg.bytes.subarray(offset, offset + 4096),
+      );
+      if (reply.reply === 'error') throw new Error(reply.message);
+      check(reply);
+      if (
+        reply.reply !== 'binary-block-written' ||
+        reply.next_offset !== offset + 4096 ||
+        reply.resume_offset !== reply.next_offset
+      )
+        throw new Error('Invalid durable binary block acknowledgment.');
+    }
+    const ended = await binary.end();
+    if (ended.reply !== 'binary-transfer-ended')
+      throw new Error(
+        ended.reply === 'error'
+          ? ended.message
+          : 'Could not end binary transfer.',
+      );
+    if (signal?.aborted) {
+      const aborted = await request({ op: 'abort-update', ...identity });
+      check(aborted);
+      throw new Error('Update cancelled.');
+    }
+  } else {
+    for (let offset = begun.next_offset; offset < IMAGE_BYTES; offset += 256) {
+      if (signal?.aborted) {
+        const v = await request({ op: 'abort-update', ...identity });
+        check(v);
+        throw new Error('Update cancelled. The current firmware is unchanged.');
+      }
+      progress('Uploading', offset);
+      const data = btoa(
+        String.fromCharCode(...pkg.bytes.slice(offset, offset + 256)),
+      );
+      const v = await request({
+        op: 'write-update-chunk',
+        ...identity,
+        offset,
+        data,
+      });
+      check(v);
+      if (
+        v.reply !== 'update-chunk-written' ||
+        v.next_offset !== offset + 256 ||
+        v.resume_offset > v.next_offset
+      )
+        throw new Error('Invalid chunk acknowledgment. Reconnect the device.');
+    }
     if (signal?.aborted) {
       const v = await request({ op: 'abort-update', ...identity });
       check(v);
-      throw new Error('Update cancelled. The current firmware is unchanged.');
+      throw new Error('Update cancelled.');
     }
-    progress('Uploading', offset);
-    const data = btoa(
-      String.fromCharCode(...pkg.bytes.slice(offset, offset + 256)),
-    );
-    const v = await request({
-      op: 'write-update-chunk',
-      ...identity,
-      offset,
-      data,
-    });
-    check(v);
-    if (
-      v.reply !== 'update-chunk-written' ||
-      v.next_offset !== offset + 256 ||
-      v.resume_offset > v.next_offset
-    )
-      throw new Error('Invalid chunk acknowledgment. Reconnect the device.');
-  }
-  if (signal?.aborted) {
-    const v = await request({ op: 'abort-update', ...identity });
-    check(v);
-    throw new Error('Update cancelled.');
   }
   progress('Verifying', IMAGE_BYTES);
   const ready = await request({ op: 'finish-update', ...identity });

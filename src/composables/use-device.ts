@@ -575,11 +575,19 @@ export function useDevice() {
           }
         },
         cancellation.signal,
+        {
+          writeBlock: (offset, bytes) =>
+            current.writeBinaryBlock(offset, bytes),
+          end: () => current.endBinaryTransfer(),
+        },
       );
       await disconnect();
       notice.value =
         'Firmware restarted. Reconnect this panel to check the result.';
     } catch (failure) {
+      // A failed binary frame leaves an uncertain stream position. Drop DTR,
+      // reconnect, and resume only from the device's durable checkpoint.
+      if (current.binaryTransferActive) await disconnect();
       error.value = readError(failure);
       if (expectedUpdate)
         notice.value =

@@ -426,6 +426,16 @@ the expected image and exact attempt to be confirmed. Trial failure reports
 restoration of the previous image. Settings survive upgrades. Physical ROM UF2
 recovery handles initial bootloader installation and unbootable firmware.
 
+Firmware advertising `binary-update-4k-v1` uses the faster, session-scoped
+binary USB data plane: one raw 4 KiB block per read-back-verified and durable
+sector acknowledgment (384 blocks for the fixed 1.5 MiB image). The browser
+negotiates that mode after signed `begin-update` and exits it before
+verification/activation. Older firmware automatically uses the original
+256-byte JSON/Base64 transfer. Interrupted binary transfers must reconnect
+and re-enter `begin-update` to resume from the last durable checkpoint. This
+requires firmware built with the corresponding capability; changing the web
+application alone does not speed up the currently installed firmware.
+
 The client supports protocol 1 for existing configuration/logging and protocol 2
 for staged updates. It does not offer uploads on v1 devices. A request timeout
 closes the session; reconnect and rerun the same package to resume at the device's

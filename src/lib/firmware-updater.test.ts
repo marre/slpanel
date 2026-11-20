@@ -98,6 +98,143 @@ describe('signed update host flow', () => {
       'activate-update',
     ]);
   });
+  it('prefers 4 KiB binary blocks and closes binary mode before verification', async () => {
+    let offset = 1572864 - 8192;
+    const steps: string[] = [];
+    const exchange = vi.fn(async (r): Promise<DeviceReply> => {
+      steps.push(r.op);
+      switch (r.op) {
+        case 'begin-update':
+          return {
+            reply: 'update-begun',
+            image_id: imageId,
+            attempt_id: attemptId,
+            next_offset: offset,
+            resume_offset: offset,
+            chunk_bytes: 256,
+          };
+        case 'begin-binary-transfer':
+          return {
+            reply: 'binary-transfer-ready',
+            image_id: imageId,
+            attempt_id: attemptId,
+            next_offset: offset,
+            resume_offset: offset,
+            block_bytes: 4096,
+          };
+        case 'finish-update':
+          expect(steps.at(-2)).toBe('end');
+          return {
+            reply: 'update-ready',
+            image_id: imageId,
+            attempt_id: attemptId,
+          };
+        case 'activate-update':
+          expect(steps.at(-2)).toBe('record');
+          return {
+            reply: 'update-activating',
+            image_id: imageId,
+            attempt_id: attemptId,
+            rebooting: true,
+          };
+        default:
+          throw new Error('Unexpected legacy chunk request');
+      }
+    });
+    const binary = {
+      writeBlock: vi.fn(
+        async (requested: number, data: Uint8Array): Promise<DeviceReply> => {
+          steps.push('binary');
+          expect(requested).toBe(offset);
+          expect(data).toHaveLength(4096);
+          offset += 4096;
+          return {
+            reply: 'binary-block-written',
+            image_id: imageId,
+            attempt_id: attemptId,
+            next_offset: offset,
+            resume_offset: offset,
+          };
+        },
+      ),
+      end: vi.fn(async (): Promise<DeviceReply> => {
+        steps.push('end');
+        return { reply: 'binary-transfer-ended' };
+      }),
+    };
+    await uploadFirmware(
+      pkg,
+      { ...info, capabilities: [...info.capabilities, 'binary-update-4k-v1'] },
+      exchange,
+      vi.fn(),
+      () => steps.push('record'),
+      undefined,
+      binary,
+    );
+    expect(binary.writeBlock).toHaveBeenCalledTimes(2);
+    expect(steps).toEqual([
+      'begin-update',
+      'begin-binary-transfer',
+      'binary',
+      'binary',
+      'end',
+      'finish-update',
+      'record',
+      'activate-update',
+    ]);
+  });
+
+  it('rejects a non-durable binary block acknowledgement before activation', async () => {
+    const exchange = vi.fn(async (r): Promise<DeviceReply> =>
+      r.op === 'begin-update'
+        ? {
+            reply: 'update-begun',
+            image_id: imageId,
+            attempt_id: attemptId,
+            next_offset: 0,
+            resume_offset: 0,
+            chunk_bytes: 256,
+          }
+        : {
+            reply: 'binary-transfer-ready',
+            image_id: imageId,
+            attempt_id: attemptId,
+            next_offset: 0,
+            resume_offset: 0,
+            block_bytes: 4096,
+          },
+    );
+    const binary = {
+      writeBlock: vi.fn(async (): Promise<DeviceReply> => ({
+        reply: 'binary-block-written',
+        image_id: imageId,
+        attempt_id: attemptId,
+        next_offset: 4096,
+        resume_offset: 0,
+      })),
+      end: vi.fn(),
+    };
+    await expect(
+      uploadFirmware(
+        pkg,
+        {
+          ...info,
+          capabilities: [...info.capabilities, 'binary-update-4k-v1'],
+        },
+        exchange,
+        vi.fn(),
+        vi.fn(),
+        undefined,
+        binary,
+      ),
+    ).rejects.toThrow('durable binary block acknowledgment');
+    expect(exchange.mock.calls.map(([r]) => r.op)).toEqual([
+      'begin-update',
+      'begin-binary-transfer',
+    ]);
+    expect(binary.end).not.toHaveBeenCalled();
+  });
+
   it('stops on wrong attempt or offset and never activates', async () => {
     const exchange = vi.fn(async (r): Promise<DeviceReply> =>
       r.op === 'begin-update'

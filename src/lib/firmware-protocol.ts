@@ -61,6 +61,7 @@ export type UpdateRequest =
       offset: number;
       data: string;
     } & UpdateIdentity)
+  | ({ op: 'begin-binary-transfer' } & UpdateIdentity)
   | ({
       op: 'finish-update' | 'activate-update' | 'abort-update';
     } & UpdateIdentity)
@@ -79,6 +80,18 @@ export type UpdateReply =
       next_offset: number;
       resume_offset: number;
     } & UpdateIdentity)
+  | ({
+      reply: 'binary-transfer-ready';
+      next_offset: number;
+      resume_offset: number;
+      block_bytes: 4096;
+    } & UpdateIdentity)
+  | ({
+      reply: 'binary-block-written';
+      next_offset: number;
+      resume_offset: number;
+    } & UpdateIdentity)
+  | { reply: 'binary-transfer-ended' }
   | ({ reply: 'update-ready' | 'update-aborted' } & UpdateIdentity)
   | ({ reply: 'update-activating'; rebooting: true } & UpdateIdentity)
   | { reply: 'bootloader-ready'; rebooting: true };
@@ -100,7 +113,12 @@ const counter = (v: unknown): v is number =>
   typeof v === 'number' && Number.isSafeInteger(v) && v >= 0;
 const identity = (v: Record<string, unknown>) =>
   hex(v.image_id, 64) && hex(v.attempt_id, 32);
-const offsets = (v: Record<string, unknown>) =>
+const offsets = (
+  v: Record<string, unknown>,
+): v is Record<string, unknown> & {
+  next_offset: number;
+  resume_offset: number;
+} =>
   counter(v.next_offset) &&
   counter(v.resume_offset) &&
   v.next_offset <= 1572864 &&
@@ -154,6 +172,22 @@ export function isUpdateReply(v: unknown): v is UpdateReply {
       return identity(v) && offsets(v) && v.chunk_bytes === 256;
     case 'update-chunk-written':
       return identity(v) && offsets(v);
+    case 'binary-transfer-ready':
+      return (
+        identity(v) &&
+        offsets(v) &&
+        v.block_bytes === 4096 &&
+        v.next_offset % 4096 === 0
+      );
+    case 'binary-block-written':
+      return (
+        identity(v) &&
+        offsets(v) &&
+        v.next_offset % 4096 === 0 &&
+        v.resume_offset === v.next_offset
+      );
+    case 'binary-transfer-ended':
+      return Object.keys(v).length === 1;
     case 'update-ready':
     case 'update-aborted':
       return identity(v);
@@ -167,6 +201,7 @@ export function isUpdateReply(v: unknown): v is UpdateReply {
 }
 export const expectedUpdateReply: Record<string, string> = {
   'begin-update': 'update-begun',
+  'begin-binary-transfer': 'binary-transfer-ready',
   'write-update-chunk': 'update-chunk-written',
   'finish-update': 'update-ready',
   'activate-update': 'update-activating',
