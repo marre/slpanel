@@ -168,7 +168,9 @@ export async function uploadFirmware(
     const ended = await binary.end();
     if (ended.reply !== 'binary-transfer-ended')
       throw new Error(
-        ended.reply === 'error' ? ended.message : 'Could not end binary transfer.',
+        ended.reply === 'error'
+          ? ended.message
+          : 'Could not end binary transfer.',
       );
     if (signal?.aborted) {
       const aborted = await request({ op: 'abort-update', ...identity });

@@ -124,7 +124,11 @@ describe('signed update host flow', () => {
           };
         case 'finish-update':
           expect(steps.at(-2)).toBe('end');
-          return { reply: 'update-ready', image_id: imageId, attempt_id: attemptId };
+          return {
+            reply: 'update-ready',
+            image_id: imageId,
+            attempt_id: attemptId,
+          };
         case 'activate-update':
           expect(steps.at(-2)).toBe('record');
           return {
@@ -138,19 +142,21 @@ describe('signed update host flow', () => {
       }
     });
     const binary = {
-      writeBlock: vi.fn(async (requested: number, data: Uint8Array): Promise<DeviceReply> => {
-        steps.push('binary');
-        expect(requested).toBe(offset);
-        expect(data).toHaveLength(4096);
-        offset += 4096;
-        return {
-          reply: 'binary-block-written',
-          image_id: imageId,
-          attempt_id: attemptId,
-          next_offset: offset,
-          resume_offset: offset,
-        };
-      }),
+      writeBlock: vi.fn(
+        async (requested: number, data: Uint8Array): Promise<DeviceReply> => {
+          steps.push('binary');
+          expect(requested).toBe(offset);
+          expect(data).toHaveLength(4096);
+          offset += 4096;
+          return {
+            reply: 'binary-block-written',
+            image_id: imageId,
+            attempt_id: attemptId,
+            next_offset: offset,
+            resume_offset: offset,
+          };
+        },
+      ),
       end: vi.fn(async (): Promise<DeviceReply> => {
         steps.push('end');
         return { reply: 'binary-transfer-ended' };
@@ -159,12 +165,22 @@ describe('signed update host flow', () => {
     await uploadFirmware(
       pkg,
       { ...info, capabilities: [...info.capabilities, 'binary-update-4k-v1'] },
-      exchange, vi.fn(), () => steps.push('record'), undefined, binary,
+      exchange,
+      vi.fn(),
+      () => steps.push('record'),
+      undefined,
+      binary,
     );
     expect(binary.writeBlock).toHaveBeenCalledTimes(2);
     expect(steps).toEqual([
-      'begin-update', 'begin-binary-transfer', 'binary', 'binary',
-      'end', 'finish-update', 'record', 'activate-update',
+      'begin-update',
+      'begin-binary-transfer',
+      'binary',
+      'binary',
+      'end',
+      'finish-update',
+      'record',
+      'activate-update',
     ]);
   });
 
@@ -172,28 +188,49 @@ describe('signed update host flow', () => {
     const exchange = vi.fn(async (r): Promise<DeviceReply> =>
       r.op === 'begin-update'
         ? {
-            reply: 'update-begun', image_id: imageId, attempt_id: attemptId,
-            next_offset: 0, resume_offset: 0, chunk_bytes: 256,
+            reply: 'update-begun',
+            image_id: imageId,
+            attempt_id: attemptId,
+            next_offset: 0,
+            resume_offset: 0,
+            chunk_bytes: 256,
           }
         : {
-            reply: 'binary-transfer-ready', image_id: imageId, attempt_id: attemptId,
-            next_offset: 0, resume_offset: 0, block_bytes: 4096,
+            reply: 'binary-transfer-ready',
+            image_id: imageId,
+            attempt_id: attemptId,
+            next_offset: 0,
+            resume_offset: 0,
+            block_bytes: 4096,
           },
     );
     const binary = {
       writeBlock: vi.fn(async (): Promise<DeviceReply> => ({
-        reply: 'binary-block-written', image_id: imageId, attempt_id: attemptId,
-        next_offset: 4096, resume_offset: 0,
+        reply: 'binary-block-written',
+        image_id: imageId,
+        attempt_id: attemptId,
+        next_offset: 4096,
+        resume_offset: 0,
       })),
       end: vi.fn(),
     };
-    await expect(uploadFirmware(
-      pkg,
-      { ...info, capabilities: [...info.capabilities, 'binary-update-4k-v1'] },
-      exchange, vi.fn(), vi.fn(), undefined, binary,
-    )).rejects.toThrow('durable binary block acknowledgment');
+    await expect(
+      uploadFirmware(
+        pkg,
+        {
+          ...info,
+          capabilities: [...info.capabilities, 'binary-update-4k-v1'],
+        },
+        exchange,
+        vi.fn(),
+        vi.fn(),
+        undefined,
+        binary,
+      ),
+    ).rejects.toThrow('durable binary block acknowledgment');
     expect(exchange.mock.calls.map(([r]) => r.op)).toEqual([
-      'begin-update', 'begin-binary-transfer',
+      'begin-update',
+      'begin-binary-transfer',
     ]);
     expect(binary.end).not.toHaveBeenCalled();
   });

@@ -24,8 +24,13 @@ export class TestDevicePort implements DeviceSerialPort {
   });
   readonly writable = new WritableStream<Uint8Array>({
     write: (bytes) => {
-      if (bytes.length >= 8 && bytes[0] === 83 && bytes[1] === 76 &&
-          bytes[2] === 66 && bytes[3] === 49) {
+      if (
+        bytes.length >= 8 &&
+        bytes[0] === 83 &&
+        bytes[1] === 76 &&
+        bytes[2] === 66 &&
+        bytes[3] === 49
+      ) {
         this.binaryFrames.push(bytes.slice());
         const reply = this.respondBinary?.(bytes);
         if (reply) this.send(reply);
@@ -69,7 +74,9 @@ export class TestDevicePort implements DeviceSerialPort {
       display_id: 'device-screen',
       wifi_password_set: true,
     },
-    private readonly respondBinary?: (frame: Uint8Array) => DeviceReply | undefined,
+    private readonly respondBinary?: (
+      frame: Uint8Array,
+    ) => DeviceReply | undefined,
   ) {}
 
   send(reply: DeviceReply) {

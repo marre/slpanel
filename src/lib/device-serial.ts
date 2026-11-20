@@ -382,9 +382,16 @@ export class DeviceSerialClient {
    * and exactly 4096 opaque bytes. The device replies only after full flash
    * read-back and durable sector checkpoint. JSON is used for control only.
    */
-  async writeBinaryBlock(offset: number, data: Uint8Array): Promise<DeviceReply> {
-    if (data.length !== 4096 || offset % 4096 !== 0 ||
-        offset < 0 || offset >= 1572864) {
+  async writeBinaryBlock(
+    offset: number,
+    data: Uint8Array,
+  ): Promise<DeviceReply> {
+    if (
+      data.length !== 4096 ||
+      offset % 4096 !== 0 ||
+      offset < 0 ||
+      offset >= 1572864
+    ) {
       throw new Error('Invalid binary firmware block.');
     }
     const frame = new Uint8Array(8 + 4096);
@@ -419,7 +426,9 @@ export class DeviceSerialClient {
       }
       return reply;
     } catch (error) {
-      this.fail(error instanceof Error ? error : new Error('Binary transfer failed.'));
+      this.fail(
+        error instanceof Error ? error : new Error('Binary transfer failed.'),
+      );
       throw error;
     } finally {
       this.requesting = false;

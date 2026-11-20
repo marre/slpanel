@@ -272,23 +272,28 @@ describe('DeviceSerialClient', () => {
   });
 
   it('sends opaque 4 KiB binary frames and an explicit exit frame', async () => {
-    const image = 'a'.repeat(64), attempt = 'b'.repeat(32);
+    const image = 'a'.repeat(64),
+      attempt = 'b'.repeat(32);
     const port = new TestDevicePort(
-      (request) => request.op === 'begin-binary-transfer'
-        ? {
-            reply: 'binary-transfer-ready',
-            image_id: image,
-            attempt_id: attempt,
-            next_offset: 4096,
-            resume_offset: 4096,
-            block_bytes: 4096,
-          }
-        : undefined,
+      (request) =>
+        request.op === 'begin-binary-transfer'
+          ? {
+              reply: 'binary-transfer-ready',
+              image_id: image,
+              attempt_id: attempt,
+              next_offset: 4096,
+              resume_offset: 4096,
+              block_bytes: 4096,
+            }
+          : undefined,
       2,
       undefined,
       (frame) => {
-        const offset = new DataView(frame.buffer, frame.byteOffset, frame.byteLength)
-          .getUint32(4, true);
+        const offset = new DataView(
+          frame.buffer,
+          frame.byteOffset,
+          frame.byteLength,
+        ).getUint32(4, true);
         return offset === 0xffffffff
           ? { reply: 'binary-transfer-ended' }
           : {

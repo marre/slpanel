@@ -168,11 +168,19 @@ export function isUpdateReply(v: unknown): v is UpdateReply {
     case 'update-chunk-written':
       return identity(v) && offsets(v);
     case 'binary-transfer-ready':
-      return identity(v) && offsets(v) && v.block_bytes === 4096 &&
-        v.next_offset % 4096 === 0;
+      return (
+        identity(v) &&
+        offsets(v) &&
+        v.block_bytes === 4096 &&
+        v.next_offset % 4096 === 0
+      );
     case 'binary-block-written':
-      return identity(v) && offsets(v) && v.next_offset % 4096 === 0 &&
-        v.resume_offset === v.next_offset;
+      return (
+        identity(v) &&
+        offsets(v) &&
+        v.next_offset % 4096 === 0 &&
+        v.resume_offset === v.next_offset
+      );
     case 'binary-transfer-ended':
       return Object.keys(v).length === 1;
     case 'update-ready':

@@ -576,7 +576,8 @@ export function useDevice() {
         },
         cancellation.signal,
         {
-          writeBlock: (offset, bytes) => current.writeBinaryBlock(offset, bytes),
+          writeBlock: (offset, bytes) =>
+            current.writeBinaryBlock(offset, bytes),
           end: () => current.endBinaryTransfer(),
         },
       );
