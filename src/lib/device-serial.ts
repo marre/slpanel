@@ -265,6 +265,11 @@ export class DeviceSerialClient {
   private closed = false;
   private requesting = false;
   private resetting = true;
+  private binaryActive = false;
+
+  get binaryTransferActive(): boolean {
+    return this.binaryActive;
+  }
 
   constructor(
     private readonly port: DeviceSerialPort,
@@ -325,6 +330,9 @@ export class DeviceSerialClient {
     if (this.requesting || this.pending) {
       throw new Error('A device request is already running.');
     }
+    if (this.binaryActive) {
+      throw new Error('Finish binary transfer before sending JSON commands.');
+    }
     if (request.op === 'configure') {
       validateDeviceConfig(request.config);
     }
@@ -356,6 +364,9 @@ export class DeviceSerialClient {
       }
       if (reply.reply !== expected) {
         throw new Error('Unexpected reply; reconnect the device.');
+      }
+      if (reply.reply === 'binary-transfer-ready') {
+        this.binaryActive = true;
       }
       if (
         request.op === 'logs' &&
@@ -416,13 +427,19 @@ export class DeviceSerialClient {
     if (this.requesting || this.pending) {
       throw new Error('A device request is already running.');
     }
+    if (!this.binaryActive) {
+      throw new Error('Binary upload mode is not active.');
+    }
     this.requesting = true;
     try {
       const response = this.waitForReply();
       const [, reply] = await Promise.all([this.writer.write(frame), response]);
-      if (reply.reply === 'error') return reply;
+      if (reply.reply === 'error') throw new Error(reply.message);
       if (reply.reply !== expected) {
         throw new Error('Unexpected binary transfer response; reconnect.');
+      }
+      if (expected === 'binary-transfer-ended') {
+        this.binaryActive = false;
       }
       return reply;
     } catch (error) {
@@ -511,6 +528,7 @@ export class DeviceSerialClient {
     }
     this.closed = true;
     this.ready = false;
+    this.binaryActive = false;
     if (this.pending) {
       clearTimeout(this.pending.timer);
       this.pending.reject(reason);
