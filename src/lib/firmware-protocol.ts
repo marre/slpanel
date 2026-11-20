@@ -137,7 +137,7 @@ export function isUpdateReply(v: unknown): v is UpdateReply {
         typeof v.security.hardware_secure_boot === 'boolean' &&
         (v.security.trusted_key_id === undefined ||
           (typeof v.security.trusted_key_id === 'string' &&
-            /^[\\x20-\\x7e]{1,16}$/.test(v.security.trusted_key_id)))
+            /^[\x20-\x7e]{1,16}$/.test(v.security.trusted_key_id)))
       );
     case 'update-status':
       return (
