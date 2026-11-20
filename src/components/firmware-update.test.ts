@@ -7,8 +7,11 @@ import type { DeviceInfo } from '@/lib/firmware-protocol';
 
 const imageId = 'a'.repeat(64);
 const release = { image_id: imageId, version: '0.0.6' };
-vi.mock('@/lib/firmware-updater', () => ({
-  listReleases: vi.fn(async () => [release]),
+vi.mock('@/lib/firmware-updater', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/firmware-updater')>();
+  return {
+    ...actual,
+    listReleases: vi.fn(async () => [release]),
   downloadRelease: vi.fn(async () => ({
     manifest: {
       version: '0.0.6',
@@ -19,8 +22,9 @@ vi.mock('@/lib/firmware-updater', () => ({
     imageId,
     bytes: new Uint8Array(0),
   })),
-  readPackage: vi.fn(),
-}));
+    readPackage: vi.fn(),
+  };
+});
 
 const info: DeviceInfo = {
   device_id: '1234567890abcdef',
