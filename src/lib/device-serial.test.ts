@@ -271,6 +271,67 @@ describe('DeviceSerialClient', () => {
     await next.disconnect();
   });
 
+  it('sends opaque 4 KiB binary frames and an explicit exit frame', async () => {
+    const image = 'a'.repeat(64), attempt = 'b'.repeat(32);
+    const port = new TestDevicePort(
+      (request) => request.op === 'begin-binary-transfer'
+        ? {
+            reply: 'binary-transfer-ready',
+            image_id: image,
+            attempt_id: attempt,
+            next_offset: 4096,
+            resume_offset: 4096,
+            block_bytes: 4096,
+          }
+        : undefined,
+      2,
+      undefined,
+      (frame) => {
+        const offset = new DataView(frame.buffer, frame.byteOffset, frame.byteLength)
+          .getUint32(4, true);
+        return offset === 0xffffffff
+          ? { reply: 'binary-transfer-ended' }
+          : {
+              reply: 'binary-block-written',
+              image_id: image,
+              attempt_id: attempt,
+              next_offset: offset + 4096,
+              resume_offset: offset + 4096,
+            };
+      },
+    );
+    const client = new DeviceSerialClient(port, vi.fn());
+    await client.connect();
+    await expect(
+      client.request({
+        op: 'begin-binary-transfer',
+        image_id: image,
+        attempt_id: attempt,
+      }),
+    ).resolves.toMatchObject({ reply: 'binary-transfer-ready' });
+    const data = new Uint8Array(4096).fill(255);
+    data.set([0, 10, 13, 123, 34, 0, 65], 0);
+    await expect(client.writeBinaryBlock(4096, data)).resolves.toMatchObject({
+      reply: 'binary-block-written',
+      next_offset: 8192,
+    });
+    expect(port.binaryFrames[0]).toHaveLength(4104);
+    expect([...port.binaryFrames[0].slice(0, 8)]).toEqual([
+      83, 76, 66, 49, 0, 16, 0, 0,
+    ]);
+    expect(port.binaryFrames[0].slice(8)).toEqual(data);
+    await expect(client.endBinaryTransfer()).resolves.toEqual({
+      reply: 'binary-transfer-ended',
+    });
+    expect([...port.binaryFrames[1]]).toEqual([
+      83, 76, 66, 49, 255, 255, 255, 255,
+    ]);
+    await expect(client.writeBinaryBlock(1, data)).rejects.toThrow(
+      'Invalid binary firmware block',
+    );
+    await client.disconnect();
+  });
+
   it('closes a device that is unplugged while a request is pending', async () => {
     const port = new TestDevicePort();
     const disconnected = vi.fn();
