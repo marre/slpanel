@@ -47,15 +47,14 @@ const manifest: Manifest = {
 };
 const pkg = { manifest, bytes: new Uint8Array(1572864).fill(255), imageId };
 describe('signed update host flow', () => {
-  it('rejects a different signing key before sending any USB request', async () => {
+  it('rejects untrusted keys before USB', async () => {
     const exchange = vi.fn();
     const incompatible = {
       ...info,
       security: { ...info.security, trusted_key_id: 'dev-test-1' },
     };
-    expect(firmwareCompatibilityError(pkg, incompatible)).toContain(
-      'dev-test-1',
-    );
+    const message = firmwareCompatibilityError(pkg, incompatible);
+    expect(message).toContain('dev-test-1');
     await expect(
       uploadFirmware(pkg, incompatible, exchange, vi.fn(), vi.fn()),
     ).rejects.toThrow('signed with key ID');
@@ -77,11 +76,10 @@ describe('signed update host flow', () => {
     const exchange = vi.fn(async () => {
       throw new Error('unsupported-image');
     });
+    const rejected = 'The device rejected this firmware (unsupported-image)';
     await expect(
       uploadFirmware(pkg, info, exchange, vi.fn(), vi.fn()),
-    ).rejects.toThrow(
-      'The device rejected this firmware (unsupported-image)',
-    );
+    ).rejects.toThrow(rejected);
     expect(exchange).toHaveBeenCalledTimes(1);
     expect(exchange).toHaveBeenCalledWith({ op: 'begin-update', manifest });
   });
