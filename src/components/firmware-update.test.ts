@@ -8,7 +8,8 @@ import type { DeviceInfo } from '@/lib/firmware-protocol';
 const imageId = 'a'.repeat(64);
 const release = { image_id: imageId, version: '0.0.6' };
 vi.mock('@/lib/firmware-updater', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@/lib/firmware-updater')>();
+  const actual =
+    await importOriginal<typeof import('@/lib/firmware-updater')>();
   return {
     ...actual,
     listReleases: vi.fn(async () => [release]),
