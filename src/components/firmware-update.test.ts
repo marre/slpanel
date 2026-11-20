@@ -10,7 +10,12 @@ const release = { image_id: imageId, version: '0.0.6' };
 vi.mock('@/lib/firmware-updater', () => ({
   listReleases: vi.fn(async () => [release]),
   downloadRelease: vi.fn(async () => ({
-    manifest: { version: '0.0.6' },
+    manifest: {
+      version: '0.0.6',
+      board: 'interstate75w-rp2350',
+      layout: 'slpanel-rp2350-4m-v2',
+      key_id: 'release',
+    },
     imageId,
     bytes: new Uint8Array(0),
   })),
@@ -31,10 +36,18 @@ const info: DeviceInfo = {
     chunk_bytes: 256,
     checkpoint_bytes: 4096,
   },
-  security: { signed_updates: true, hardware_secure_boot: false },
+  security: {
+    signed_updates: true,
+    hardware_secure_boot: false,
+    trusted_key_id: 'release',
+  },
 };
 
-async function ready(infoToUse: DeviceInfo, onUpdate = vi.fn()) {
+async function ready(
+  infoToUse: DeviceInfo,
+  onUpdate = vi.fn(),
+  compatible = true,
+) {
   await render(
     h(FirmwareUpdate, {
       info: infoToUse,
@@ -54,7 +67,8 @@ async function ready(infoToUse: DeviceInfo, onUpdate = vi.fn()) {
   await fireEvent.click(
     screen.getByRole('button', { name: 'Download release' }),
   );
-  await screen.findByText(/Ready to install 0\.0\.6/);
+  if (compatible) await screen.findByText(/Ready to install 0\.0\.6/);
+  else await screen.findByRole('alert');
   return onUpdate;
 }
 
@@ -83,6 +97,22 @@ describe('signed firmware installation confirmation', () => {
       await screen.findByRole('button', { name: 'Install firmware' }),
     );
     expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the key mismatch and disables the install button', async () => {
+    const update = await ready(
+      { ...info, security: { ...info.security, trusted_key_id: 'dev-test-1' } },
+      vi.fn(),
+      false,
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'device trusts "dev-test-1"',
+    );
+    expect(
+      screen.getByRole('button', { name: 'Update firmware' }),
+    ).toBeDisabled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(update).not.toHaveBeenCalled();
   });
 
   it('still instructs a physical press for older installed firmware', async () => {
