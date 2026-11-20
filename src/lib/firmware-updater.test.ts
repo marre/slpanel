@@ -53,7 +53,9 @@ describe('signed update host flow', () => {
       ...info,
       security: { ...info.security, trusted_key_id: 'dev-test-1' },
     };
-    expect(firmwareCompatibilityError(pkg, incompatible)).toContain('dev-test-1');
+    expect(firmwareCompatibilityError(pkg, incompatible)).toContain(
+      'dev-test-1',
+    );
     await expect(
       uploadFirmware(pkg, incompatible, exchange, vi.fn(), vi.fn()),
     ).rejects.toThrow('signed with key ID');
@@ -77,7 +79,9 @@ describe('signed update host flow', () => {
     });
     await expect(
       uploadFirmware(pkg, info, exchange, vi.fn(), vi.fn()),
-    ).rejects.toThrow('The device rejected this firmware (unsupported-image)');
+    ).rejects.toThrow(
+      'The device rejected this firmware (unsupported-image)',
+    );
     expect(exchange).toHaveBeenCalledTimes(1);
     expect(exchange).toHaveBeenCalledWith({ op: 'begin-update', manifest });
   });
