@@ -575,6 +575,10 @@ export function useDevice() {
           }
         },
         cancellation.signal,
+        {
+          writeBlock: (offset, bytes) => current.writeBinaryBlock(offset, bytes),
+          end: () => current.endBinaryTransfer(),
+        },
       );
       await disconnect();
       notice.value =
