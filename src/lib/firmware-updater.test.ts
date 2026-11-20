@@ -79,7 +79,7 @@ describe('signed update host flow', () => {
       uploadFirmware(pkg, info, exchange, vi.fn(), vi.fn()),
     ).rejects.toThrow('The device rejected this firmware (unsupported-image)');
     expect(exchange).toHaveBeenCalledTimes(1);
-    expect(exchange.mock.calls[0]?.[0]).toMatchObject({ op: 'begin-update' });
+    expect(exchange).toHaveBeenCalledWith({ op: 'begin-update', manifest });
   });
 
   it('validates optional key ID on device-info replies', () => {
@@ -94,7 +94,7 @@ describe('signed update host flow', () => {
     expect(
       isUpdateReply({
         ...reply,
-        security: { ...info.security, trusted_key_id: 'invalid\\n' },
+        security: { ...info.security, trusted_key_id: 'invalid\n' },
       }),
     ).toBe(false);
   });
