@@ -314,6 +314,10 @@ describe('DeviceSerialClient', () => {
         attempt_id: attempt,
       }),
     ).resolves.toMatchObject({ reply: 'binary-transfer-ready' });
+    expect(client.binaryTransferActive).toBe(true);
+    await expect(client.request({ op: 'status' })).rejects.toThrow(
+      'Finish binary transfer',
+    );
     const data = new Uint8Array(4096).fill(255);
     data.set([0, 10, 13, 123, 34, 0, 65], 0);
     await expect(client.writeBinaryBlock(4096, data)).resolves.toMatchObject({
@@ -331,6 +335,7 @@ describe('DeviceSerialClient', () => {
     expect([...port.binaryFrames[1]]).toEqual([
       83, 76, 66, 49, 255, 255, 255, 255,
     ]);
+    expect(client.binaryTransferActive).toBe(false);
     await expect(client.writeBinaryBlock(1, data)).rejects.toThrow(
       'Invalid binary firmware block',
     );
