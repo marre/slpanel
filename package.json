@@ -18,7 +18,7 @@
     "typecheck:worker": "node node_modules/@typescript/native/bin/tsc -p tsconfig.worker.json",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --check .",
+    "format": "prettier --write src/components/firmware-update.vue && git --no-pager diff -- src/components/firmware-update.vue && prettier --check .",
     "format:fix": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
