@@ -75,6 +75,28 @@ export async function readPackage(
     throw new Error('Firmware trailer does not match the manifest.');
   return { manifest: m, bytes, imageId: toHex(await digest(message)) };
 }
+/** Validate what the device advertises before opening an update session.
+ * Older v2 firmware omits the key ID, so its embedded verifier remains authoritative.
+ */
+export function firmwareCompatibilityError(
+  pkg: Package,
+  info: DeviceInfo,
+): string | null {
+  if (
+    !info.capabilities.includes('staged-update-v1') ||
+    !info.security.signed_updates ||
+    info.board !== pkg.manifest.board ||
+    info.layout !== pkg.manifest.layout ||
+    info.update_limits.image_size !== IMAGE_BYTES ||
+    info.update_limits.chunk_bytes !== 256 ||
+    info.update_limits.checkpoint_bytes !== 4096
+  )
+    return 'This device needs a compatible staged-update bootloader installation.';
+  const trusted = info.security.trusted_key_id;
+  if (trusted !== undefined && trusted !== pkg.manifest.key_id)
+    return `This firmware is signed with key ID "${pkg.manifest.key_id}", but the device trusts "${trusted}". Use an image signed with the installed bootloader's key, or reinstall a compatible recovery UF2 through ROM BOOTSEL to change the trusted key.`;
+  return null;
+}
 export type Exchange = (request: DeviceRequest) => Promise<DeviceReply>;
 export type Phase =
   'Uploading' | 'Verifying' | 'Restarting' | 'Checking device';
@@ -86,24 +108,26 @@ export async function uploadFirmware(
   beforeActivation: (identity: UpdateIdentity) => void,
   signal?: AbortSignal,
 ): Promise<UpdateIdentity> {
-  if (
-    !info.capabilities.includes('staged-update-v1') ||
-    !info.security.signed_updates ||
-    info.board !== pkg.manifest.board ||
-    info.layout !== pkg.manifest.layout ||
-    info.update_limits.image_size !== IMAGE_BYTES ||
-    info.update_limits.chunk_bytes !== 256 ||
-    info.update_limits.checkpoint_bytes !== 4096
-  )
-    throw new Error(
-      'This device needs the staged-update bootloader installation.',
-    );
+  const compatibilityError = firmwareCompatibilityError(pkg, info);
+  if (compatibilityError) throw new Error(compatibilityError);
   const request = async (r: DeviceRequest) => {
     const v = await exchange(r);
     if (v.reply === 'error') throw new Error(v.message);
     return v;
   };
-  const begun = await request({ op: 'begin-update', manifest: pkg.manifest });
+  let begun: DeviceReply;
+  try {
+    begun = await request({ op: 'begin-update', manifest: pkg.manifest });
+  } catch (error) {
+    // Older firmware doesn't report its trusted key ID in device-info.
+    // It still enforces the same signature and compatibility checks.
+    if (error instanceof Error && error.message === 'unsupported-image')
+      throw new Error(
+        'The device rejected this firmware (unsupported-image). Its signing key or image format may not match the installed bootloader. If the key IDs match, the public keys could still differ. The installed firmware was not replaced.',
+        { cause: error },
+      );
+    throw error;
+  }
   if (
     begun.reply !== 'update-begun' ||
     begun.image_id !== pkg.imageId ||

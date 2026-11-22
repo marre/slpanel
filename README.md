@@ -409,8 +409,14 @@ tag commit, main ancestry, publication receipt, and required assets/SBOM before
 offering a release. New eligible releases appear without rebuilding the web app;
 discovery is cached for five minutes. Users can also select a release's
 `manifest.json` and `firmware.bin` locally. The browser checks exact size,
-compatibility, SHA-256 and metadata before uploading. The panel and bootloader
-verify Ed25519 against their embedded public key.
+compatibility, SHA-256 and metadata before uploading. Newer firmware reports
+its public trusted signing key ID in `device-info`; the web page compares that ID
+with the manifest, displays mismatches, and disables installation before any
+USB update request. Older protocol-v2 firmware omits the key ID; the page still
+supports it and explains `unsupported-image` if the device rejects the image.
+A matching ID is not proof of a matching public key. The panel and bootloader
+remain responsible for Ed25519 signature verification. Changing the bootloader's
+trust root requires a separate ROM BOOTSEL recovery/bootstrap flash.
 
 On firmware advertising `signed-usb-update-v1`, select the signed release,
 choose **Update firmware**, and confirm in the browser. No physical button is
