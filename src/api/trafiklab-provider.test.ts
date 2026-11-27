@@ -44,7 +44,7 @@ describe('createTrafiklabProvider', () => {
           departures: [
             {
               destination: 'Hagsätra',
-              direction: 'Hagsätra',
+              direction: 'Southbound',
               direction_code: 2,
               state: 'EXPECTED',
               display: '5 min',

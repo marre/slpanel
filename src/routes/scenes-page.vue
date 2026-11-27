@@ -6,13 +6,17 @@ import DisplayBoard from '@/components/display-board.vue';
 import ConfirmDeleteDialog from '@/components/confirm-delete-dialog.vue';
 import { useOwnerWorkspace } from '@/composables/use-owner-workspace';
 import { usePolling } from '@/composables/use-polling';
-import type { DepartureRecord, StopSearchResult } from '@/api/types';
+import type {
+  DepartureRecord,
+  StopSearchResult,
+  StopServices,
+} from '@/api/types';
 import type {
   DataSourceInput,
   DataSourceRecord,
   SceneRecord,
 } from '@/api/scene-types';
-import { listDepartures } from '@/lib/config-api';
+import { listDepartures, listStopServices } from '@/lib/config-api';
 import {
   directionOptions,
   lineOptions,
@@ -151,24 +155,63 @@ watch(
   },
   { immediate: true },
 );
+const planned = ref<StopServices | null>(null);
+const catalogLoading = ref(false);
+const catalogError = ref(false);
+const catalogRetry = ref(0);
+watch(
+  () => [editing.value ? sourceDraft.value.site_id : null, catalogRetry.value] as const,
+  ([siteId], _old, onCleanup) => {
+    planned.value = null;
+    catalogError.value = false;
+    catalogLoading.value = Boolean(siteId);
+    if (!siteId) return;
+    const controller = new AbortController();
+    onCleanup(() => controller.abort());
+    void listStopServices(siteId, controller.signal)
+      .then((result) => {
+        if (!controller.signal.aborted) planned.value = result;
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) catalogError.value = true;
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) catalogLoading.value = false;
+      });
+  },
+  { immediate: true },
+);
 const previewPoll = usePolling<DepartureRecord[]>(
   () => [
     editing.value,
     previewSource.value.site_id,
     previewSource.value.refresh_interval,
+    lines.value,
+    directions.value,
+    modes.value,
   ],
   (signal) =>
     editing.value && previewSource.value.site_id
-      ? listDepartures(previewSource.value.site_id, { forecast: 240, signal })
+      ? listDepartures(previewSource.value.site_id, {
+          forecast: 240,
+          lines: lines.value,
+          directions: directions.value,
+          modes: modes.value,
+          signal,
+        })
       : null,
   () => previewSource.value.refresh_interval,
 );
 const departureHints = computed(() => previewPoll.data.value ?? []);
+const serviceHints = computed(() => {
+  if (planned.value?.complete) return planned.value.services;
+  return [...(planned.value?.services ?? []), ...departureHints.value];
+});
 const availableModes = computed(() => {
   const options = [...transportModeOptions];
   for (const mode of [
     ...modes.value,
-    ...departureHints.value.map((d) => d.transport_mode),
+    ...serviceHints.value.map((d) => d.transport_mode),
   ]) {
     if (!options.some((option) => option.value === mode)) {
       options.push({ value: mode, label: mode, transportMode: '' });
@@ -177,20 +220,12 @@ const availableModes = computed(() => {
   return options;
 });
 const availableLines = computed(() =>
-  lineOptions(departureHints.value, modes.value),
+  lineOptions(serviceHints.value, modes.value),
 );
 const availableDirections = computed(() =>
-  directionOptions(departureHints.value, lines.value, modes.value),
+  directionOptions(serviceHints.value, lines.value, modes.value),
 );
-const filteredDepartures = computed(() =>
-  departureHints.value.filter(
-    (departure) =>
-      (!lines.value.length || lines.value.includes(departure.line_number)) &&
-      (!directions.value.length ||
-        directions.value.includes(departure.destination)) &&
-      (!modes.value.length || modes.value.includes(departure.transport_mode)),
-  ),
-);
+const filteredDepartures = departureHints;
 async function refreshLibrary() {
   const [nextScenes, nextSources] = await Promise.all([
     listScenes(owner.value),
@@ -550,22 +585,39 @@ function description(scene: SceneRecord) {
               </div>
               <div class="space-y-1.5 sm:col-span-2">
                 <label for="directions" class="text-sm font-medium">
-                  Directions (optional)
+                  Destinations (optional)
                 </label>
                 <FilterPicker
                   id="directions"
                   v-model="directions"
                   :options="availableDirections"
                   :disabled="!sourceDraft.site_id"
-                  placeholder="All directions"
+                  placeholder="All destinations"
                 />
               </div>
             </div>
             <p class="text-xs text-[var(--muted-text)]">
               Leave filters empty to include all departures. Line suggestions
-              follow the selected transport modes, and directions follow the
+              follow the selected transport modes, and destinations follow the
               selected lines.
             </p>
+            <p v-if="catalogLoading" class="text-xs text-[var(--muted-text)]">
+              Loading planned services…
+            </p>
+            <div
+              v-else-if="sourceDraft.site_id && (catalogError || !planned?.complete)"
+              class="text-xs text-[var(--muted-text)]"
+            >
+              Planned services are incomplete or unavailable. Suggestions may
+              omit some destinations. You can still enter values manually.
+              <button
+                type="button"
+                class="underline"
+                @click="catalogRetry++"
+              >
+                Retry
+              </button>
+            </div>
             <label class="block space-y-1.5 text-sm font-medium">
               <span>Full-screen visualization</span>
               <select :class="fieldClass" value="departures-list" disabled>

@@ -187,6 +187,36 @@ describe('createApp', () => {
     });
   });
 
+  it('exposes planned services separately from live departures', async () => {
+    const app = createApp({
+      transitProvider: createTestProvider(),
+      serviceCatalog: {
+        async getServices(siteId) {
+          return {
+            site_id: siteId,
+            services: [
+              {
+                line_number: '27',
+                destination: 'Ormsta',
+                transport_mode: 'TRAM',
+              },
+            ],
+            complete: true,
+            valid_to: '2026-12-24',
+          };
+        },
+      },
+    });
+    const response = await app.request('/api/stops/1234/services');
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      site_id: '1234',
+      services: [{ destination: 'Ormsta' }],
+      complete: true,
+    });
+    expect((await app.request('/api/stops/no/services')).status).toBe(400);
+  });
+
   it('returns structured validation errors for bad requests', async () => {
     const app = createApp({
       transitProvider: createTestProvider(),

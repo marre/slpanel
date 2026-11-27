@@ -60,3 +60,15 @@ export interface DeparturesQuery {
   modes: string[];
   forecast: number;
 }
+
+export type ServiceOption = Pick<
+  DepartureRecord,
+  'line_number' | 'destination' | 'transport_mode'
+>;
+
+export interface StopServices {
+  site_id: string;
+  services: ServiceOption[];
+  complete: boolean;
+  valid_to: string;
+}

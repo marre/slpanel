@@ -3,7 +3,7 @@ import type {
   DataSourceRecord,
   SceneRecord,
 } from '@/api/scene-types';
-import type { DepartureRecord } from '@/api/types';
+import type { ServiceOption } from '@/api/types';
 
 type FilterOption = {
   value: string;
@@ -21,7 +21,7 @@ export const transportModeOptions: FilterOption[] = [
 ];
 
 export function lineOptions(
-  departures: DepartureRecord[],
+  departures: ServiceOption[],
   modes: string[],
 ): FilterOption[] {
   const seen = new Map<string, Set<string>>();
@@ -44,7 +44,7 @@ export function lineOptions(
 }
 
 export function directionOptions(
-  departures: DepartureRecord[],
+  departures: ServiceOption[],
   lines: string[],
   modes: string[],
 ): FilterOption[] {
