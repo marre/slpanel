@@ -452,3 +452,23 @@ web app even though the firmware source repository is private. Never configure
 the signing seed in the Worker. For local development set the same bindings in
 an untracked `.dev.vars` file. Missing/expired private-repo access produces a
 release-unavailable error; local package selection still works.
+
+### Planned service catalogue
+
+The scene editor requests `GET /api/stops/:siteId/services` once per selected
+site, separately from the live preview. The Worker resolves the site using SL
+Transport's expanded site list and reads only the necessary content-addressed
+sliso partitions from https://sliso.xr.se/data/service-catalog/manifest.json.
+It verifies shard size and SHA-256, caches the site list for 24 hours and the
+manifest for one hour, and retains up to 64 shards per isolate. SL stop-area
+IDs are not SiteIDs. Areas absent from the catalogue are reported as incomplete,
+rather than guessed by name. Suggestions remain editable on failure.
+
+The API returns `site_id`, `services` (line number, destination and transport
+mode), `complete` and `valid_to`. GTFS extended route types map to SL Transport
+modes; Roslagsbanan lines 27/28/29 map to TRAM. The existing persisted
+`directions` field remains compatible: the live adapter matches destination
+or a historical numeric direction code, falling back to direction name only
+when the live destination is absent. Existing named scene filters already store
+destinations. Preview uses the same backend
+filters and forecast as devices. No firmware or D1 migration is required.

@@ -198,8 +198,10 @@ function matchesDepartureFilters(
   const directionName = normalize(departure.direction ?? '');
   const directionCode = String(departure.direction_code ?? '');
 
+  const destination = normalize(departure.destination ?? '');
+
   return (
-    expectedDirections.includes(directionName) ||
+    expectedDirections.includes(destination || directionName) ||
     expectedDirections.includes(directionCode)
   );
 }

@@ -18,6 +18,7 @@ import {
 } from './scene-service';
 import { ApiError, isApiError } from './errors';
 import { createTrafiklabProvider } from './trafiklab-provider';
+import { createServiceCatalog } from './service-catalog';
 import { createFirmwareReleases } from './firmware-releases';
 import type { FirmwareBindings } from './firmware-releases';
 import type { TransitProvider } from './transit-provider';
@@ -37,6 +38,7 @@ export type WorkerBindings = FirmwareBindings & {
 
 interface AppOptions {
   transitProvider?: TransitProvider;
+  serviceCatalog?: ReturnType<typeof createServiceCatalog>;
   createDisplayStore?: (db: D1Database | undefined) => DisplayStore;
   createSceneStore?: (db: D1Database | undefined) => SceneStore;
   now?: () => Date;
@@ -48,6 +50,7 @@ export function createApp(options: AppOptions = {}) {
   const app = new Hono<{ Bindings: WorkerBindings }>();
   const firmware = createFirmwareReleases();
   const transitProvider = options.transitProvider ?? createTrafiklabProvider();
+  const serviceCatalog = options.serviceCatalog ?? createServiceCatalog();
   const createDisplayStore =
     options.createDisplayStore ??
     ((db) => createD1DisplayStore(requireDatabase(db)));
@@ -502,6 +505,16 @@ export function createApp(options: AppOptions = {}) {
     const results = await transitProvider.searchStops(query);
 
     return context.json({ query, results });
+  });
+
+  api.get('/stops/:siteId/services', async (context) => {
+    const { site_id } = parseDeparturesQuery(
+      context.req.param('siteId'),
+      new URLSearchParams(),
+    );
+    const result = await serviceCatalog.getServices(site_id);
+    context.header('Cache-Control', 'public, max-age=300');
+    return context.json(result);
   });
 
   api.get('/departures/:siteId', async (context) => {

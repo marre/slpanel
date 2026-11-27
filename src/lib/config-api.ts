@@ -3,6 +3,7 @@ import type {
   DepartureRecord,
   DisplayRecord,
   StopSearchResult,
+  StopServices,
   UpdateDisplayInput,
 } from '@/api/types';
 
@@ -117,6 +118,16 @@ export async function searchStops(
   );
 
   return response.results;
+}
+
+export async function listStopServices(
+  siteId: string,
+  signal?: AbortSignal,
+): Promise<StopServices> {
+  return requestJson<StopServices>(
+    `/api/stops/${encodeURIComponent(siteId)}/services`,
+    { signal },
+  );
 }
 
 export async function listDepartures(
