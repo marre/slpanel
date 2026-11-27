@@ -201,8 +201,7 @@ function matchesDepartureFilters(
   const destination = normalize(departure.destination ?? '');
 
   return (
-    expectedDirections.includes(destination) ||
-    expectedDirections.includes(directionName) ||
+    expectedDirections.includes(destination || directionName) ||
     expectedDirections.includes(directionCode)
   );
 }

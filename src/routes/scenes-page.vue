@@ -159,25 +159,44 @@ const planned = ref<StopServices | null>(null);
 const catalogLoading = ref(false);
 const catalogError = ref(false);
 const catalogRetry = ref(0);
+const fallbackServices = ref<DepartureRecord[]>([]);
 watch(
-  () => [editing.value ? sourceDraft.value.site_id : null, catalogRetry.value] as const,
+  () =>
+    [
+      editing.value ? sourceDraft.value.site_id : null,
+      catalogRetry.value,
+    ] as const,
   ([siteId], _old, onCleanup) => {
     planned.value = null;
+    fallbackServices.value = [];
     catalogError.value = false;
     catalogLoading.value = Boolean(siteId);
     if (!siteId) return;
     const controller = new AbortController();
     onCleanup(() => controller.abort());
-    void listStopServices(siteId, controller.signal)
-      .then((result) => {
-        if (!controller.signal.aborted) planned.value = result;
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) catalogError.value = true;
-      })
-      .finally(() => {
+    void (async () => {
+      try {
+        const result = await listStopServices(siteId, controller.signal);
+        if (controller.signal.aborted) return;
+        planned.value = result;
+        if (result.complete) return;
+      } catch {
+        if (controller.signal.aborted) return;
+        catalogError.value = true;
+      } finally {
         if (!controller.signal.aborted) catalogLoading.value = false;
-      });
+      }
+      // A degraded catalogue must not depend on the currently selected filters.
+      try {
+        const result = await listDepartures(siteId, {
+          forecast: 240,
+          signal: controller.signal,
+        });
+        if (!controller.signal.aborted) fallbackServices.value = result;
+      } catch {
+        // Manual entry and saved selections remain available.
+      }
+    })();
   },
   { immediate: true },
 );
@@ -205,10 +224,13 @@ const previewPoll = usePolling<DepartureRecord[]>(
 const departureHints = computed(() => previewPoll.data.value ?? []);
 const serviceHints = computed(() => {
   if (planned.value?.complete) return planned.value.services;
-  return [...(planned.value?.services ?? []), ...departureHints.value];
+  return [...(planned.value?.services ?? []), ...fallbackServices.value];
 });
 const availableModes = computed(() => {
-  const options = [...transportModeOptions];
+  const observed = new Set(serviceHints.value.map((d) => d.transport_mode));
+  const options = planned.value?.complete
+    ? transportModeOptions.filter((option) => observed.has(option.value))
+    : [...transportModeOptions];
   for (const mode of [
     ...modes.value,
     ...serviceHints.value.map((d) => d.transport_mode),

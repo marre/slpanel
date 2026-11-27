@@ -99,6 +99,32 @@ describe('createTrafiklabProvider', () => {
     ]);
   });
 
+  it('does not treat a shared direction as an exact destination', async () => {
+    const provider = createTrafiklabProvider({
+      fetch: vi.fn<typeof fetch>().mockResolvedValue(
+        Response.json({
+          departures: [
+            {
+              destination: 'Ormsta',
+              direction: 'Kårsta',
+              direction_code: 1,
+              line: { designation: '27', transport_mode: 'TRAM' },
+            },
+          ],
+        }),
+      ),
+    });
+    await expect(
+      provider.getDepartures({
+        site_id: '42',
+        lines: ['27'],
+        directions: ['Kårsta'],
+        modes: [],
+        forecast: 240,
+      }),
+    ).resolves.toEqual([]);
+  });
+
   it('shows clock time for departures more than 30 minutes away', async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(

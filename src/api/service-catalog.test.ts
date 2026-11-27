@@ -40,7 +40,10 @@ describe('planned service catalogue', () => {
       if (url.endsWith(file)) return new Response(raw);
       throw new Error(url);
     });
-    const provider = createServiceCatalog({ fetch: fetchMock });
+    const provider = createServiceCatalog({
+      fetch: fetchMock,
+      now: () => Date.parse('2026-11-27T12:00:00Z'),
+    });
     const first = await provider.getServices('42');
     expect(first).toMatchObject({
       complete: true,

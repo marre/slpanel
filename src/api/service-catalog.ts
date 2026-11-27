@@ -17,10 +17,7 @@ type CatalogIndex = {
 type Shard = {
   schema: number;
   partition: number;
-  areas: Record<
-    string,
-    { services: { routeId: string; destination: string }[] }
-  >;
+  areas: Record<string, { services: { routeId: string; destination: string }[] }>;
   routes: Record<string, { line: string; routeType: number }>;
 };
 type Site = { id: number; stop_areas?: number[] };
@@ -61,12 +58,14 @@ function areaGid(id: number) {
   return '9021001' + String(id).padStart(6, '0') + '000';
 }
 
-export function createServiceCatalog(options: {
-  fetch?: typeof fetch;
-  catalogUrl?: string;
-  slUrl?: string;
-  now?: () => number;
-} = {}) {
+export function createServiceCatalog(
+  options: {
+    fetch?: typeof fetch;
+    catalogUrl?: string;
+    slUrl?: string;
+    now?: () => number;
+  } = {},
+) {
   const request = options.fetch ?? fetch;
   const origin = options.catalogUrl ?? DEFAULT_ORIGIN;
   const sl = options.slUrl ?? DEFAULT_SL;
@@ -132,8 +131,7 @@ export function createServiceCatalog(options: {
     const hex = Array.from(hash, (b) => b.toString(16).padStart(2, '0')).join(
       '',
     );
-    if (raw.byteLength !== ref.bytes || hex !== ref.sha256)
-      throw unavailable();
+    if (raw.byteLength !== ref.bytes || hex !== ref.sha256) throw unavailable();
     const value = JSON.parse(new TextDecoder().decode(raw)) as Shard;
     if (
       value.schema !== 1 ||
@@ -191,7 +189,10 @@ export function createServiceCatalog(options: {
     return {
       site_id: siteId,
       services: [...services.values()],
-      complete: matchedAreas === areas.length && services.size > 0,
+      complete:
+        matchedAreas === areas.length &&
+        services.size > 0 &&
+        manifest.validTo >= new Date(now()).toISOString().slice(0, 10),
       valid_to: manifest.validTo,
     };
   }

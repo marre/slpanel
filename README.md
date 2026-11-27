@@ -468,5 +468,7 @@ The API returns `site_id`, `services` (line number, destination and transport
 mode), `complete` and `valid_to`. GTFS extended route types map to SL Transport
 modes; Roslagsbanan lines 27/28/29 map to TRAM. The existing persisted
 `directions` field remains compatible: the live adapter matches destination
-as well as historical direction name and code. Preview uses the same backend
+or a historical numeric direction code, falling back to direction name only
+when the live destination is absent. Existing named scene filters already store
+destinations. Preview uses the same backend
 filters and forecast as devices. No firmware or D1 migration is required.
